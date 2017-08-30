@@ -4,4 +4,7 @@
 /not_mine/
 scripts/ssh_add_github_repo
 *.egg-info
-
+/test/*.sam
+/test/*.part
+*.fai
+*.bt2
