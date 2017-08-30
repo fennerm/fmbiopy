@@ -8,3 +8,4 @@ scripts/ssh_add_github_repo
 /test/*.part
 *.fai
 *.bt2
+*.cache
