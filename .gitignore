@@ -1,0 +1,6 @@
+*.swp
+*.pyc
+/json/
+/not_mine/
+scripts/ssh_add_github_repo
+
