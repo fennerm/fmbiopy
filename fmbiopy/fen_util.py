@@ -8,13 +8,13 @@ from subprocess import Popen, PIPE
 
 # Gunzip a given path 'p' into 'out_dir', and keep 'p'
 def gunzip(p, out_dir):
-	unzip_name = str(p.name)[:-3]
+    unzip_name = str(p.name)[:-3]
 
-	if unzip_name.endswith('.fq'):
-		unzip_name = unzip_name[:-2] + 'fastq'
-	unzip_path = Path(out_dir, unzip_name)
-	os.system('gunzip -c '+ str(p) + ' > ' + str(unzip_path))
-	return unzip_path
+    if unzip_name.endswith('.fq'):
+        unzip_name = unzip_name[:-2] + 'fastq'
+    unzip_path = Path(out_dir, unzip_name)
+    os.system('gunzip -c '+ str(p) + ' > ' + str(unzip_path))
+    return unzip_path
 
 # Gzip a file
 def gzip(f):
@@ -29,8 +29,8 @@ def paths_to_string(paths):
 
 # Concatenate a list of files
 def concat(files, out):
-	as_string = paths_to_string(files)
-	os.system('cat ' + as_string + ' > ' + str(out))
+    as_string = paths_to_string(files)
+    os.system('cat ' + as_string + ' > ' + str(out))
 
 #Create a directory for each element of list (names) and return their paths.
 def mkdirs(names, wd):
@@ -77,58 +77,65 @@ def working_directory(directory):
         os.chdir(owd)
 
 ## Check if a string ends with any of a list of suffixes
-## Param:
+## Param-
 ##   x  String
 ##   suffixes  List of suffixes
-## Return:
+## Return-
 ##   True if string has one of the suffixes, False otherwise
 def check_suffix(x, suffixes):
-	return any(x.endswith(suffix) for suffix in suffixes)
+    return any(x.endswith(suffix) for suffix in suffixes)
 
 ## Check if a file or list of files has a valid extension. Return error if not.
-## Param:
+## Param-
 ##   path  String; File path or list of file paths
-##   valid_extension  String; Single valid extension or list of valid 
+##   valid_extension  Single valid extension or list of valid 
 ##                    extensions
-## Return:
+## Return-
 ##   True if valid extension. Error otherwise.
 def check_file_extension(path, valid_extension):
-	# If given a single path convert to a single item list so that we can loop
-	# through them correctly
-	if isinstance(path, basestring):
-		path = [path]
-		valid_extension = [valid_extension]
+    # If given a single path convert to a single item list so that we can loop
+    # through them correctly
+    if isinstance(path, basestring):
+        path = [path]
+        valid_extension = [valid_extension]
 
-	for p, ext in zip(path, valid_extension):
-		valid = check_suffix(p, ext)
-		if not valid:
-			raise TypeError('Invalid filetype: ' + p + ' Expected: ' + ext)
+    for p, ext in zip(path, valid_extension):
+        valid = check_suffix(p, ext)
+        if not valid:
+            raise TypeError('Invalid filetype: ' + p + ' Expected: ' + ext)
 
-	return True
+    return True
 
 ## Replace the suffix of a string
-## Param:
+## Param-
 ##   x  String
 ##   old_suffix  Suffix to be replaced
 ##   new_suffix  Suffix to replace with
-## Return:
+## Return-
 ##   The string with updated suffix
 def replace_suffix(x, old_suffix, new_suffix):
-	if not x.endswith(old_suffix):
-		raise ValueError('Given suffix does not match the actual suffix (' + 
-				x + ', ' + old_suffix)
-	return x[:-len(old_suffix)] + new_suffix
+    if not x.endswith(old_suffix):
+        raise ValueError('Given suffix does not match the actual suffix (' + 
+                x + ', ' + old_suffix)
+        return x[:-len(old_suffix)] + new_suffix
+
+## Add a suffix to a list of strings
+def add_suffix(lst, suffix):
+    suffixed = []
+    for item in lst:
+        suffixed.append(item + suffix)
+    return suffixed
 
 # Set up a logging instance for a given logfile path
 # https://stackoverflow.com/questions/9321741/printing-to-screen-and-writing-\
-# to-a-file-at-the-same-time
+        # to-a-file-at-the-same-time
 def setup_log(logfile):
     logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s \
-                                %(message)s',
-                        datefmt='%m-%d %H:%M',
-                        filename=logfile,
-                        filemode='w')
+            format='%(asctime)s %(name)-12s %(levelname)-8s \
+                    %(message)s',
+                    datefmt='%m-%d %H:%M',
+                    filename=logfile,
+                    filemode='w')
 
     # define a Handler which writes INFO messages or higher to the sys.stderr
     console = logging.StreamHandler()
@@ -151,19 +158,27 @@ def setup_log(logfile):
 ## Param:
 ##   command  List; Bash command
 ##   logger_id  String; Process ID for logging instance.
+##   write_log  Boolean; If True use logging module to write logs, if False 
+##              don't log
 ## Return:
 ##   The exit code of the command 
-def run_command(command, logger_id):
+def run_command(command, logger_id=None, write_log=True):
 
+    # Run the command
     p = Popen(command, stdout=PIPE, stderr=PIPE)
     stdout, stderr = p.communicate()
-
-    logger = logging.getLogger(logger_id)
     
-    if stdout:
-        logger.info(stdout)
-    if stderr:
-        logger.error(stderr)
+    # Try outputting to logger. Ignore if cannot find a handler
+    if write_log:
+        try:
+            logger = logging.getLogger(logger_id)
+
+            if stdout:
+                logger.info(stdout)
+            if stderr:
+                logger.error(stderr)
+        except:
+            pass
 
     return p.returncode
 
@@ -171,3 +186,8 @@ def run_command(command, logger_id):
 def any_dont_exist(paths):
     exists = map(os.path.isfile, paths)
     return any(not x for x in exists)
+
+# Raise an exception if any paths in a list do not exist
+def check_all_exist(paths):
+    if any_dont_exist(paths):
+        raise ValueError("Path doesn't exist: ")
