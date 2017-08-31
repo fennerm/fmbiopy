@@ -12,8 +12,7 @@ def run_index_fasta(references):
 
     # Check arguments
     fmcheck.check_all_exist(references)
-    for ref in references:
-        fmcheck.check_file_extension(references, [".fasta", ".fa", ".fna", ".mfa"])
+    fmcheck.check_all_suffix(references, [".fasta", ".fa", ".fna", ".mfa"])
 
     # Convert to absolute paths
     references = map(os.path.abspath, references)
