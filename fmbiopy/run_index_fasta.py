@@ -23,9 +23,11 @@ def run_index_fasta(references):
 
     faidx_indices = []
     bt2_indices = []
-
     for ref in references:
         faidx_indices.append(ref+'.fai')
-        bt2_indices = bt2_indices + glob(ref+'*.bt2')
+
+        ref_no_suffix = os.path.splitext(ref)[0]
+
+        bt2_indices = bt2_indices + glob(ref_no_suffix+'*.bt2')
 
     return (sorted(faidx_indices), sorted(bt2_indices))

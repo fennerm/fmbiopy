@@ -85,6 +85,16 @@ def working_directory(directory):
 def check_suffix(x, suffixes):
     return any(x.endswith(suffix) for suffix in suffixes)
 
+## Check if all strings in a list end with one of a list of suffixes. Raise an 
+## Exception if not.
+## Param
+##   xs   List of strings
+##   suffixes   List of suffixes
+def check_all_suffix(xs, suffixes):
+    all_correct = all([check_suffix(x, suffixes) for x in xs])
+    if not all_correct:
+        raise ValueError("Incorrect suffix " + xs)
+
 ## Check if a file or list of files has a valid extension. Return error if not.
 ## Param-
 ##   path  String; File path or list of file paths
@@ -117,6 +127,7 @@ def replace_suffix(x, old_suffix, new_suffix):
     if not x.endswith(old_suffix):
         raise ValueError('Given suffix does not match the actual suffix (' + 
                 x + ', ' + old_suffix)
+    else:
         return x[:-len(old_suffix)] + new_suffix
 
 ## Add a suffix to a list of strings
@@ -125,6 +136,23 @@ def add_suffix(lst, suffix):
     for item in lst:
         suffixed.append(item + suffix)
     return suffixed
+
+## Remove n suffixes from a list of string
+def remove_suffix(x, n=1):
+    if isinstance(x, basestring):
+        # If x is a string
+        unsuffixed = os.path.splitext(x)[0]
+    else:
+        # If x is a list
+        unsuffixed = []
+        for item in x:
+            unsuffixed.append(os.path.splitext(item)[0])
+
+    n = n-1
+    if n == 0:
+        return unsuffixed
+    else:
+        return remove_suffix(unsuffixed, n)
 
 # Set up a logging instance for a given logfile path
 # https://stackoverflow.com/questions/9321741/printing-to-screen-and-writing-\
@@ -154,6 +182,7 @@ def setup_log(logfile):
 
     return console
 
+
 ## Run a bash command and log the result
 ## Param:
 ##   command  List; Bash command
@@ -163,6 +192,14 @@ def setup_log(logfile):
 ## Return:
 ##   The exit code of the command 
 def run_command(command, logger_id=None, write_log=True):
+
+    # If command is passed as a string, convert to list
+    if isinstance(command, basestring):
+        # Convert
+        command = command.split()
+
+    # Remove empty list items
+    command = filter(None, command)
 
     # Run the command
     p = Popen(command, stdout=PIPE, stderr=PIPE)
@@ -180,7 +217,7 @@ def run_command(command, logger_id=None, write_log=True):
         except:
             pass
 
-    return p.returncode
+    return (p.returncode, stdout, stderr)
 
 # Return True if any path in list does not exist
 def any_dont_exist(paths):
