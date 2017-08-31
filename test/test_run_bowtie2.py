@@ -2,9 +2,9 @@
 
 import os, pytest
 from get_dat import get_dat
-import fmbiopy.fen_util as fen_util
 from fmbiopy.run_index_fasta import run_index_fasta
 from fmbiopy.run_bowtie2 import run_bowtie2
+from fmbiopy import fmpaths
 
 def test_run_bowtie2():
     testdat = get_dat()
@@ -13,7 +13,7 @@ def test_run_bowtie2():
     assemblies = testdat['assemblies']
     indices = run_index_fasta(assemblies)
     
-    bowtie2_indices = fen_util.remove_suffix(indices[0], 2)
+    bowtie2_indices = fmpaths.remove_suffix(indices[0], 2)
 
     indices = indices[0] + indices[1]
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env/ python
-import fen_util
 import os
+import fmcheck,  fmsystem
 from glob import glob
 
 ## Index a list of fasta files using samtools faidx and bowtie2-build 
@@ -11,15 +11,15 @@ from glob import glob
 def run_index_fasta(references):
 
     # Check arguments
-    fen_util.check_all_exist(references)
+    fmcheck.check_all_exist(references)
     for ref in references:
-        fen_util.check_file_extension(references, [".fasta", ".fa", ".fna", ".mfa"])
+        fmcheck.check_file_extension(references, [".fasta", ".fa", ".fna", ".mfa"])
 
     # Convert to absolute paths
     references = map(os.path.abspath, references)
 
     command = ['bowtie2_index'] + references
-    fen_util.run_command(command, "build_index", False) 
+    fmsystem.run_command(command, "build_index", False) 
 
     faidx_indices = []
     bt2_indices = []

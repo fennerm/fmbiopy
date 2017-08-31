@@ -2,7 +2,7 @@
 import os, shutil
 from multiprocessing import cpu_count
 from itertools import izip
-import fen_util
+import fmpaths, fmsystem
 
 ## Python wrapper around bowtie2
 ## Param:
@@ -37,7 +37,7 @@ def run_bowtie2(fwd_read, rev_read, indices, out_paths, threads=None,
             no_mixed, preset]
 
     # Paths for unfinished output
-    temp_out = fen_util.add_suffix(out_paths, '.part')
+    temp_out = fmpaths.add_suffix(out_paths, '.part')
 
     # Run bowtie
     exit_codes = []
@@ -46,9 +46,9 @@ def run_bowtie2(fwd_read, rev_read, indices, out_paths, threads=None,
 
         # Bowtie2 sometimes segfaults with gzipped fastq files, so we gunzip
         # them
-        if fen_util.final_suffix(r1) == '.gz':
+        if fmpaths.final_suffix(r1) == '.gz':
             r1 = '<(gunzip -c ' + r1 + ')'
-        if fen_util.final_suffix(r2) == '.gz':
+        if fmpaths.final_suffix(r2) == '.gz':
             r2 = '<(gunzip -c ' + r2 + ')'
             
         # Construct command
@@ -56,8 +56,8 @@ def run_bowtie2(fwd_read, rev_read, indices, out_paths, threads=None,
                 opt_command)
 
         # Run command
-        exit_code = fen_util.run_command(command, ("bowtie2." +
-            fen_util.remove_suffix(os.path.basename(idx))))[0]
+        exit_code = fmsystem.run_command(command, ("bowtie2." +
+            fmpaths.remove_suffix(os.path.basename(idx))))[0]
         exit_codes.append(exit_code)
 
         # Remove the temp file
