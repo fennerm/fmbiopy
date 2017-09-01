@@ -40,7 +40,8 @@ def check_suffix(x, suffixes):
 
     correct = any(x.endswith(suffix) for suffix in suffixes)  
     if not correct:
-        raise ValueError(x + " does not have the correct suffix " + suffixes)
+        raise ValueError(x + " does not have the correct suffix " + 
+                         ' '.join(suffixes))
     else:
         return True
 
