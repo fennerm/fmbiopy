@@ -1,6 +1,7 @@
 ## Pytests for run_bowtie2.py
 
-import os, pytest
+import os
+import pytest
 from get_dat import get_dat
 from fmbiopy.run_index_fasta import run_index_fasta
 from fmbiopy.run_bowtie2 import run_bowtie2

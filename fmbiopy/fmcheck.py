@@ -35,7 +35,7 @@ def check_all_exist(paths):
 def check_suffix(x, suffixes):                                                  
     """ Check if a string x ends with any of a list of suffixes """
 
-    if isinstance(suffixes, basestring):
+    if isinstance(suffixes, str):
         suffixes = [suffixes]
 
     correct = any(x.endswith(suffix) for suffix in suffixes)  
@@ -49,7 +49,7 @@ def check_all_suffix(xs, suffixes):
     """ Check if all strings in a list end with one of a list of suffixes. 
         If not, raise an exception """
 
-    if isinstance(suffixes, basestring):
+    if isinstance(suffixes, str):
         suffixes = [suffixes]
 
     all_correct = all([check_suffix(x, suffixes) for x in xs])

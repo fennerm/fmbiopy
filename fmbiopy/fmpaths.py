@@ -23,7 +23,7 @@ def final_suffix(x):
 def replace_suffix(x, old_suffix, new_suffix):
     """ Replace the suffix of a string """
     if not x.endswith(old_suffix):
-        raise ValueError('Given suffix does not match the actual suffix (' + 
+        raise ValueError('Given suffix does not match the actual suffix (' +
                 x + ', ' + old_suffix)
     else:
         x.sub(old_suffix, new_suffix)
@@ -31,14 +31,14 @@ def replace_suffix(x, old_suffix, new_suffix):
 def add_suffix(x, suffix):
     """ Append a suffix to a string """
 
-    if isinstance(x, basestring):
+    if isinstance(x, str):
         return x + suffix
     else:
         return [add_suffix(item, suffix) for item in x]
 
 def remove_suffix(x, n=1):
     """ Remove n suffixes from a list of strings """
-    if isinstance(x, basestring):
+    if isinstance(x, str):
         # If x is a string
         unsuffixed = os.path.splitext(x)[0]
     else:

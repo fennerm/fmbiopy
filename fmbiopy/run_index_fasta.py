@@ -1,24 +1,25 @@
 #!/usr/bin/env/ python
 import os
-import fmcheck,  fmsystem
 from glob import glob
+from fmbiopy.fmcheck import check_all_exist, check_all_suffix
+from fmbiopy.fmsystem  import run_command
 
-## Index a list of fasta files using samtools faidx and bowtie2-build 
+## Index a list of fasta files using samtools faidx and bowtie2-build
 ## Param
 ##   references  List; Fasta files
-## Return 
+## Return
 ##   A tuple (list of created .fai indices, list of created bowtie2 indices)
 def run_index_fasta(references):
 
     # Check arguments
-    fmcheck.check_all_exist(references)
-    fmcheck.check_all_suffix(references, [".fasta", ".fa", ".fna", ".mfa"])
+    check_all_exist(references)
+    check_all_suffix(references, [".fasta", ".fa", ".fna", ".mfa"])
 
     # Convert to absolute paths
-    references = map(os.path.abspath, references)
+    references = [os.path.abspath(x) for x in references]
 
     command = ['bowtie2_index'] + references
-    fmsystem.run_command(command, "build_index", False) 
+    run_command(command, "build_index", False)
 
     faidx_indices = []
     bt2_indices = []

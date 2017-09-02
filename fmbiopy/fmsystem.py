@@ -41,14 +41,14 @@ from subprocess import Popen, PIPE
 ## Param:
 ##   command  List; Bash command
 ##   logger_id  String; Process ID for logging instance.
-##   write_log  Boolean; If True use logging module to write logs, if False 
+##   write_log  Boolean; If True use logging module to write logs, if False
 ##              don't log
 ## Return:
-##   The exit code of the command 
+##   The exit code of the command
 def run_command(command, logger_id=None, write_log=True):
 
     # If command is passed as a string, convert to list
-    if isinstance(command, basestring):
+    if isinstance(command, str):
         # Convert
         command = command.split()
 
@@ -56,9 +56,11 @@ def run_command(command, logger_id=None, write_log=True):
     command = filter(None, command)
 
     # Run the command
-    p = Popen(command, stdout=PIPE, stderr=PIPE)
+    p = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines = True)
+
+    # UTF-8 encoding specification reqd for python 3
     stdout, stderr = p.communicate()
-    
+
     # Try outputting to logger. Ignore if cannot find a handler
     if write_log:
         try:

@@ -1,5 +1,6 @@
 import logging, pytest, tempfile
 from tempfile import NamedTemporaryFile
+import fmbiopy
 from fmbiopy.fmlog import setup_log
 
 def gen_tmp_logfile():

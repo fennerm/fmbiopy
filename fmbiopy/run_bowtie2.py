@@ -1,8 +1,9 @@
 #!/usr/bin/env/ python
-import os, shutil
+import os
+from shutil import move
 from multiprocessing import cpu_count
-from itertools import izip
-import fmpaths, fmsystem
+from fmbiopy.fmpaths import add_suffix, remove_suffix, final_suffix
+from fmbiopy.fmsystem import run_command
 
 ## Python wrapper around bowtie2
 ## Param:
@@ -37,18 +38,18 @@ def run_bowtie2(fwd_read, rev_read, indices, out_paths, threads=None,
             no_mixed, preset]
 
     # Paths for unfinished output
-    temp_out = fmpaths.add_suffix(out_paths, '.part')
+    temp_out = add_suffix(out_paths, '.part')
 
     # Run bowtie
     exit_codes = []
-    for r1, r2, idx, tmp, out in izip(fwd_read, rev_read, indices, temp_out, 
+    for r1, r2, idx, tmp, out in zip(fwd_read, rev_read, indices, temp_out, 
             out_paths):
 
         # Bowtie2 sometimes segfaults with gzipped fastq files, so we gunzip
         # them
-        if fmpaths.final_suffix(r1) == '.gz':
+        if final_suffix(r1) == '.gz':
             r1 = '<(gunzip -c ' + r1 + ')'
-        if fmpaths.final_suffix(r2) == '.gz':
+        if final_suffix(r2) == '.gz':
             r2 = '<(gunzip -c ' + r2 + ')'
             
         # Construct command
@@ -56,11 +57,11 @@ def run_bowtie2(fwd_read, rev_read, indices, out_paths, threads=None,
                 opt_command)
 
         # Run command
-        exit_code = fmsystem.run_command(command, ("bowtie2." +
-            fmpaths.remove_suffix(os.path.basename(idx))))[0]
+        exit_code = run_command(command, ("bowtie2." + 
+            remove_suffix(os.path.basename(idx))))[0]
         exit_codes.append(exit_code)
 
         # Remove the temp file
-        shutil.move(tmp, out)
+        move(tmp, out)
 
     return exit_codes
