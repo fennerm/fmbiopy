@@ -38,6 +38,10 @@ def add_suffix(x, suffix):
 
 def remove_suffix(x, n=1):
     """ Remove n suffixes from a list of strings """
+
+    if n == 0:
+        return x
+
     if isinstance(x, str):
         # If x is a string
         unsuffixed = os.path.splitext(x)[0]
