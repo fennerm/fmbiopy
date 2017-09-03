@@ -49,3 +49,7 @@ def remove_suffix(x, n=1):
         return unsuffixed
     else:
         return remove_suffix(unsuffixed, n)
+
+def abs_paths(l):
+    """ Convert list of relative paths to absolute """
+    return [os.path.abspath(x) for x in l]
