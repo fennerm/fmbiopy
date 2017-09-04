@@ -7,18 +7,24 @@ import logging
 import errno
 from contextlib import contextmanager
 from subprocess import Popen, PIPE
+from typing import Sequence, Tuple, Generator
 
-def run_command(command, logger_id=None, log_stdout=True, log_stderr=True):
+def run_command(
+        command: Sequence,
+        logger_id: str = None,
+        log_stdout: bool = True,
+        log_stderr: bool =True
+        ) -> Tuple[int, str, str]:
     """
     Run a bash command with logging support
 
     Parameters
     ----------
-    command (List)
+    command
         Bash command to be run
-    logger_id (String)
+    logger_id
         Name to use for logging handler
-    log_stdout, log_stderr (Bool)
+    log_stdout, log_stderr
         Should standard out and standard error be logged?
 
     Returns
@@ -32,7 +38,7 @@ def run_command(command, logger_id=None, log_stdout=True, log_stderr=True):
         command = command.split()
 
     # Remove empty list items
-    command = filter(None, command)
+    command = list(filter(None, command))
 
     # Run the command
     process = Popen(command, stdout=PIPE, stderr=PIPE,
@@ -48,10 +54,10 @@ def run_command(command, logger_id=None, log_stdout=True, log_stderr=True):
     if log_stderr and stderr:
         logger.info(stderr)
 
-    return (process.returncode, stdout, stderr)
+    return (int(process.returncode), stdout, stderr)
 
 @contextmanager
-def working_directory(directory):
+def working_directory(directory: str) -> Generator:
     """
     Change working directory context safely.
 
@@ -68,19 +74,20 @@ def working_directory(directory):
     finally:
         os.chdir(owd)
 
-def run_silently(command):
+def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
     """ Run a command without logging results """
     return run_command(command, log_stdout=False, log_stderr=False)
 
-def concat(filenames, outpath):
+def concat(filenames: Sequence[str], outpath: str) -> None:
     """ Concatenate a list of files """
-    command = ' '.join(['cat'] + filenames + ['>', outpath])
+    filenames = ' '.join(filenames)
+    command = 'cat ' + filenames + ' > ' + outpath
     err_code = run_silently(command)[0]
     if err_code != 0:
         raise OSError("File concatenation failed")
 
 # Create directory if it doesn't already exist
-def mkdir(path):
+def mkdir(path: str) -> str:
     """
     Create a directory if it doesn't exist
 
@@ -94,10 +101,7 @@ def mkdir(path):
 
     return os.path.abspath(path)
 
-
-
-
-def mkdirs(dirnames, output_directory):
+def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
     """
     Create a list directories
 
@@ -119,7 +123,7 @@ def mkdirs(dirnames, output_directory):
     return abspaths
 
 
-def silent_remove(filename):
+def silent_remove(filename: str) -> None:
     """ Try to remove a file, ignore exception if doesn't exist """
     try:
         os.remove(filename)

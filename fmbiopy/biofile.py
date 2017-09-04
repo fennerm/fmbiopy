@@ -24,10 +24,13 @@ class BioFileGroup():
         return self.paths[item]
 
     def _check_paths_not_empty(self):
+        """ Check paths not an empty list """
         if not self.paths:
             raise ValueError('Empty paths in BioFileGroup')
 
     def _check_paths_not_string(self):
+        """ Check that paths is not a single string """
+
         if isinstance(self.paths, str):
             raise TypeError('Input to BioFileGroup is a string (expects \
                     list)')
@@ -36,7 +39,7 @@ class BioFileGroup():
         """ Check that paths all have the same extension """
 
         if self.gzipped:
-            names = [remove_suffix(p, ignored_suffix) for p in self.paths]
+            names = [remove_suffix(p, 1) for p in self.paths]
         else:
             names = self.paths
 
@@ -47,6 +50,9 @@ class BioFileGroup():
                 same extension")
 
     def _check_gzip(self):
+        """ Check that the gzipped flag parameter matches the extensions of
+        the files """
+
         self._check_paths_same_extension()
         if self.gzipped:
             if self.extensions[0] != 'gz':
@@ -63,7 +69,7 @@ class BioFileGroup():
         self._check_paths_same_extension()
         self._check_gzip()
 
-    def length(self):
+    def __len__(self):
         """ Length of file list """
         return len(self.paths)
 
