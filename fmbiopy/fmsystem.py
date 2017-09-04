@@ -1,33 +1,66 @@
-import os, sys
-from pathlib import Path
+"""
+Utilities for system manipulation (moving/creating files, running commands etc.
+"""
 
+import os
+import logging
+import errno
 from contextlib import contextmanager
+from subprocess import Popen, PIPE
 
-# Concatenate a list of files
-def concat(files, out):
-    as_string = paths_to_string(files)
-    os.system('cat ' + as_string + ' > ' + str(out))
+def run_command(command, logger_id=None, log_stdout=True, log_stderr=True):
+    """
+    Run a bash command with logging support
 
-#Create a directory for each element of list (names) and return their paths.
-def mkdirs(names, wd):
-    paths = []
-    for n in names:
-        p = Path(wd, n)
-        paths.append(p)
-        mkdir(p)
-    return paths
+    Parameters
+    ----------
+    command (List)
+        Bash command to be run
+    logger_id (String)
+        Name to use for logging handler
+    log_stdout, log_stderr (Bool)
+        Should standard out and standard error be logged?
 
-# Create directory if it doesn't already exist
-def mkdir(p):
-    if not Path.is_dir(p):
-        Path.mkdir(p)
+    Returns
+    -------
+    A triple of the form (return code, standard out, standard error)
 
-# Change working directory context safely.
-# Usage:
-# with working_directory(dir):
-# 	<code>
+    """
+
+    # If command is passed as a string, convert to list
+    if isinstance(command, str):
+        command = command.split()
+
+    # Remove empty list items
+    command = filter(None, command)
+
+    # Run the command
+    process = Popen(command, stdout=PIPE, stderr=PIPE,
+                    universal_newlines=True)
+
+    # UTF-8 encoding specification reqd for python 3
+    stdout, stderr = process.communicate()
+
+    # Log results
+    logger = logging.getLogger(logger_id)
+    if log_stdout and stdout:
+        logger.info(stdout)
+    if log_stderr and stderr:
+        logger.info(stderr)
+
+    return (process.returncode, stdout, stderr)
+
 @contextmanager
 def working_directory(directory):
+    """
+    Change working directory context safely.
+
+    Usage
+    -----
+        with working_directory(directory):
+            <code>
+    """
+
     owd = os.getcwd()
     try:
         os.chdir(directory)
@@ -35,42 +68,61 @@ def working_directory(directory):
     finally:
         os.chdir(owd)
 
-from subprocess import Popen, PIPE
+def run_silently(command):
+    """ Run a command without logging results """
+    return run_command(command, log_stdout=False, log_stderr=False)
 
-## Run a bash command and log the result
-## Param:
-##   command  List; Bash command
-##   logger_id  String; Process ID for logging instance.
-##   write_log  Boolean; If True use logging module to write logs, if False
-##              don't log
-## Return:
-##   The exit code of the command
-def run_command(command, logger_id=None, write_log=True):
+def concat(filenames, outpath):
+    """ Concatenate a list of files """
+    command = ' '.join(['cat'] + filenames + ['>', outpath])
+    err_code = run_silently(command)[0]
+    if err_code != 0:
+        raise OSError("File concatenation failed")
 
-    # If command is passed as a string, convert to list
-    if isinstance(command, str):
-        # Convert
-        command = command.split()
+# Create directory if it doesn't already exist
+def mkdir(path):
+    """
+    Create a directory if it doesn't exist
 
-    # Remove empty list items
-    command = filter(None, command)
+    Returns
+    -------
+    Absolute path of the created directory
+    """
 
-    # Run the command
-    p = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines = True)
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-    # UTF-8 encoding specification reqd for python 3
-    stdout, stderr = p.communicate()
+    return os.path.abspath(path)
 
-    # Try outputting to logger. Ignore if cannot find a handler
-    if write_log:
-        try:
-            logger = logging.getLogger(logger_id)
 
-            if stdout:
-                logger.info(stdout)
-            if stderr:
-                logger.error(stderr)
-        except:
-            pass
 
-    return (p.returncode, stdout, stderr)
+
+def mkdirs(dirnames, output_directory):
+    """
+    Create a list directories
+
+    Parameters
+    ----------
+    dirnames - List
+        Names of directories to create
+    output_directory - String
+        Name of directory in which to create the directories
+
+    Returns
+    -------
+        The paths of the created directories
+    """
+
+    with working_directory(output_directory):
+        abspaths = [mkdir(dirname) for dirname in dirnames]
+
+    return abspaths
+
+
+def silent_remove(filename):
+    """ Try to remove a file, ignore exception if doesn't exist """
+    try:
+        os.remove(filename)
+    except OSError as err:
+        if err.errno != errno.ENOENT:
+            raise

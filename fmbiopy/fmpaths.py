@@ -1,59 +1,59 @@
-import os, sys
-from pathlib import Path
-import re
+""" Path manipulation utilities """
+
+import os
+from fmbiopy.fmcheck import check_suffix
 
 def paths_to_string(paths):
     """ Convert a list of Paths to a space separated string """
-    s = ' '.join(str(p) for p in paths)
-    return s
+    return ' '.join(str(p) for p in paths)
 
-def prefix(x):
+def get_prefix(path):
     """ Get the part of a string before the first dot """
-    return x.split(".")[0]
+    return path.split(".")[0]
 
-def suffix(x):
-    """ Get the part of a tring after the first dot """
-    return ''.join(x.split(".")[1:])
+def get_suffix(path):
+    """ Get the part of a string after the first dot """
+    return ''.join(path.split(".")[1:])
 
-def final_suffix(x):
+def final_suffix(path):
     """ Get the part of a string after the last dot """
-    sp = x.split(".")
-    return sp[len(sp)-1]
+    dot_split = path.split(".")
+    final_index = len(dot_split) - 1
+    return dot_split[final_index]
 
-def replace_suffix(x, old_suffix, new_suffix):
+def replace_suffix(path, old_suffix, new_suffix):
     """ Replace the suffix of a string """
-    if not x.endswith(old_suffix):
-        raise ValueError('Given suffix does not match the actual suffix (' +
-                x + ', ' + old_suffix)
-    else:
-        x.sub(old_suffix, new_suffix)
 
-def add_suffix(x, suffix):
-    """ Append a suffix to a string """
+    check_suffix(path, old_suffix)
 
-    if isinstance(x, str):
-        return x + suffix
-    else:
-        return [add_suffix(item, suffix) for item in x]
+    return path.sub(old_suffix, new_suffix)
 
-def remove_suffix(x, n=1):
+def add_suffix(names, suffix):
+    """ Append a suffix to a string or list of strings """
+
+    if isinstance(names, str):
+        return names + suffix
+
+    return [add_suffix(name, suffix) for name in names]
+
+def remove_suffix(names, nremove=1):
     """ Remove n suffixes from a list of strings """
 
-    if n == 0:
-        return x
+    if nremove == 0:
+        return names
 
-    if isinstance(x, str):
-        # If x is a string
-        unsuffixed = os.path.splitext(x)[0]
+    if isinstance(names, str):
+
+        # If x is a string its simple
+        unsuffixed = os.path.splitext(names)[0]
     else:
-        unsuffixed = [remove_suffix(item, 1) for item in x]
+        # If x is a list, recursively apply
+        unsuffixed = [remove_suffix(name, 1) for name in names]
 
-    n = n-1
-    if n == 0:
-        return unsuffixed
-    else:
-        return remove_suffix(unsuffixed, n)
+    nremove -= 1
 
-def abs_paths(l):
+    return remove_suffix(unsuffixed, nremove)
+
+def abs_paths(paths):
     """ Convert list of relative paths to absolute """
-    return [os.path.abspath(x) for x in l]
+    return [os.path.abspath(path) for path in paths]
