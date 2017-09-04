@@ -1,20 +1,20 @@
+"""
+Functions for checking that various conditions are met, or. Functions which
+start with 'check_' raise exceptions, all others return Bools
+"""
+
 import os
 
-""" Functions which start with check_ raise exceptions, all others return
-Bools """
-
-def check_non_empty(l):
+def check_non_empty(items):
     """ Raise exception if list is empty """
 
-    if not l:
+    if not items:
         raise ValueError("List is empty")
-    else:
-        return True
 
-def all_equal(l):
+def all_equal(items):
     """ Test whether all items in list are equal """
 
-    return all(x == l[0] for x in l)
+    return all(item == items[0] for item in items)
 
 def any_dont_exist(paths):
     """ Return True if any path in list does not exist """
@@ -23,38 +23,30 @@ def any_dont_exist(paths):
     exists = map(os.path.exists, paths)
     return any(not x for x in exists)
 
+
 def check_all_exist(paths):
     """ Raise an exception if any paths in list do not exist """
 
-    if any_dont_exist(paths):
-        raise ValueError("Path doesn't exist: ")
-    else:
-        return True
+    for path in paths:
+        if not os.path.exists(path):
+            raise OSError("Path doesn't exist: " + path)
 
-def check_suffix(x, suffixes):
+def check_suffix(name, suffixes):
     """ Check if a string x ends with any of a list of suffixes """
 
+    # A single suffix string is also allowed.
     if isinstance(suffixes, str):
         suffixes = [suffixes]
 
-    correct = any(x.endswith(suffix) for suffix in suffixes)
-    if not correct:
-        raise ValueError(x + " does not have the correct suffix " +
-                         ' '.join(suffixes))
-    else:
-        return True
+    correct = any(name.endswith(suffix) for suffix in suffixes)
 
-def check_all_suffix(xs, suffixes):
+    if not correct:
+        raise ValueError(name + " does not have the correct suffix " + \
+                         ' '.join(suffixes))
+
+def check_all_suffix(names, suffixes):
     """ Check if all strings in a list end with one of a list of suffixes.
         If not, raise an exception """
 
-    if isinstance(suffixes, str):
-        suffixes = [suffixes]
-
-    all_correct = all([check_suffix(x, suffixes) for x in xs])
-    if not all_correct:
-        raise ValueError("Incorrect suffix " + ' '.join(xs))
-    else:
-        return True
-
-
+    for name in names:
+        check_suffix(name, suffixes)
