@@ -14,7 +14,6 @@ def check_non_empty(l):
 def all_equal(l):
     """ Test whether all items in list are equal """
 
-    check_non_empty(l)
     return all(x == l[0] for x in l)
 
 def any_dont_exist(paths):
@@ -32,21 +31,21 @@ def check_all_exist(paths):
     else:
         return True
 
-def check_suffix(x, suffixes):                                                  
+def check_suffix(x, suffixes):
     """ Check if a string x ends with any of a list of suffixes """
 
     if isinstance(suffixes, str):
         suffixes = [suffixes]
 
-    correct = any(x.endswith(suffix) for suffix in suffixes)  
+    correct = any(x.endswith(suffix) for suffix in suffixes)
     if not correct:
-        raise ValueError(x + " does not have the correct suffix " + 
+        raise ValueError(x + " does not have the correct suffix " +
                          ' '.join(suffixes))
     else:
         return True
 
-def check_all_suffix(xs, suffixes):                                             
-    """ Check if all strings in a list end with one of a list of suffixes. 
+def check_all_suffix(xs, suffixes):
+    """ Check if all strings in a list end with one of a list of suffixes.
         If not, raise an exception """
 
     if isinstance(suffixes, str):
@@ -57,5 +56,5 @@ def check_all_suffix(xs, suffixes):
         raise ValueError("Incorrect suffix " + ' '.join(xs))
     else:
         return True
-  
+
 
