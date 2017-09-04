@@ -9,22 +9,25 @@ from fmbiopy import fmpaths
 def test_run_index_fasta():
     testdat = get_dat()
     assemblies = testdat['assemblies']
+
     # Test if it runs without error.
-    indices = run_index_fasta(assemblies)
-    indices = sorted(indices[0] + indices[1])
+    try:
+        indices = run_index_fasta(assemblies)
+        indices = sorted(indices[0] + indices[1])
 
-    root_indices = fmpaths.remove_suffix(assemblies)
-    expected_indices = sorted(
-            fmpaths.add_suffix(assemblies, '.fai') +
-            fmpaths.add_suffix(root_indices, '.1.bt2') +
-            fmpaths.add_suffix(root_indices, '.2.bt2') +
-            fmpaths.add_suffix(root_indices, '.3.bt2') +
-            fmpaths.add_suffix(root_indices, '.4.bt2') +
-            fmpaths.add_suffix(root_indices, '.rev.1.bt2') +
-            fmpaths.add_suffix(root_indices, '.rev.2.bt2'))
+        root_indices = fmpaths.remove_suffix(assemblies)
+        expected_indices = sorted(
+                fmpaths.add_suffix(assemblies, '.fai') +
+                fmpaths.add_suffix(root_indices, '.1.bt2') +
+                fmpaths.add_suffix(root_indices, '.2.bt2') +
+                fmpaths.add_suffix(root_indices, '.3.bt2') +
+                fmpaths.add_suffix(root_indices, '.4.bt2') +
+                fmpaths.add_suffix(root_indices, '.rev.1.bt2') +
+                fmpaths.add_suffix(root_indices, '.rev.2.bt2'))
 
-    # Test if indices actually produced
-    assert indices == expected_indices
+        # Test if indices actually produced
+        assert indices == expected_indices
+    finally:
+        # Clean up
+        map(os.remove, indices)
 
-    # Clean up
-    map(os.remove, indices)
