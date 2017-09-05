@@ -24,6 +24,17 @@ def empty_paths():
     dat = get_dat()
     return (dat['empty'])
 
+@pytest.fixture
+def fwd_fastq(read_paths):
+    return Fastq(read_paths[0], gzipped=True)
+
+@pytest.fixture
+def rev_fastq(read_paths):
+    return Fastq(read_paths[1], gzipped=True)
+
+@pytest.fixture
+def paired_fastq(read_paths, fwd_fastq, rev_fastq):
+    return PairedFastq(fwd_fastq, rev_fastq)
 
 class TestBioFileGroup():
     @pytest.fixture
@@ -34,15 +45,8 @@ class TestBioFileGroup():
     def readfiles(self, read_paths):
         return BioFileGroup(read_paths[0], gzipped=True)
 
-    def test_properties_set(self, assfiles):
-        assfiles.paths
-        assfiles.gzipped
-        assfiles._validated
-        assfiles._accepted_extensions
-        assfiles.extensions
-
     def test_if_file_exists_then_access_works(self, assembly_paths, assfiles):
-        assert assfiles.paths[1] == assembly_paths[1]
+        assert assfiles[1] == assembly_paths[1]
 
     def test_empty_input_raises_value_err(self):
         with pytest.raises(ValueError) as exc:
@@ -84,13 +88,6 @@ class TestBioFileGroup():
 
 class TestFastq():
 
-    @pytest.fixture
-    def reads(self, read_paths):
-        return Fastq(read_paths[0], gzipped=True)
-
-    def test_set_attributes(self, reads):
-        assert reads._accepted_extensions == ['fastq', 'fq']
-
     def test_if_incorrect_extension_raises_value_error(self, read_paths):
         incorrect_suffix = add_suffix(read_paths[0], '.x')
 
@@ -98,3 +95,16 @@ class TestFastq():
         with pytest.raises(ValueError) as exc:
             fq[1]
 
+class TestPairedFastq():
+
+    def test_valid_input_access(self, paired_fastq, fwd_fastq, rev_fastq):
+        assert paired_fastq[0] == list([fwd_fastq[0], rev_fastq[0]])
+
+    def test_different_lengths_raises_value_error(self, read_paths):
+        fwd_fastq = Fastq(read_paths[0], gzipped=True)
+        rev_fastq = Fastq(read_paths[1][1:2], gzipped=True)
+        with pytest.raises(ValueError) as exc:
+            paired_fastq = PairedFastq(fwd_fastq, rev_fastq)
+
+    def test_length_method(self, fwd_fastq, paired_fastq):
+        assert len(paired_fastq) == len(fwd_fastq)
