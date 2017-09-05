@@ -9,3 +9,4 @@ scripts/ssh_add_github_repo
 *.fai
 *.bt2
 *.cache
+.mypy_cache
