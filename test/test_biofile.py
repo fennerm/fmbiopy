@@ -48,6 +48,12 @@ class TestBioFileGroup():
     def test_if_file_exists_then_access_works(self, assembly_paths, assfiles):
         assert assfiles[1] == assembly_paths[1]
 
+    def test_extension_setter(self, assfiles, ):
+        assert assfiles.extensions == ['fasta'] * 4
+
+    def test_name_setter(self, assfiles):
+        assert assfiles.names == ['FA_SC', 'FB_SC', 'IA_SC', 'IC_SC']
+
     def test_empty_input_raises_value_err(self):
         with pytest.raises(ValueError) as exc:
             BioFileGroup([])
@@ -99,6 +105,7 @@ class TestPairedFastq():
 
     def test_valid_input_access(self, paired_fastq, fwd_fastq, rev_fastq):
         assert paired_fastq[0] == list([fwd_fastq[0], rev_fastq[0]])
+
 
     def test_different_lengths_raises_value_error(self, read_paths):
         fwd_fastq = Fastq(read_paths[0], gzipped=True)

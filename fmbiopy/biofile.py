@@ -4,8 +4,17 @@ Classes for storing and validating various types of bioinformatics files
 
 import os
 from typing import Sequence, List
-from fmbiopy.fmcheck import check_all_suffix, all_equal, any_endswith
-from fmbiopy.fmpaths import final_suffix, last_two_suffix, remove_suffix
+from fmbiopy.fmcheck import (
+        check_all_suffix,
+        all_equal,
+        any_endswith,
+        )
+from fmbiopy.fmpaths import (
+        final_suffix,
+        last_two_suffix,
+        remove_suffix,
+        get_prefix,
+        )
 
 class BioFileGroup(object):
     """
@@ -21,7 +30,7 @@ class BioFileGroup(object):
         The extensions of each file
     gzipped
         True if the files are gzipped
-    possibly_empty
+    possibly_empty.__init__(paths, gzipped, possibly_empty)
         Set this to True if it is acceptable for the files to be empty. This
         disables non-empty file checking.
     """
@@ -46,6 +55,7 @@ class BioFileGroup(object):
         # Sorting is done last because if it is done before prevalidation, the
         # sort will convert strings into lists of characters
         self._paths = sorted(files)
+        self.names = self._get_names()
 
     def _get_extensions(self) -> Sequence[str]:
         """
@@ -57,12 +67,26 @@ class BioFileGroup(object):
         else:
             return [final_suffix(f) for f in self._paths]
 
+    def _get_names(self) -> Sequence[str]:
+        """
+        Get the names of the files in the group
+
+        I.e the part of the paths basename before the first dot.
+
+        E.g _get_names('FA_SC.1.fq.gz) == 'FA_SC'
+        """
+        basenames = [os.path.basename(path) for path in self._paths]
+        names = [get_prefix(basename) for basename in basenames]
+        return names
+
+
     def __getitem__(self, item) -> str:
         """ Get a file from the group using list syntax """
         if not self._validated:
             self._validate()
 
         return self._paths[item]
+
 
     def _prevalidate(self) -> None:
         """ Do some basic input validation upon initialization """
@@ -92,14 +116,15 @@ class BioFileGroup(object):
         """ Check that paths is not a single string """
 
         if isinstance(self._paths, str):
-            raise TypeError('Input to BioFileGroup is a string (expects \
-                    list)')
+            raise TypeError("""
+            Input to BioFileGroup is a string (expects list)
+            """)
 
     def _check_extensions(self) -> None:
         """ Check that the file extensions match the accepted extensions """
         if self._accepted_extensions:
             for extension in self.extensions:
-                if not extension in self._accepted_extensions:
+                if not extension.lower() in self._accepted_extensions:
                     raise ValueError("Invalid file extension")
 
     def _check_gzip(self) -> None:
@@ -122,20 +147,14 @@ class Fastq(BioFileGroup):
     BioFileGroup for holding Fastq files. Reads can either be paired or
     unpaired.
     """
-    def __init__(
-            self,
-            files: Sequence[str],
-            gzipped: bool = False,
-            possibly_empty: bool = False
-            ) -> None:
-        """ initialization """
+    def __init__(self, *args, **kwargs) -> None:
+        """ Initialization """
 
-        super().__init__(files, gzipped, possibly_empty)
+        super().__init__(*args, **kwargs)
 
         self._accepted_extensions = ['fastq', 'fq']
         if self.gzipped:
             self._accepted_extensions += ['fastq.gz', 'fq.gz']
-
 
 class PairedFastq(object):
     """
@@ -185,14 +204,53 @@ class PairedFastq(object):
         """ Get the pair of Fastq files indexed by 'item' """
         return list([self.fwd[item], self.rev[item]])
 
-class Bam(BioFileGroup):
-    def __init__(self, files, indices):
-        pass
-
 class Sam(BioFileGroup):
-    def __init__():
+    """ BioFileGroup for holding .sam files """
+
+    def __init__(self, *args, **kwargs) -> None:
+        """ Initialization """
+        super().__init__(*args, **kwargs)
+        self._accepted_extensions = ['sam']
+
+class Bam(BioFileGroup):
+    """ BioFileGroup for holding .bam files """
+
+    def __init__(
+            self,
+            files: Sequence[str],
+            possibly_empty: bool = False
+            ) -> None:
+        # No gzipped parameter since there is no reason to gzip Bam files
+        super().__init__(files, possibly_empty)
+        self._accepted_extensions = ['bam']
+
+class IndexedBioFileGroup(BioFileGroup):
+    def __init__(
+            self,
+            indices_id: Sequence[str] = None,
+            indices: Sequence[Sequence[str]] = None
+            ) -> None:
+
+        def __getitem__(self, item) -> None:
+            pass
+
+    def _check_index_lengths(self):
         pass
 
-class Fasta(BioFileGroup):
-    def __init__():
-        pass
+class Fasta(IndexedBioFileGroup):
+    """
+    BioFileGroup for holding .fasta files.
+
+    Fasta files may have any number of index files of various types. E.g each
+    Fasta might have a corresponding Bowtie2, Samtools and BWA index.
+
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+
+        super().__init__(files, gzipped, possibly_empty)
+        self._accepted_extensions = ['fa', 'fasta', 'mfa']
+        for index_id, index in zip(indices_id, indices):
+            self.indices[index_id] = index
+
+
