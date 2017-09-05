@@ -3,18 +3,22 @@ Classes for storing and validating various types of bioinformatics files
 """
 
 import os
-from typing import Sequence, List
+from typing import Sequence, List, Union
 from fmbiopy.fmcheck import (
         check_all_suffix,
         all_equal,
         any_endswith,
         )
 from fmbiopy.fmpaths import (
-        final_suffix,
+        get_final_suffix,
         last_two_suffix,
         remove_suffix,
+        replace_suffix,
         get_prefix,
+        get_basenames,
         )
+from fmbiopy.fmstring import get_unique
+
 
 class BioFileGroup(object):
     """
@@ -57,7 +61,7 @@ class BioFileGroup(object):
         self._paths = sorted(files)
         self.names = self._get_names()
 
-    def _get_extensions(self) -> Sequence[str]:
+    def _get_extensions(self) -> List[str]:
         """
         Get the file extensions of the files. If gzipped, return the two-part
         extension (E.g 'fq.gz')
@@ -65,9 +69,10 @@ class BioFileGroup(object):
         if self.gzipped:
             return [last_two_suffix(f) for f in self._paths]
         else:
-            return [final_suffix(f) for f in self._paths]
+            return [get_final_suffix(f) for f in self._paths]
 
-    def _get_names(self) -> Sequence[str]:
+    def _get_names(self) -> List[str]:
+
         """
         Get the names of the files in the group
 
@@ -215,42 +220,77 @@ class Sam(BioFileGroup):
 class Bam(BioFileGroup):
     """ BioFileGroup for holding .bam files """
 
-    def __init__(
-            self,
-            files: Sequence[str],
-            possibly_empty: bool = False
-            ) -> None:
-        # No gzipped parameter since there is no reason to gzip Bam files
-        super().__init__(files, possibly_empty)
+    def __init__(self, *args, **kwargs) -> None:
+        """ Initialization """
+        super().__init__(*args, **kwargs)
         self._accepted_extensions = ['bam']
 
-class IndexedBioFileGroup(BioFileGroup):
+class Fasta(BioFileGroup):
+    """
+    BioFileGroup for holding .fasta files.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialization"""
+        super().__init__(*args, **kwargs)
+        self._accepted_extensions = ['fa', 'fasta', 'mfa']
+
+class SamtoolsFAIndex(BioFileGroup):
+    """ BioFileGroup for holding samtools .fai files """
+    def __init__(self, *args, **kwargs):
+        """ Initialization """
+        super().__init__(*args, **kwargs)
+        self._accepted_extensions = ['fai']
+
+class Bowtie2Index(BioFileGroup):
+    """ BioFileGroup for holding Bowtie2 .bt2 fasta index files """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._accepted_extensions = ['bt2']
+
+        # The names needs to be set differently for Bowtie2 indices because
+        # each fasta file has multiple indices, but Bowtie2 refers to the group
+        # of indices by a single name
+        self.names = self._get_names()
+
+    def _get_names(self) -> List[str]:
+        names = []
+
+        # Get the prefixes of each .bt2 index
+        basenames = get_basenames(self._paths)
+
+        for basename in basenames:
+            # Reverse bowtie2 indices need three extensions removed, the rest
+            # just need two
+            if '.rev.' in basename:
+                names.append(remove_suffix(basename, 3))
+            else:
+                names.append(remove_suffix(basename, 2))
+
+        # Get the unique elements
+        names = get_unique(names)
+
+        return names
+
+"""
+TypeVar for typing module which groups different types of fasta index classes
+into a single type
+"""
+FastaIndex = Union[SamtoolsFAIndex, Bowtie2Index]
+
+class IndexedFasta(object):
     def __init__(
             self,
-            indices_id: Sequence[str] = None,
-            indices: Sequence[Sequence[str]] = None
+            fasta: Fasta,
+            *indices: FastaIndex
             ) -> None:
+        pass
 
-        def __getitem__(self, item) -> None:
-            pass
+    def __getitem__(self, item) -> None:
+        pass
 
     def _check_index_lengths(self):
         pass
 
-class Fasta(IndexedBioFileGroup):
-    """
-    BioFileGroup for holding .fasta files.
-
-    Fasta files may have any number of index files of various types. E.g each
-    Fasta might have a corresponding Bowtie2, Samtools and BWA index.
-
-    """
-
-    def __init__(self, *args, **kwargs) -> None:
-
-        super().__init__(files, gzipped, possibly_empty)
-        self._accepted_extensions = ['fa', 'fasta', 'mfa']
-        for index_id, index in zip(indices_id, indices):
-            self.indices[index_id] = index
 
 

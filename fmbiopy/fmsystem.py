@@ -74,6 +74,26 @@ def working_directory(directory: str) -> Generator:
     finally:
         os.chdir(owd)
 
+@contextmanager
+def delete(paths: Sequence[str]) -> Generator:
+    """
+    Context used for making sure that files are deleted even if an attempted
+    action raises an exception. Useful for cleaning up temporary files.
+
+    Usage
+    -----
+        with delete(paths):
+            <code>
+    """
+
+    try:
+        yield
+    except:
+        pass
+    finally:
+        for path in paths:
+            silent_remove(path)
+
 def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
     """ Run a command without logging results """
     return run_command(command, log_stdout=False, log_stderr=False)
@@ -86,7 +106,6 @@ def concat(filenames: Sequence[str], outpath: str) -> None:
     if err_code != 0:
         raise OSError("File concatenation failed")
 
-# Create directory if it doesn't already exist
 def mkdir(path: str) -> str:
     """
     Create a directory if it doesn't exist
@@ -121,7 +140,6 @@ def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
         abspaths = [mkdir(dirname) for dirname in dirnames]
 
     return abspaths
-
 
 def silent_remove(filename: str) -> None:
     """ Try to remove a file, ignore exception if doesn't exist """

@@ -2,6 +2,7 @@
 
 import os
 from re import sub
+from glob import glob
 from typing import Sequence
 from fmbiopy.fmcheck import check_suffix
 from fmbiopy.fmtype import PathsOrStrings, StringOrSequence
@@ -18,7 +19,7 @@ def get_suffix(path: str) -> str:
     """ Get the part of a string after the first dot """
     return ''.join(path.split(".")[1:])
 
-def final_suffix(path: str) -> str:
+def get_final_suffix(path: str) -> str:
     """ Get the part of a string after the last dot. """
     dot_split = path.split(".")
     final_index = len(dot_split) - 1
@@ -35,8 +36,7 @@ def replace_suffix(path: str, old_suffix: str, new_suffix: str) -> str:
     """ Replace the suffix of a string """
 
     check_suffix(path, old_suffix)
-
-    return sub(path, old_suffix, new_suffix)
+    return sub(old_suffix, new_suffix, path)
 
 def add_suffix(names: StringOrSequence, suffix: str) -> Sequence[str]:
     """ Append a suffix to a string or list of strings """
@@ -68,3 +68,14 @@ def abs_paths(paths: Sequence[str]) -> Sequence[str]:
     """ Convert list of relative paths to absolute """
     return [os.path.abspath(path) for path in paths]
 
+def get_basenames(paths: Sequence[str]) -> Sequence[str]:
+    """ Convert a list of paths to a list of basenames """
+    return [os.path.basename(path) for path in paths]
+
+def listdirs(directory: str) -> Sequence[str]:
+    """ List all the subdirectories of a directory """
+    dirs = []
+    for path in abs_paths(glob(directory + '/*')):
+        if os.path.isdir(path):
+            dirs.append(path)
+    return dirs

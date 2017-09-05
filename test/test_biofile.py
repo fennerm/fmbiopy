@@ -7,6 +7,9 @@ from fmbiopy.biofile import (
         PairedFastq,
         Bam,
         Sam,
+        Bowtie2Index,
+        SamtoolsFAIndex,
+        IndexedFasta,
         )
 
 @pytest.fixture
@@ -33,17 +36,34 @@ def rev_fastq(read_paths):
     return Fastq(read_paths[1], gzipped=True)
 
 @pytest.fixture
+def bowtie_index_files():
+    dat = get_dat()
+    return dat['bowtie2_indices']
+
+@pytest.fixture
+def bowtie2_indices(bowtie_index_files):
+    return Bowtie2Index(bowtie_index_files)
+
+
+@pytest.fixture
 def paired_fastq(read_paths, fwd_fastq, rev_fastq):
     return PairedFastq(fwd_fastq, rev_fastq)
 
-class TestBioFileGroup():
-    @pytest.fixture
-    def assfiles(self, assembly_paths):
-        return BioFileGroup(assembly_paths)
+@pytest.fixture
+def assfiles(assembly_paths):
+    return BioFileGroup(assembly_paths)
 
-    @pytest.fixture
-    def readfiles(self, read_paths):
-        return BioFileGroup(read_paths[0], gzipped=True)
+@pytest.fixture
+def nonexistant_assfiles(assembly_paths):
+    nonexistant = ['foo/' + path for path in assembly_paths[0]]
+
+    return BioFileGroup(nonexistant)
+
+@pytest.fixture
+def readfiles(read_paths):
+    return BioFileGroup(read_paths[0], gzipped=True)
+
+class TestBioFileGroup():
 
     def test_if_file_exists_then_access_works(self, assembly_paths, assfiles):
         assert assfiles[1] == assembly_paths[1]
@@ -75,12 +95,12 @@ class TestBioFileGroup():
             assert assembly == assfiles[i]
             assert reads == readfiles[i]
 
-    def test_if_files_dont_exist_raise_os_error(self, assembly_paths):
-        nonexistant = ['foo/' + path for path in assembly_paths[0]]
-
-        bfg = BioFileGroup(nonexistant)
+    def test_if_files_dont_exist_raise_os_error(self, nonexistant_assfiles):
         with pytest.raises(OSError) as exc:
-            bfg[1]
+            nonexistant_assfiles[1]
+
+    def test_length_nonexist_doesnt_raise_os_error(self, nonexistant_assfiles):
+        len(nonexistant_assfiles)
 
     def test_empty_files_raise_value_error(self, empty_paths):
         bfg = BioFileGroup(empty_paths)
@@ -115,3 +135,9 @@ class TestPairedFastq():
 
     def test_length_method(self, fwd_fastq, paired_fastq):
         assert len(paired_fastq) == len(fwd_fastq)
+
+class TestBowtie2Index():
+    def test_bowtie2_index_name_setter(self, bowtie2_indices):
+        assert bowtie2_indices.names == ['FA_SC.scaffolds', 'FB_SC.scaffolds',
+                'IA_SC.scaffolds', 'IC_SC.scaffolds']
+

@@ -18,21 +18,28 @@ def all_equal(items: Sequence) -> bool:
 
     return all(item == items[0] for item in items)
 
-def any_dont_exist(paths: Sequence[str]) -> bool:
-    """ Return True if any path in list does not exist """
-
+def any_exist(paths: Sequence[str]) -> bool:
+    """ Return True if any path in list exists """
     check_non_empty(paths)
     exists = map(os.path.exists, paths)
-    return any(not x for x in exists)
+    return any(exists)
+
+def any_dont_exist(paths: Sequence[str]) -> bool:
+    """ Return True if any path in list does not exist """
+    check_non_empty(paths)
+    exists = map(os.path.exists, paths)
+    return not all(exists)
 
 def any_endswith(items: Sequence[str], suffix) -> bool:
     """ Return True if any item ends with the given suffix """
     return any([item.endswith(suffix) for item in items])
 
+def all_exist(paths: Sequence[str]) -> bool:
+    """ Return True if all paths in list exist """
+    return all(map(os.path.exists, paths))
 
 def check_all_exist(paths: Sequence[str]) -> None:
     """ Raise an exception if any paths in list do not exist """
-
     for path in paths:
         if not os.path.exists(path):
             raise OSError("Path doesn't exist: " + path)
