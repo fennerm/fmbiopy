@@ -19,10 +19,17 @@ def get_suffix(path: str) -> str:
     return ''.join(path.split(".")[1:])
 
 def final_suffix(path: str) -> str:
-    """ Get the part of a string after the last dot """
+    """ Get the part of a string after the last dot. """
     dot_split = path.split(".")
     final_index = len(dot_split) - 1
     return dot_split[final_index]
+
+def last_two_suffix(path: str) -> str:
+    """ Get the last two suffixes of a filename as a string """
+    dot_split = path.split(".")
+    suffix_list = [dot_split[len(dot_split) - 2],
+                   dot_split[len(dot_split) - 1]]
+    return '.'.join(suffix_list)
 
 def replace_suffix(path: str, old_suffix: str, new_suffix: str) -> str:
     """ Replace the suffix of a string """
@@ -60,3 +67,4 @@ def remove_suffix(names: StringOrSequence, nremove=1) -> StringOrSequence:
 def abs_paths(paths: Sequence[str]) -> Sequence[str]:
     """ Convert list of relative paths to absolute """
     return [os.path.abspath(path) for path in paths]
+

@@ -25,6 +25,10 @@ def any_dont_exist(paths: Sequence[str]) -> bool:
     exists = map(os.path.exists, paths)
     return any(not x for x in exists)
 
+def any_endswith(items: Sequence[str], suffix) -> bool:
+    """ Return True if any item ends with the given suffix """
+    return any([item.endswith(suffix) for item in items])
+
 
 def check_all_exist(paths: Sequence[str]) -> None:
     """ Raise an exception if any paths in list do not exist """

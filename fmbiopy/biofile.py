@@ -2,96 +2,148 @@
 Classes for storing and validating various types of bioinformatics files
 """
 
-from fmbiopy.fmcheck import check_all_suffix, all_equal
-from fmbiopy.fmpaths import final_suffix, remove_suffix
+import os
+from typing import Sequence
+from fmbiopy.fmcheck import check_all_suffix, all_equal, any_endswith
+from fmbiopy.fmpaths import final_suffix, last_two_suffix, remove_suffix
 
-class BioFileGroup():
+class BioFileGroup(object):
     """
     Basic class for storing and validating groups of bioinformatics files
-    Classes for specific types of files inherit from it.
+    Classes for specific filetypes inherit from it.
+
+    Attributes
+    ----------
+    paths
+        Paths to files. The files need not exist upon initialization, but they
+        are checked before the first access attempt.
+    extensions
+        The extensions of each file
+    gzipped
+        True if the files are gzipped
+    possibly_empty
+        Set this to True if it is acceptable for the files to be empty. This
+        disables non-empty file checking.
     """
 
-    def __init__(self, files, gzipped = False):
+    def __init__(
+            self,
+            files: Sequence[str],
+            gzipped: bool = False,
+            possibly_empty: bool = False
+            ) -> None:
+        """ initialization """
+
         self.paths = files
-        self.extensions = [final_suffix(x) for x in files]
         self._validated = False
+        self.possibly_empty = possibly_empty
         self.gzipped = gzipped
+        self._accepted_extensions = None
+        self.extensions = self._get_extensions()
+
         self._prevalidate()
 
-    def __getitem__(self, item):
-        """ Get an file from the group using list syntax """
+    def _get_extensions(self) -> Sequence[str]:
+        """
+        Get the file extensions of the files. If gzipped, return the two-part
+        extension (E.g 'fq.gz')
+        """
+        if self.gzipped:
+            return [last_two_suffix(f) for f in self.paths]
+        else:
+            return [final_suffix(f) for f in self.paths]
+
+    def __getitem__(self, item) -> str:
+        """ Get a file from the group using list syntax """
+        if not self._validated:
+            self._validate()
 
         return self.paths[item]
 
-    def _check_paths_not_empty(self):
+    def _prevalidate(self) -> None:
+        """ Do some basic input validation upon initialization """
+
+        self.__check_paths_not_none()
+        self.__check_paths_not_string()
+        self.__check_gzip()
+
+    def _validate(self) -> None:
+        """ Validation function. Child classes implement their own """
+        self.__check_extensions()
+        self.__check_files_non_empty()
+        self._validated = True
+
+    def __check_files_non_empty(self) -> None:
+        if not self.possibly_empty:
+            for path in self.paths:
+                if os.path.getsize(path) < 3:
+                    raise ValueError(path + " is empty")
+
+    def __check_paths_not_none(self) -> None:
         """ Check paths not an empty list """
         if not self.paths:
             raise ValueError('Empty paths in BioFileGroup')
 
-    def _check_paths_not_string(self):
+    def __check_paths_not_string(self) -> None:
         """ Check that paths is not a single string """
 
         if isinstance(self.paths, str):
             raise TypeError('Input to BioFileGroup is a string (expects \
                     list)')
 
-    def _check_paths_same_extension(self):
-        """ Check that paths all have the same extension """
+    def __check_extensions(self) -> None:
+        """ Check that the file extensions match the accepted extensions """
+        if self._accepted_extensions:
+            for extension in self.extensions:
+                if not extension in self._accepted_extensions:
+                    raise ValueError("Invalid file extension")
 
-        if self.gzipped:
-            names = [remove_suffix(p, 1) for p in self.paths]
-        else:
-            names = self.paths
-
-        extensions = [final_suffix(x) for x in names]
-
-        if not all_equal(extensions):
-            raise ValueError("Input paths to BioFileGroup do not have the \
-                same extension")
-
-    def _check_gzip(self):
+    def __check_gzip(self) -> None:
         """ Check that the gzipped flag parameter matches the extensions of
         the files """
 
-        self._check_paths_same_extension()
         if self.gzipped:
-            if self.extensions[0] != 'gz':
+            if not any_endswith(self.extensions, 'gz'):
                 raise TypeError("Files are not gzipped")
         else:
-            if self.extensions[0] == 'gz':
-                raise TypeError("Files are gzipped, but gzip flag not set")
+            if any_endswith(self.extensions, 'gz'):
+                raise TypeError("Files are gzipped, but gzipped flag not set")
 
-    def _prevalidate(self):
-        """ Do some basic input validation upon initialization """
 
-        self._check_paths_not_empty()
-        self._check_paths_not_string()
-        self._check_paths_same_extension()
-        self._check_gzip()
-
-    def __len__(self):
+    def __len__(self) -> int:
         """ Length of file list """
         return len(self.paths)
 
-class FastqFileGroup(BioFileGroup):
-    def __init__(self, files1, files2 = None):
+class Fastq(BioFileGroup):
+    """
+    BioFileGroup for holding Fastq files. Reads can either be paired or
+    unpaired.
+    """
+    def __init__(
+            self,
+            files: Sequence[str],
+            gzipped: bool = False,
+            possibly_empty: bool = False
+            ) -> None:
+        """ initialization """
 
-        if files2 is None:
-            super().__init__(paired)
-            self.paired = False
-        else:
-            pass
-    def _validate(self):
-        pass
+        super().__init__(files, gzipped, possibly_empty)
+        self._accepted_extensions = ['fastq', 'fq']
 
-class BamFileGroup(BioFileGroup):
+
+class PairedFastq(Fastq):
     def __init__(self, files, indices):
         pass
 
-class SamFileGroup(BioFileGroup):
+
+class Bam(BioFileGroup):
+    def __init__(self, files, indices):
+        pass
+
+class Sam(BioFileGroup):
     def __init__():
         pass
 
-class FastaFileGroup(BioFileGroup):
+class Fasta(BioFileGroup):
     def __init__():
         pass
