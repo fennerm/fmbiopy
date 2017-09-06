@@ -1,13 +1,18 @@
-"""
-Utilities for system manipulation (moving/creating files, running commands etc.
+"""Utilities for system manipulation
+
+Moving/creating files, running commands etc.
 """
 
-import os
-import logging
-import errno
 from contextlib import contextmanager
-from subprocess import Popen, PIPE
-from typing import Sequence, Tuple, Generator
+import errno
+import logging
+import os
+import subprocess
+from typing import Dict
+from typing import Generator
+from typing import Sequence
+from typing import Tuple
+
 
 def run_command(
         command: Sequence,
@@ -15,8 +20,7 @@ def run_command(
         log_stdout: bool = True,
         log_stderr: bool =True
         ) -> Tuple[int, str, str]:
-    """
-    Run a bash command with logging support
+    """Run a bash command with logging support
 
     Parameters
     ----------
@@ -30,7 +34,6 @@ def run_command(
     Returns
     -------
     A triple of the form (return code, standard out, standard error)
-
     """
 
     # If command is passed as a string, convert to list
@@ -41,8 +44,11 @@ def run_command(
     command = list(filter(None, command))
 
     # Run the command
-    process = Popen(command, stdout=PIPE, stderr=PIPE,
-                    universal_newlines=True)
+    process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True)
 
     # UTF-8 encoding specification reqd for python 3
     stdout, stderr = process.communicate()
@@ -56,10 +62,10 @@ def run_command(
 
     return (int(process.returncode), stdout, stderr)
 
+
 @contextmanager
 def working_directory(directory: str) -> Generator:
-    """
-    Change working directory context safely.
+    """Change working directory context safely.
 
     Usage
     -----
@@ -74,9 +80,11 @@ def working_directory(directory: str) -> Generator:
     finally:
         os.chdir(owd)
 
+
 @contextmanager
 def delete(paths: Sequence[str]) -> Generator:
-    """
+    """Context manager for deletion of temporary files.
+
     Context used for making sure that files are deleted even if an attempted
     action raises an exception. Useful for cleaning up temporary files.
 
@@ -88,27 +96,29 @@ def delete(paths: Sequence[str]) -> Generator:
 
     try:
         yield
-    except:
+    except Exception:
         pass
     finally:
         for path in paths:
             silent_remove(path)
 
+
 def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
-    """ Run a command without logging results """
+    """Run a command without logging results """
     return run_command(command, log_stdout=False, log_stderr=False)
 
+
 def concat(filenames: Sequence[str], outpath: str) -> None:
-    """ Concatenate a list of files """
+    """Concatenate a list of files """
     filenames = ' '.join(filenames)
     command = 'cat ' + filenames + ' > ' + outpath
     err_code = run_silently(command)[0]
     if err_code != 0:
         raise OSError("File concatenation failed")
 
+
 def mkdir(path: str) -> str:
-    """
-    Create a directory if it doesn't exist
+    """Create a directory if it doesn't exist
 
     Returns
     -------
@@ -121,9 +131,9 @@ def mkdir(path: str) -> str:
 
     return os.path.abspath(path)
 
+
 def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
-    """
-    Create a list directories
+    """Create a list directories
 
     Parameters
     ----------
@@ -142,10 +152,31 @@ def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
 
     return abspaths
 
+
 def silent_remove(filename: str) -> None:
-    """ Try to remove a file, ignore exception if doesn't exist """
+    """Try to remove a file, ignore exception if doesn't exist """
     try:
         os.remove(filename)
     except OSError as err:
         if err.errno != errno.ENOENT:
             raise
+
+
+def parse_param_dict(param: Dict[str, str]) -> str:
+    """Convert a parameter dictionary to a string BASH commands
+
+    Parameters
+    ----------
+    param:
+        A dictionary with argument flags (-x, --long etc.) as the keys and
+        BASH parameter values as the values
+
+    Returns
+    -------
+        A Bash command substring containing the parameters
+    """
+    bash_string = ''
+    for key, value in param.items():
+        bash_string += (' '.join([key, value]))
+
+    return bash_string

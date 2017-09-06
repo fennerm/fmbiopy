@@ -45,3 +45,22 @@ class TestDelete():
             raise OSError
 
         assert not any_exist(tmpfile_names)
+
+class TestParseParamDict():
+    @pytest.fixture
+    def example_dict(self):
+        example = {
+                '-a':'a_val',
+                '-b':'b_val',
+                '--long':'long_val'
+                }
+        return example
+
+    def test_parse_correct_output(self, example_dict):
+        parsed = fmsystem.parse_param_dict(example_dict)
+        assert '-a a_val' in parsed
+        assert '-b b_val' in parsed
+        assert '--long long_val' in parsed
+
+    def test_empty_input(self):
+        assert fmsystem.parse_param_dict({}) == ''
