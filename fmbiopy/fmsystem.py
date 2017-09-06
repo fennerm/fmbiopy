@@ -115,6 +115,7 @@ def mkdir(path: str) -> str:
     Absolute path of the created directory
     """
 
+    path = str(path)
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -136,7 +137,7 @@ def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
         The paths of the created directories
     """
 
-    with working_directory(output_directory):
+    with working_directory(str(output_directory)):
         abspaths = [mkdir(dirname) for dirname in dirnames]
 
     return abspaths

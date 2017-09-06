@@ -64,18 +64,12 @@ def remove_suffix(names: StringOrSequence, nremove=1) -> StringOrSequence:
 
     return remove_suffix(unsuffixed, nremove)
 
-def abs_paths(paths: Sequence[str]) -> Sequence[str]:
-    """ Convert list of relative paths to absolute """
-    return [os.path.abspath(path) for path in paths]
-
-def get_basenames(paths: Sequence[str]) -> Sequence[str]:
-    """ Convert a list of paths to a list of basenames """
-    return [os.path.basename(path) for path in paths]
-
 def listdirs(directory: str) -> Sequence[str]:
     """ List all the subdirectories of a directory """
     dirs = []
-    for path in abs_paths(glob(directory + '/*')):
+    contents = glob(directory + '/*')
+    abs_paths = [os.path.abspath(item) for item in contents]
+    for path in abs_paths:
         if os.path.isdir(path):
             dirs.append(path)
     return dirs

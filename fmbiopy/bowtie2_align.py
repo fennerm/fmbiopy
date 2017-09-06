@@ -5,7 +5,7 @@ from multiprocessing import cpu_count
 from fmbiopy.fmpaths import add_suffix, remove_suffix, get_final_suffix
 from fmbiopy.fmsystem import run_command
 
-def run_bowtie2(fwd_read, rev_read, indices, out_paths, threads=None,
+def bowtie2_align(fwd_read, rev_read, indices, out_paths, threads=None,
         maxins=None, no_discordant=None, no_mixed=None, preset=None):
     """
     Python wrapper around bowtie2

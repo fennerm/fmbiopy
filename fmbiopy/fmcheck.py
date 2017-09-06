@@ -8,7 +8,13 @@ from typing import Sequence
 from fmbiopy.fmtype import StringOrSequence
 
 def check_non_empty(items: Sequence) -> None:
-    """ Raise exception if list is empty """
+    """Raises exception if list is empty
+
+    :param items:
+    :type items: Sequence
+
+    :rtype: None
+    """
 
     if not items:
         raise ValueError("List is empty")

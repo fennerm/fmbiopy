@@ -9,7 +9,7 @@ from fmbiopy.fmsystem  import run_command
 ##   references  List; Fasta files
 ## Return
 ##   A tuple (list of created .fai indices, list of created bowtie2 indices)
-def run_index_fasta(references):
+def index_fasta(references):
 
     # Check arguments
     check_all_exist(references)

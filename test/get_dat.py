@@ -1,9 +1,10 @@
-import os
+from fmbiopy.fmpaths import listdirs
 from glob import glob
-from fmbiopy.fmpaths import abs_paths, listdirs
+import os
+
 
 def get_dat():
-    testdirs = abs_paths(listdirs('testdat'))
+    testdirs = [os.path.abspath(d) for d in listdirs('testdat')]
     dat = {}
     for d in testdirs:
         base = os.path.basename(d)
