@@ -1,33 +1,28 @@
 #!/usr/bin/env/ python
-import os
+
+import fmbiopy.fmcheck as fmcheck
+import fmbiopy.fmsystem as fmsystem
 from glob import glob
-from fmbiopy.fmcheck import check_all_exist, check_all_suffix
-from fmbiopy.fmsystem  import run_command
+import os
+from ruffus.proxy_logger import AcquirerProxy
+from ruffus.proxy_logger import LoggerProxy
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
 
-## Index a list of fasta files using samtools faidx and bowtie2-build
-## Param
-##   references  List; Fasta files
-## Return
-##   A tuple (list of created .fai indices, list of created bowtie2 indices)
-def index_fasta(references):
+def samtools_index_fasta(input_fasta: str,
+        output_indices: str,
+        param: Dict[str, str],
+        logger: LoggerProxy,
+        logging_mutex: AcquirerProxy
+        ) -> None:
+    """Index a list of .fasta files using samtools faidx"""
 
-    # Check arguments
-    check_all_exist(references)
-    check_all_suffix(references, [".fasta", ".fa", ".fna", ".mfa"])
+    # Convert the parameter dictionary to a flat list
+    parsed_param = fmsystem.dict_to_list(param)
 
-    # Convert to absolute paths
-    references = [os.path.abspath(x) for x in references]
+    # Construct the samtools command
+    command = ['samtools', 'faidx'] + parsed_param + [input_fasta]
 
-    command = ['bowtie2_index'] + references
-    run_command(command, "build_index", False)
-
-    faidx_indices = []
-    bt2_indices = []
-    for ref in references:
-        faidx_indices.append(ref+'.fai')
-
-        ref_no_suffix = os.path.splitext(ref)[0]
-
-        bt2_indices = bt2_indices + glob(ref_no_suffix+'*.bt2')
-
-    return (sorted(faidx_indices), sorted(bt2_indices))
+    # Run the command
+    fmsystem.run_command(command, "build_index", False)

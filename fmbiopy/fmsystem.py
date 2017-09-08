@@ -5,11 +5,15 @@ Moving/creating files, running commands etc.
 
 from contextlib import contextmanager
 import errno
+import itertools
 import logging
+from multiprocessing.managers import AcquirerProxy
 import os
+from ruffus.proxy_logger import LoggerProxy
 import subprocess
 from typing import Dict
 from typing import Generator
+from typing import List
 from typing import Sequence
 from typing import Tuple
 
@@ -18,7 +22,9 @@ def run_command(
         command: Sequence,
         logger_id: str = None,
         log_stdout: bool = True,
-        log_stderr: bool =True
+        log_stderr: bool = True,
+        proxy: LoggerProxy = None,
+        mutex: AcquirerProxy = None
         ) -> Tuple[int, str, str]:
     """Run a bash command with logging support
 
@@ -30,6 +36,9 @@ def run_command(
         Name to use for logging handler
     log_stdout, log_stderr
         Should standard out and standard error be logged?
+    proxy, mutex
+        If running a ruffus pipeline, logging proxy and mutex can be used to
+        ensure that parallel access to logfile works correctly
 
     Returns
     -------
@@ -54,14 +63,20 @@ def run_command(
     stdout, stderr = process.communicate()
 
     # Log results
-    logger = logging.getLogger(logger_id)
-    if log_stdout and stdout:
-        logger.info(stdout)
-    if log_stderr and stderr:
-        logger.info(stderr)
+    if proxy and mutex:
+        with mutex:
+            if log_stdout and stdout:
+                proxy.info(stdout)
+            if log_stderr and stderr:
+                proxy.info(stderr)
+    else:
+        logger = logging.getLogger(logger_id)
+        if log_stdout and stdout:
+            logger.info(stdout)
+        if log_stderr and stderr:
+            logger.info(stderr)
 
     return (int(process.returncode), stdout, stderr)
-
 
 @contextmanager
 def working_directory(directory: str) -> Generator:
@@ -161,6 +176,9 @@ def silent_remove(filename: str) -> None:
         if err.errno != errno.ENOENT:
             raise
 
+def dict_to_list(dictionary: Dict[str, str]) -> List[str]:
+    """Convert a dictionary to a flat list """
+    return [e for l in dictionary for e in l]
 
 def parse_param_dict(param: Dict[str, str]) -> str:
     """Convert a parameter dictionary to a string BASH commands

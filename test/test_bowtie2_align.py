@@ -1,3 +1,4 @@
+"""
 ## Pytests for bowtie2_align.py
 
 import os
@@ -30,3 +31,4 @@ def test_bowtie2_align():
                 out_paths, threads=2)
         if not all(code == 0 for code in exit_codes):
             raise RuntimeError("Not all bowtie2 exit codes non-zero")
+"""

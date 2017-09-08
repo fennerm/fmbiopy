@@ -1,3 +1,4 @@
+"""
 ## Pytests for run_bowtie2.py
 
 import os
@@ -27,3 +28,4 @@ def test_index_fasta():
 
         # Test if indices actually produced
         assert indices == expected_indices
+"""
