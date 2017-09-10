@@ -3,7 +3,6 @@ import os
 import pytest
 from tempfile import NamedTemporaryFile as tmp
 
-
 class TestRuffusLog(object):
     def test_empty_name_returns_value_error(self):
         with pytest.raises(ValueError):

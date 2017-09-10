@@ -5,7 +5,7 @@ Moving/creating files, running commands etc.
 
 from contextlib import contextmanager
 import errno
-from fmbiopy.fmruffus import RuffusLog
+import fmbiopy.fmruffus as fmruffus
 import itertools
 import logging
 from multiprocessing.managers import AcquirerProxy
@@ -24,7 +24,7 @@ def run_command(
         logger_id: str = '',
         log_stdout: bool = True,
         log_stderr: bool = True,
-        mutex_log: RuffusLog = None,
+        mutex_log: fmruffus.RuffusLog = None,
         ) -> Tuple[int, str, str]:
     """Run a bash command with logging support
 

@@ -1,4 +1,4 @@
-""" Classes and functions for use in Ruffus pipelines
+""" Classes for use in Ruffus pipelines
 
 Ruffus: http://www.ruffus.org.uk/
 """
