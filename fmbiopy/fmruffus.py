@@ -54,9 +54,12 @@ class RuffusLog(object):
             delay: bool = True,
             level: int = logging.DEBUG) -> None:
 
-        if not name: raise ValueError("Name cannot be empty")
-        if not os.path.exists(os.path.dirname(location)):
-            raise ValueError("Logfile directory does not exist")
+        if not name:
+            raise ValueError("Name cannot be empty")
+        logdir = os.path.dirname(location)
+        if logdir:
+            if not os.path.exists(logdir):
+                raise ValueError("Logfile directory does not exist")
 
         self.config = {
                 'file_name' : location,
@@ -67,3 +70,26 @@ class RuffusLog(object):
         self.log, self.mutex = make_shared_logger_and_proxy(
                 setup_std_shared_logger, name, self.config)
 
+    def write(self, message: str) -> None:
+        """Log a message with mutex lock
+
+        Parameters
+        ----------
+        message
+            String to be logged to the Ruffus logfile
+        header, optional
+            Header string. Will precede message and be wrapped in dashes to
+            stand out from other text.
+
+        """
+        with self.mutex:
+            self.log.info(message)
+
+    def _divider(self):
+        """Write a text divider to logfile"""
+        self.log.info('-' * 30)
+
+    def write_header(self, message: str) -> None:
+        self._divider()
+        self.write(message)
+        self._divider()

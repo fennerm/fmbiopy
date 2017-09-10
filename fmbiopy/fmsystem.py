@@ -5,6 +5,7 @@ Moving/creating files, running commands etc.
 
 from contextlib import contextmanager
 import errno
+from fmbiopy.fmruffus import RuffusLog
 import itertools
 import logging
 from multiprocessing.managers import AcquirerProxy
@@ -20,11 +21,10 @@ from typing import Tuple
 
 def run_command(
         command: Sequence,
-        logger_id: str = None,
+        logger_id: str = '',
         log_stdout: bool = True,
         log_stderr: bool = True,
-        proxy: LoggerProxy = None,
-        mutex: AcquirerProxy = None
+        mutex_log: RuffusLog = None,
         ) -> Tuple[int, str, str]:
     """Run a bash command with logging support
 
@@ -33,12 +33,13 @@ def run_command(
     command
         Bash command to be run
     logger_id
-        Name to use for logging handler
+        Name to use for logging handler (ignored if mutex_log given).
+        By default, root logger is used.
     log_stdout, log_stderr
         Should standard out and standard error be logged?
-    proxy, mutex
-        If running a ruffus pipeline, logging proxy and mutex can be used to
-        ensure that parallel access to logfile works correctly
+    mutex_log
+        If running in parallel, a RuffusLog instance can be passed to log
+        output with a mutex lock.
 
     Returns
     -------
@@ -63,18 +64,18 @@ def run_command(
     stdout, stderr = process.communicate()
 
     # Log results
-    if proxy and mutex:
-        with mutex:
-            if log_stdout and stdout:
-                proxy.info(stdout)
-            if log_stderr and stderr:
-                proxy.info(stderr)
+    if mutex_log:
+        if log_stdout and stdout:
+            mutex_log.write(stdout)
+        if log_stderr and stderr:
+            mutex_log.write(stderr)
     else:
         logger = logging.getLogger(logger_id)
         if log_stdout and stdout:
             logger.info(stdout)
         if log_stderr and stderr:
             logger.info(stderr)
+
 
     return (int(process.returncode), stdout, stderr)
 
