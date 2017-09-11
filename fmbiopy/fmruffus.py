@@ -1,4 +1,4 @@
-""" Classes for use in Ruffus pipelines
+""" Classes and functions for use in Ruffus pipelines
 
 Ruffus: http://www.ruffus.org.uk/
 """
@@ -93,3 +93,4 @@ class RuffusLog(object):
         self._divider()
         self.write(message)
         self._divider()
+

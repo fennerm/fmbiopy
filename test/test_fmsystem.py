@@ -42,7 +42,7 @@ class TestDelete():
         tmpfile_names = [tmpfile.name for tmpfile in tmpfiles]
         assert all_exist(tmpfile_names)
         with fmsystem.delete(tmpfile_names):
-            raise OSError
+            pass
 
         assert not any_exist(tmpfile_names)
 

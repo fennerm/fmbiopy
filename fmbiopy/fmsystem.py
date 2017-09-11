@@ -112,11 +112,19 @@ def delete(paths: Sequence[str]) -> Generator:
 
     try:
         yield
-    except Exception:
-        pass
+    except:
+        if isinstance(paths, str):
+            silent_remove(paths)
+        else:
+            for path in paths:
+                silent_remove(path)
+        raise
     finally:
-        for path in paths:
-            silent_remove(path)
+        if isinstance(paths, str):
+            silent_remove(paths)
+        else:
+            for path in paths:
+                silent_remove(path)
 
 
 def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
@@ -194,8 +202,11 @@ def parse_param_dict(param: Dict[str, str]) -> str:
     -------
         A Bash command substring containing the parameters
     """
-    bash_string = ''
-    for key, value in param.items():
-        bash_string += (' '.join([key, value]))
+    if param:
+        bash_string = ''
+        for key, value in param.items():
+            bash_string += (' '.join([key, value]))
 
-    return bash_string
+        return bash_string
+    else:
+        return ''

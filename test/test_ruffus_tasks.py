@@ -1,78 +1,87 @@
 import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmruffus as fmruffus
-from fmbiopy.fmsystem import delete
+import fmbiopy.fmsystem as fmsystem
+import fmbiopy.ruffus_tasks as ruffus_tasks
 from get_dat import get_dat
 from glob import glob
+import inspect
 import os
 import pytest
 
+def check_ruffus_task(task, input_files, output_files):
+    """Check that a Ruffus function runs as expected
+
+    Specifically checks that the requested output_files are created, and that
+    the exit code is zero"""
+
+    log = fmruffus.RuffusLog("Temp", "tmp.log")
+
+    # Handle deletion differently depending on whether input is a string
+    if isinstance(output_files, str):
+        to_delete = [output_files, log.config['file_name']]
+    else:
+        to_delete = output_files + [log.config['file_name']]
+
+    with fmsystem.delete(to_delete):
+        # Some ruffus tasks might not have a logger argument.
+        task_param = inspect.getfullargspec(task)
+        if 'logger' in task_param:
+            exit_code = task(input_files, output_files, logger=log)
+        else:
+            exit_code = task(input_files, output_files)
+
+        assert exit_code == 0
+        if isinstance(output_files, str):
+            assert os.path.exists(output_files)
+        else:
+            for f in output_files:
+                assert os.path.exists(f)
 
 def test_samtools_index_fasta():
-    assemblies = get_dat()['assemblies']
-    root_indices = fmpaths.remove_suffix(assemblies)
-    expected_indices = sorted(fmpaths.add_suffix(assemblies, '.fai'))
+    assembly = get_dat()['assemblies'][0]
+    root_index = fmpaths.remove_suffix(assembly)
+    expected_index = assembly + '.fai'
+    fmsystem.silent_remove(expected_index)
 
-    # Test if it runs without error.
-    with delete(expected_indices):
-        samtools_index_fasta(assemblies, expected_indices)
-        assembly_dir = os.path.dirname(assemblies[0])
-        indices = sorted(glob(assembly_dir + "/*.fai"))
-
-        # Test if indices actually produced
-        assert indices == expected_indices
+    check_ruffus_task(
+            ruffus_tasks.samtools_index_fasta, assembly, expected_index)
 
 
 def test_bowtie_index_fasta():
-    assemblies = get_dat()['assemblies']
-    root_indices = fmpaths.remove_suffix(assemblies)
-    expected_indices = sorted(
-            fmpaths.add_suffix(root_indices, '.1.bt2') +
-            fmpaths.add_suffix(root_indices, '.2.bt2') +
-            fmpaths.add_suffix(root_indices, '.3.bt2') +
-            fmpaths.add_suffix(root_indices, '.4.bt2') +
-            fmpaths.add_suffix(root_indices, '.rev.1.bt2') +
-            fmpaths.add_suffix(root_indices, '.rev.2.bt2'))
+    pytest.set_trace()
+    assembly = get_dat()['assemblies'][0]
+    root_index = fmpaths.remove_suffix(assembly)
+    bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
+            '.rev.2.bt2']
+    expected_indices = sorted([root_index + suf for suf in bowtie_suffixes])
 
-    # Test if it runs without error.
-    with delete(expected_indices):
-        bowtie_index_fasta(assemblies)
-        assembly_dir = os.path.dirname(assemblies[0])
-        indices = sorted(glob(assembly_dir + "/*.bt2"))
+    # Cant use check_ruffus_task here because the outputs do not correspond to
+    # files
+    with fmsystem.delete(expected_indices):
+        exit_code = ruffus_tasks.bowtie_index_fasta(assembly, root_index)
+        assert exit_code == 0
+        for f in expected_indices:
+            assert os.path.exists(f)
 
-        # Test if indices actually produced
-        assert indices == expected_indices
+def test_gunzip():
+    reads = get_dat()['fwd_reads'][0]
+    gunzipped_output = fmpaths.remove_suffix(reads)
+
+    check_ruffus_task(ruffus_tasks.gunzip, reads, gunzipped_output)
 
 """
-## Pytests for bowtie2_align.py
-
-import os
-import pytest
-from get_dat import get_dat
-from fmbiopy.index_fasta import index_fasta
-from fmbiopy.bowtie2_align import bowtie2_align
-from fmbiopy.fmsystem import delete
-from fmbiopy.fmpaths import remove_suffix
-
 def test_bowtie2_align():
-    testdat = get_dat()
-    fwd_reads = testdat['fwd_reads']
-    rev_reads = testdat['rev_reads']
-    assemblies = testdat['assemblies']
-    indices = index_fasta(assemblies)
+    fwd_reads = get_dat()['fwd_reads'][0]
+    rev_reads = get_dat()['rev_reads'][0]
+    assembly = testdat['assemblies'][0]
+    root_name = fmpaths.remove_suffix(fwd_reads, 2)
+    output_index = fmpaths.remove_suffix(assembly)
+    bowtie_index_fasta(assembly, output_index)
+    output_sam = fmpaths.add_suffix(root_name, '.sam')
 
-    bowtie2_indices = remove_suffix(indices[0], 2)
-
-    indices = indices[0] + indices[1]
-
-    out_paths = []
-    for a in assemblies:
-        base = os.path.basename(a)
-        out_path = os.path.join(os.getcwd(), base+'.sam')
-        out_paths.append(out_path)
-
-    with delete(out_paths + indices):
-        exit_codes = bowtie2_align(fwd_reads, rev_reads, bowtie2_indices,
-                out_paths, threads=2)
-        if not all(code == 0 for code in exit_codes):
-            raise RuntimeError("Not all bowtie2 exit codes non-zero")
+    with fmsystem.delete([output_index, output_sam]):
+        input_files = (fwd_reads, rev_reads, output_index)
+        exit_code = ruffus_tasks.paired_bowtie2_align(input_files, output_sam)
+        assert os.path.exists(output_sam)
+        assert exit_code == 0
 """
