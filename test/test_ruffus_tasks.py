@@ -82,7 +82,6 @@ def test_paired_bowtie2_align():
     input_files = (gunzip_fwd, gunzip_rev, output_index)
     output_files = bowtie2_indices + [output_bam, gunzip_fwd,
                                       gunzip_rev, output_bai]
-    pytest.set_trace()
     check_ruffus_task(
             ruffus_tasks.paired_bowtie2_align, input_files, output_bam,
             output_files)
