@@ -7,6 +7,7 @@ from glob import glob
 import inspect
 import os
 import pytest
+import tempfile
 
 def check_ruffus_task(task, input_files, output_files):
     """Check that a Ruffus function runs as expected
@@ -48,7 +49,6 @@ def test_samtools_index_fasta():
 
 
 def test_bowtie_index_fasta():
-    pytest.set_trace()
     assembly = get_dat()['assemblies'][0]
     root_index = fmpaths.remove_suffix(assembly)
     bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
@@ -68,6 +68,13 @@ def test_gunzip():
     gunzipped_output = fmpaths.remove_suffix(reads)
 
     check_ruffus_task(ruffus_tasks.gunzip, reads, gunzipped_output)
+
+def test_gzip():
+    tmp = tempfile.NamedTemporaryFile()
+    gzipped_output = fmpaths.add_suffix(tmp.name, '.gz')
+
+    with fmsystem.delete(gzipped_output):
+        check_ruffus_task(ruffus_tasks.gzip, tmp.name, gzipped_output)
 
 """
 def test_bowtie2_align():

@@ -116,6 +116,26 @@ def gunzip(
         f.write(stdout)
     return exit
 
+def gzip(
+        input_file: str,
+        output_file: str,
+        param: typing.List[str] = []) -> int:
+    """Gzip a file
+
+    Parameters
+    ----------
+    input_file
+        Path to input file
+    output_file
+        Path to the gzipped output
+    param
+        A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
+    """
+    command = ['gzip'] + param + [input_file]
+    exit = fmsystem.run_command(
+            command, log_stdout=False, log_stderr=False)[0]
+    return exit
+
 def paired_bowtie2_align(
         input_files: typing.Tuple[str, str, str],
         output_sam: str,
