@@ -3,7 +3,7 @@
 import os
 from re import sub
 from glob import glob
-from typing import Sequence
+from typing import Sequence, List
 from fmbiopy.fmcheck import check_suffix
 from fmbiopy.fmtype import PathsOrStrings, StringOrSequence
 
@@ -73,3 +73,13 @@ def listdirs(directory: str) -> Sequence[str]:
         if os.path.isdir(path):
             dirs.append(path)
     return dirs
+
+def get_bowtie2_indices(prefix: str) -> List[str]:
+    """Given the bowtie2 index prefix, return the bowtie2 indices"""
+    bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
+                        '.rev.2.bt2']
+    expected_indices = sorted([prefix + suf for suf in
+        bowtie_suffixes])
+    return expected_indices
+
+

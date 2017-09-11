@@ -16,12 +16,12 @@ def _run_ruffus_command(
         log_results: bool = True) -> int:
     """Helper function for running a command with or without logging"""
     if log_results:
-        exit = fmsystem.run_command(
+        exit_code = fmsystem.run_command(
                 command, mutex_log=logger, log_stdout=False,
                 log_stderr=False)[0]
     else:
-        exit = fmsystem.run_command(command, mutex_log=logger)[0]
-    return exit
+        exit_code = fmsystem.run_command(command, mutex_log=logger)[0]
+    return exit_code
 
 
 def bowtie_index_fasta(
@@ -58,7 +58,8 @@ def bowtie_index_fasta(
         logger.write_header("Indexing " + input_fasta + " with Bowtie2")
 
     # Run the command
-    return _run_ruffus_command(command, logger, log_results)
+    exit_code = _run_ruffus_command(command, logger, log_results)
+    return exit_code
 
 
 def samtools_index_fasta(input_fasta: str,
@@ -91,8 +92,9 @@ def samtools_index_fasta(input_fasta: str,
         logger.write_header("Indexing " + input_fasta + " with samtools")
 
     # Run the command
-    exit = _run_ruffus_command(command, logger, log_results)
-    return exit
+    exit_code = _run_ruffus_command(command, logger, log_results)
+    return exit_code
+
 
 def gunzip(
         input_file: str,
@@ -110,11 +112,12 @@ def gunzip(
         A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
     """
     command = ['gunzip', '-c'] + param + [input_file]
-    exit, stdout, _ = fmsystem.run_command(
+    exit_code, stdout, _ = fmsystem.run_command(
             command, log_stdout=False, log_stderr=False)
     with open(output_file, "w") as f:
         f.write(stdout)
-    return exit
+    return exit_code
+
 
 def gzip(
         input_file: str,
@@ -132,14 +135,16 @@ def gzip(
         A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
     """
     command = ['gzip'] + param + [input_file]
-    exit = fmsystem.run_command(
+    exit_code = fmsystem.run_command(
             command, log_stdout=False, log_stderr=False)[0]
-    return exit
+    return exit_code
 
 def paired_bowtie2_align(
         input_files: typing.Tuple[str, str, str],
         output_sam: str,
-        param: typing.List[str]) -> int:
+        param: typing.List[str] = [],
+        logger: fmruffus.RuffusLog = None,
+        log_results: bool = False) -> int:
     """Align a pair of fastq files to a fasta file using bowtie2
 
     Parameters
@@ -148,7 +153,6 @@ def paired_bowtie2_align(
         A Tuple of the form (Forward reads, Reverse reads, Bowtie2 index)
     output_index
         Path to the output .sam file
-    param
         A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
     logger
         The Ruffus logging instance
@@ -161,27 +165,12 @@ def paired_bowtie2_align(
 
     fwd_reads = input_files[0]
     rev_reads = input_files[1]
-    fasta = input_files[2]
-    # Bowtie2 sometimes segfaults with gzipped fastq files, so we gunzip
-    # them
-    if fmpaths.get_final_suffix(fwd_reads) == '.gz':
-        gunzipped_fwd_reads = fmpaths.remove_suffix(fwd_reads)
-        raise OSError
+    bowtie2_index = input_files[2]
 
-        fwd_reads = '<(gunzip -c ' + r1 + ')'
-    if fmpaths.get_final_suffix(rev_reads) == '.gz':
-        r2 = '<(gunzip -c ' + r2 + ')'
+    # Construct command
+    command = ['bowtie2', '-1', fwd_reads, '-2', rev_reads, '-x',
+            bowtie2_index, '-S', output_sam]
 
-        # Construct command
-        command = (['bowtie2', '-1', r1, '-2', r2, '-x', idx, '-S', tmp] +
-                opt_command)
-
-        # Run command
-        exit_code = run_command(command, ("bowtie2." +
-            remove_suffix(os.path.basename(idx))))[0]
-        exit_codes.append(exit_code)
-
-        # Remove the temp file
-        move(tmp, out)
-
-    return exit_codes
+    # Run command
+    exit_code = _run_ruffus_command(command, logger, log_results)
+    return exit_code
