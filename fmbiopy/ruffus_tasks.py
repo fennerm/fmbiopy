@@ -18,6 +18,7 @@ def _run_ruffus_command(
         log_results: bool = True) -> int:
     """Helper function for running a command with or without logging"""
     if log_results:
+        logger.write_header(['Running:'] + command)
         exit_code = fmsystem.run_command(
                 command, mutex_log=logger, log_stdout=False,
                 log_stderr=False)[0]
@@ -56,9 +57,6 @@ def bowtie_index_fasta(
     # Construct the samtools command
     command = ['bowtie2-build'] + param + [input_fasta, output_prefix]
 
-    if logger:
-        logger.write_header("Indexing " + input_fasta + " with Bowtie2")
-
     # Run the command
     exit_code = _run_ruffus_command(command, logger, log_results)
     return exit_code
@@ -89,9 +87,6 @@ def samtools_index_fasta(input_fasta: str,
 
     # Construct the samtools command
     command = ['samtools', 'faidx', input_fasta]
-
-    if logger:
-        logger.write_header("Indexing " + input_fasta + " with samtools")
 
     # Run the command
     exit_code = _run_ruffus_command(command, logger, log_results)
@@ -169,9 +164,6 @@ def paired_bowtie2_align(
     fwd_reads = input_files[0]
     rev_reads = input_files[1]
     bowtie2_index = input_files[2]
-
-    if logger:
-        logger.write_header("Aligning " + fwd_reads + " to " + bowtie2_index)
 
     # Construct command
     output_sam = fmpaths.replace_suffix(output_bam, '.bam', '.sam')

@@ -22,7 +22,7 @@ def check_ruffus_task(task, input_files, output_files, to_delete):
         if isinstance(output_files, str):
             assert os.path.exists(output_files)
         else:
-            for f in output_files:
+            for f in to_delete:
                 assert os.path.exists(f)
 
 def test_samtools_index_fasta():
@@ -49,12 +49,14 @@ def test_bowtie_index_fasta():
         for f in bowtie_indices:
             assert os.path.exists(f)
 
+
 def test_gunzip():
     reads = get_dat()['fwd_reads'][0]
     gunzipped_output = fmpaths.remove_suffix(reads)
 
     check_ruffus_task(ruffus_tasks.gunzip, reads, gunzipped_output,
             gunzipped_output)
+
 
 def test_gzip():
     tmp = tempfile.NamedTemporaryFile()
@@ -63,6 +65,7 @@ def test_gzip():
     with fmsystem.delete(gzipped_output):
         check_ruffus_task(ruffus_tasks.gzip, tmp.name, gzipped_output,
                 gzipped_output)
+
 
 def test_paired_bowtie2_align():
     fwd_reads = get_dat()['fwd_reads'][0]

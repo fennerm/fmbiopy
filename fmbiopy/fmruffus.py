@@ -3,6 +3,7 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 
+from fmbiopy.fmtype import StringOrSequence
 import logging
 import os
 from ruffus.proxy_logger import make_shared_logger_and_proxy
@@ -10,7 +11,6 @@ from ruffus.proxy_logger import setup_std_shared_logger
 
 """Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
-
 
 class RuffusLog(object):
     """A logger/mutex pair used for logging in Ruffus pipelines
@@ -70,26 +70,29 @@ class RuffusLog(object):
         self.log, self.mutex = make_shared_logger_and_proxy(
                 setup_std_shared_logger, name, self.config)
 
-    def write(self, message: str) -> None:
+    def write(self, message: StringOrSequence) -> None:
         """Log a message with mutex lock
 
         Parameters
         ----------
         message
-            String to be logged to the Ruffus logfile
+            Message to be logged to the Ruffus logfile. List is converted to
+            string and spaces are added. If already a string just log directly
         header, optional
             Header string. Will precede message and be wrapped in dashes to
             stand out from other text.
 
         """
         with self.mutex:
+            if not isinstance(message, str):
+                message = ' '.join(message)
             self.log.info(message)
 
     def _divider(self):
         """Write a text divider to logfile"""
         self.log.info('-' * 30)
 
-    def write_header(self, message: str) -> None:
+    def write_header(self, message: StringOrSequence) -> None:
         self._divider()
         self.write(message)
         self._divider()

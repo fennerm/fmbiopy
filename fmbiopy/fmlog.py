@@ -1,7 +1,7 @@
 """ Logging utilities """
 
 import logging
-import ruffus.proxy_logger as ruflog
+
 
 def setup_log(logfile: str) -> None:
     """Set up a logging instance for a given logfile path. See:
