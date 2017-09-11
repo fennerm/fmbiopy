@@ -3,6 +3,8 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 
+import fmbiopy.fmconvert as fmconvert
+import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmruffus as fmruffus
 import fmbiopy.fmsystem as fmsystem
 import logging
@@ -141,7 +143,7 @@ def gzip(
 
 def paired_bowtie2_align(
         input_files: typing.Tuple[str, str, str],
-        output_sam: str,
+        output_bam: str,
         param: typing.List[str] = [],
         logger: fmruffus.RuffusLog = None,
         log_results: bool = False) -> int:
@@ -151,8 +153,9 @@ def paired_bowtie2_align(
     ----------
     input_files
         A Tuple of the form (Forward reads, Reverse reads, Bowtie2 index)
-    output_index
-        Path to the output .sam file
+    output_bam
+        Path to the output .bam file
+    param
         A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
     logger
         The Ruffus logging instance
@@ -167,10 +170,20 @@ def paired_bowtie2_align(
     rev_reads = input_files[1]
     bowtie2_index = input_files[2]
 
+    if logger:
+        logger.write_header("Aligning " + fwd_reads + " to " + bowtie2_index)
+
     # Construct command
+    output_sam = fmpaths.replace_suffix(output_bam, '.bam', '.sam')
     command = ['bowtie2', '-1', fwd_reads, '-2', rev_reads, '-x',
             bowtie2_index, '-S', output_sam]
 
     # Run command
     exit_code = _run_ruffus_command(command, logger, log_results)
+
+    # Convert to a sorted Bam
+    fmconvert.sam_to_bam(output_sam, output_bam)
+
     return exit_code
+
+

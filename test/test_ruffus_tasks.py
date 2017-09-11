@@ -71,14 +71,18 @@ def test_paired_bowtie2_align():
     gunzip_rev = fmpaths.remove_suffix(rev_reads)
     ruffus_tasks.gunzip(fwd_reads, gunzip_fwd)
     ruffus_tasks.gunzip(rev_reads, gunzip_rev)
+
     assembly = get_dat()['assemblies'][0]
     root_name = fmpaths.remove_suffix(fwd_reads, 2)
     output_index = fmpaths.remove_suffix(assembly)
     bowtie2_indices = fmpaths.get_bowtie2_indices(output_index)
     ruffus_tasks.bowtie_index_fasta(assembly, output_index)
-    output_sam = fmpaths.add_suffix(root_name, '.sam')
+    output_bam = fmpaths.add_suffix(root_name, '.bam')
+    output_bai = fmpaths.add_suffix(output_bam, '.bai')
     input_files = (gunzip_fwd, gunzip_rev, output_index)
-    output_files = bowtie2_indices + [output_sam, gunzip_fwd, gunzip_rev]
+    output_files = bowtie2_indices + [output_bam, gunzip_fwd,
+                                      gunzip_rev, output_bai]
+    pytest.set_trace()
     check_ruffus_task(
-            ruffus_tasks.paired_bowtie2_align, input_files, output_sam,
+            ruffus_tasks.paired_bowtie2_align, input_files, output_bam,
             output_files)

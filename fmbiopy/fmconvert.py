@@ -1,3 +1,6 @@
+"""Functions for converting file types"""
+
+import fmbiopy.fmsystem as fmsystem
 import os
 from pathlib import Path
 
@@ -13,3 +16,13 @@ def gzip(path: Path) -> Path:
     os.system('gzip ' + str(path))
     renamed = Path(str(path) + '.gz')
     return renamed
+
+def sam_to_bam(sam: str, bam: str) -> None:
+    """Convert a sam file to a sorted, indexed bam file"""
+
+    sam_to_bam_command = ('samtools view -bS ' + sam +
+        ' | samtools sort -o ' + bam + ' -')
+    os.system(sam_to_bam_command)
+    index_sam_command = ('samtools index ' + bam)
+    os.system(index_sam_command)
+    fmsystem.silent_remove(sam)
