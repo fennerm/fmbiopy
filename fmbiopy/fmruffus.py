@@ -12,6 +12,7 @@ from ruffus.proxy_logger import setup_std_shared_logger
 """Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
 
+
 class RuffusLog(object):
     """A logger/mutex pair used for logging in Ruffus pipelines
 
@@ -45,7 +46,6 @@ class RuffusLog(object):
     mutex: multiprocessing.managers.AcquirerProxy
         The mutex lock used for synchronous access to logfile
     """
-
     def __init__(
             self,
             name: str,
@@ -61,12 +61,11 @@ class RuffusLog(object):
             if not os.path.exists(logdir):
                 raise ValueError("Logfile directory does not exist")
 
-        self.config = {
-                'file_name' : location,
-                'formatter' : formatter,
-                'delay' : delay,
-                'level' : level
-                }
+        self.config = {'file_name' : location,
+                       'formatter' : formatter,
+                       'delay' : delay,
+                       'level' : level}
+
         self.log, self.mutex = make_shared_logger_and_proxy(
                 setup_std_shared_logger, name, self.config)
 
@@ -90,10 +89,10 @@ class RuffusLog(object):
 
     def _divider(self):
         """Write a text divider to logfile"""
-        self.log.info('-' * 30)
+        self.write('-' * 30)
 
     def write_header(self, message: StringOrSequence) -> None:
+        """Write a header to the logfile"""
         self._divider()
         self.write(message)
         self._divider()
-
