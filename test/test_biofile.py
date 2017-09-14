@@ -1,7 +1,9 @@
 from fmbiopy.biofile import BioFileGroup
 from fmbiopy.biofile import Bowtie2IndexGroup as Bowtie2Index
+from fmbiopy.biofile import FastqGroup as Fasta
 from fmbiopy.biofile import FastqGroup as Fastq
 from fmbiopy.biofile import IndexedFastaGroup as IndexedFasta
+from fmbiopy.biofile import MatchedPrefixGroup as MatchedPrefixGroup
 from fmbiopy.biofile import PairedFastqGroup as PairedFastq
 from fmbiopy.biofile import SamtoolsFAIndexGroup as SamtoolsFAIndex
 from fmbiopy.fmpaths import add_suffix
@@ -21,6 +23,16 @@ def fasta_paths():
 def read_paths():
     dat = get_dat()
     return (dat['fwd_reads'], dat['rev_reads'])
+
+
+@pytest.fixture
+def diff_prefix_paths():
+    return get_dat()['diff_prefix']
+
+
+@pytest.fixture
+def diff_prefix(diff_prefix_paths):
+    return Fasta(diff_prefix_paths)
 
 
 @pytest.fixture
@@ -133,6 +145,10 @@ class TestBioFileGroup(object):
         bfg = BioFileGroup(empty_paths, possibly_empty=True)
         assert bfg[0] == empty_paths[0]
 
+    def test_equality_operator(self, fasta, diff_prefix):
+        assert fasta == fasta
+        assert fasta != diff_prefix
+
 
 class TestFastq():
 
@@ -183,3 +199,13 @@ class TestIndexedFasta():
         assert indexed_fasta[0] == list([fasta[0], samtools_indices[0],
                 bowtie2_indices[0]])
 
+class TestMatchedPrefixGroup():
+    def test_diff_prefixes_raise_value_error(self, diff_prefix, fwd_fastq,
+            rev_fastq):
+        with pytest.raises(ValueError):
+            MatchedPrefixGroup([diff_prefix, fwd_fastq, rev_fastq])
+
+    def test_same_filename_raise_value_error(self, fwd_fastq):
+        with pytest.raises(ValueError):
+            pytest.set_trace()
+            MatchedPrefixGroup([fwd_fastq, fwd_fastq])

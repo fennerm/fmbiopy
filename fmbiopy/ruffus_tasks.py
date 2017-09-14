@@ -3,7 +3,7 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 
-import fmbiopy.fmconvert as fmconvert
+import fmbiopy.fmsam as fmsam
 import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmruffus as fmruffus
 import fmbiopy.fmsystem as fmsystem
@@ -174,8 +174,6 @@ def paired_bowtie2_align(
     exit_code = _run_ruffus_command(command, logger, log_results)
 
     # Convert to a sorted Bam
-    fmconvert.sam_to_bam(output_sam, output_bam)
+    fmsam.sam_to_bam(output_sam, output_bam)
 
     return exit_code
-
-

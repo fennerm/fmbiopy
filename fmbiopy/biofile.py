@@ -5,6 +5,14 @@ files.
 Most common use case will be for pipeline scripts, which benefit from strict
 validation of files between analysis steps.
 
+Alternatively the classes can simply be used to validate groups of files for
+function arguments etc. E.g if FastaGroup[list_of_fasta_files] runs without
+error, you have some confidence that these files can be passed to analysis
+modules for processing without error. However file validation is targeted
+mostly at catching user error - e.g passing a Sam file rather than a Bam file,
+it does almost no internal checks for file format correctness. Consequently,
+errors introduced to files during analysis will not be caught.
+
 Usage
 -----
 fastq = Fastq(<list of .fastq file paths>)
@@ -90,6 +98,11 @@ class BioFileGroup(object):
         self._paths = sorted(files)
         self.names = self._get_names()
 
+    @property
+    def paths(self) -> List[str]:
+        """The list of file paths"""
+        return self._paths
+
     def validate(self) -> None:
         """Validation function to be used upon attempted access
 
@@ -133,6 +146,20 @@ class BioFileGroup(object):
             self.validate()
 
         return self._paths[item]
+
+    def __eq__(self, other) -> bool:
+        """Test for BioFileGroup is equal to another"""
+
+        # Cannot be equal if lengths are different
+        if len(self) != len(other):
+            return False
+
+        # Test that all paths are the same
+        for me, you in zip(self, other):
+            if me != you:
+                return False
+
+        return True
 
     def _prevalidate(self) -> None:
         """Do some basic input validation upon initialization"""
@@ -287,14 +314,64 @@ into a single type
 """
 FastaIndexGroup = Union[SamtoolsFAIndexGroup, Bowtie2IndexGroup]
 
+class MatchedPrefixGroup(object):
+    """Stores groups of matched BioFileGroups with same prefix
 
-class PairedFastqGroup(object):
-    """Stores two groups of paired FastqGroup files
+    Prefixes are checked for equality. Groups are checked for equal length.
+
+    Parameters
+    ----------
+    groups
+        List of matched BioFileGroups
 
     Attributes
     ----------
-    fwd - FastqGroup, rev - FastqGroup
+    groups : List[BioFileGroup]
+        Same as Parameters
+    """
+    def __init__(self, groups: List[BioFileGroup]) -> None:
+        self.groups = groups
+        self._prevalidate()
+
+    def _prevalidate(self) -> None:
+        """Check that the MatchedPrefixGroup is valid"""
+        self.__check_files_not_same()
+        self.__check_matched_names_identical()
+
+    def __check_files_not_same(self) -> None:
+        """Check that none of the filegroups are the exact same"""
+        for i, group1 in enumerate(self.groups):
+            for j, group2 in enumerate(self.groups):
+                if i != j and group1 == group2:
+                    raise ValueError("Non-unique groups")
+
+    def __check_matched_names_identical(self) -> None:
+        """Check that the stored BioFileGroups all have the same prefixes"""
+        names = [group.names for group in self.groups]
+        if not fmcheck.all_equal(names):
+            raise ValueError("Files don't have the same prefix")
+
+    def __len__(self) -> int:
+        """Length of the MatchedPrefixGroup """
+        return len(self.groups[0])
+
+    def __getitem__(self, item) -> List[FastqGroup]:
+        """Get the pair of Fastq files indexed by 'item' """
+        return list([self.fwd[item], self.rev[item]])
+
+
+class PairedFastqGroup(MatchedPrefixGroup):
+    """Stores two groups of paired FastqGroup files
+
+    Parameters
+    ----------
+    forward_fastq, reverse_fastq
         Fastq objects to be paired
+
+    Attributes
+    ----------
+    forward_fastq - FastqGroup, reverse_fastq - FastqGroup
+        Same as Parameters
 
     """
     def __init__(
@@ -302,34 +379,18 @@ class PairedFastqGroup(object):
             forward_fastq: FastqGroup,
             reverse_fastq: FastqGroup
             ) -> None:
-        """Initialization
-
-        Parameters
-        ----------
-        forward_fastq - FastqGroup, reverse_fastq - FastqGroup
-            FastqGroup objects to be paired
-        """
         self.fwd = forward_fastq
         self.rev = reverse_fastq
-        self._prevalidate()
+        self.groups = [self.fwd, self.rev]
+        super()._prevalidate()
 
-    def _prevalidate(self) -> None:
-        """Check that the PairedFastqGroup is valid"""
-        self.__check_lengths()
+    ##def __len__(self) -> int:
+    ##    """Length of the PairedFastqGroup """
+    #    return super().__
 
-    def __check_lengths(self) -> None:
-        """Raise exception if lengths of the two Fastq objects are not equal"""
-
-        if len(self.fwd) != len(self.rev):
-            raise ValueError("FastqGroup objects are not the same length")
-
-    def __len__(self) -> int:
-        """Length of the PairedFastqGroup """
-        return len(self.fwd)
-
-    def __getitem__(self, item) -> List[FastqGroup]:
-        """Get the pair of Fastq files indexed by 'item' """
-        return list([self.fwd[item], self.rev[item]])
+    #def __getitem__(self, item) -> List[FastqGroup]:
+    #    """Get the pair of Fastq files indexed by 'item' """
+    #    return super().__getitem__()
 
 
 class IndexedFastaGroup(object):
