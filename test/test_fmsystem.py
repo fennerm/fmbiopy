@@ -36,6 +36,13 @@ class TestRunCommand():
         assert fail[1] == '0 /\n'
         assert fail[2] == 'wc: /: Is a directory\n'
 
+    def test_shell_true_doesnt_fail(self):
+        command = "echo foo | grep foo"
+        process = fmsystem.run_command(command, shell=True)
+        assert process[0] == 0
+        assert process[1] == "foo\n"
+        assert not process[2]
+
 class TestDelete():
     def test_normal_usage(self):
         tmpfiles = [tempfile.NamedTemporaryFile() for i in range(3)]

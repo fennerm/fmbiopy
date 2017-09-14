@@ -5,12 +5,9 @@ Moving/creating files, running commands etc.
 
 from contextlib import contextmanager
 import errno
-import fmbiopy.fmruffus as fmruffus
 import itertools
 import logging
-from multiprocessing.managers import AcquirerProxy
 import os
-from ruffus.proxy_logger import LoggerProxy
 import subprocess
 from typing import Dict
 from typing import Generator
@@ -24,8 +21,9 @@ def run_command(
         logger_id: str = '',
         log_stdout: bool = True,
         log_stderr: bool = True,
-        mutex_log: fmruffus.RuffusLog = None,
-        ) -> Tuple[int, str, str]:
+        mutex_log = None, # We don't specify type explicitely due to circular
+                          # import
+        shell: bool = False) -> Tuple[int, str, str]:
     """Run a bash command with logging support
 
     Parameters
@@ -40,27 +38,43 @@ def run_command(
     mutex_log
         If running in parallel, a RuffusLog instance can be passed to log
         output with a mutex lock.
+    shell
+        If True, the command is run directly in the shell rather than the
+        python interpreter. Useful for Bash commands with piping.
 
     Returns
     -------
     A triple of the form (return code, standard out, standard error)
     """
 
-    # If command is passed as a string, convert to list
-    if isinstance(command, str):
-        command = command.split()
+    if shell:
+        # If run in shell, command needs to be a string, not a list
+        if not isinstance(command, str):
+            command = list(filter(None, command))
+            command = ' '.join(command)
 
-    # Remove empty list items
-    command = list(filter(None, command))
+        process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True, # UTF-8 encoding specification
+                shell=shell)
+    else:
+        # If not run in shell, command needs to be a list
+        if isinstance(command, str):
+            command = command.split()
 
-    # Run the command
-    process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True)
+        # Remove empty list items
+        command = list(filter(None, command))
 
-    # UTF-8 encoding specification reqd for python 3
+        # Run the command
+        process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True, # UTF-8 encoding specification
+                shell=shell)
+
     stdout, stderr = process.communicate()
 
     # Log results
