@@ -12,91 +12,6 @@ import os
 import pytest
 
 
-@pytest.fixture
-def fasta_paths():
-
-    dat = get_dat()['assemblies']
-    return dat
-
-
-@pytest.fixture
-def read_paths():
-    dat = get_dat()
-    return (dat['fwd_reads'], dat['rev_reads'])
-
-
-@pytest.fixture
-def diff_prefix_paths():
-    return get_dat()['diff_prefix']
-
-
-@pytest.fixture
-def diff_prefix(diff_prefix_paths):
-    return Fasta(diff_prefix_paths)
-
-
-@pytest.fixture
-def empty_paths():
-    return get_dat()['empty']
-
-
-@pytest.fixture
-def bowtie_index_paths():
-    return get_dat()['bowtie2_indices']
-
-
-@pytest.fixture
-def samtools_index_paths():
-    return get_dat()['faindices']
-
-
-@pytest.fixture
-def fwd_fastq(read_paths):
-    return Fastq(read_paths[0], gzipped=True)
-
-
-@pytest.fixture
-def rev_fastq(read_paths):
-    return Fastq(read_paths[1], gzipped=True)
-
-
-@pytest.fixture
-def bowtie2_indices(bowtie_index_paths):
-    return Bowtie2Index(bowtie_index_paths)
-
-
-@pytest.fixture
-def samtools_indices(samtools_index_paths):
-    return SamtoolsFAIndex(samtools_index_paths)
-
-
-@pytest.fixture
-def paired_fastq(read_paths, fwd_fastq, rev_fastq):
-    return PairedFastq(fwd_fastq, rev_fastq)
-
-
-@pytest.fixture
-def fasta(fasta_paths):
-    return BioFileGroup(fasta_paths)
-
-
-@pytest.fixture
-def nonexistant_fasta(fasta_paths):
-    nonexistant = ['foo/' + path for path in fasta_paths[0]]
-
-    return BioFileGroup(nonexistant)
-
-
-@pytest.fixture
-def readfiles(read_paths):
-    return BioFileGroup(read_paths[0], gzipped=True)
-
-
-@pytest.fixture
-def indexed_fasta(fasta, samtools_indices, bowtie2_indices):
-    return IndexedFasta(fasta, samtools_indices, bowtie2_indices)
-
-
 class TestBioFileGroup(object):
 
     def test_if_file_exists_then_access_works(self, fasta_paths, fasta):
@@ -165,7 +80,6 @@ class TestPairedFastq():
     def test_valid_input_access(self, paired_fastq, fwd_fastq, rev_fastq):
         assert paired_fastq[0] == list([fwd_fastq[0], rev_fastq[0]])
 
-
     def test_different_lengths_raises_value_error(self, read_paths):
         fwd_fastq = Fastq(read_paths[0], gzipped=True)
         rev_fastq = Fastq(read_paths[1][1:2], gzipped=True)
@@ -199,6 +113,7 @@ class TestIndexedFasta():
         assert indexed_fasta[0] == list([fasta[0], samtools_indices[0],
                 bowtie2_indices[0]])
 
+
 class TestMatchedPrefixGroup():
     def test_diff_prefixes_raise_value_error(self, diff_prefix, fwd_fastq,
             rev_fastq):
@@ -207,5 +122,4 @@ class TestMatchedPrefixGroup():
 
     def test_same_filename_raise_value_error(self, fwd_fastq):
         with pytest.raises(ValueError):
-            pytest.set_trace()
             MatchedPrefixGroup([fwd_fastq, fwd_fastq])
