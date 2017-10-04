@@ -3,9 +3,9 @@
 Moving/creating files, running commands etc.
 """
 
+import collections
 from contextlib import contextmanager
 import errno
-import itertools
 import logging
 import os
 import subprocess
@@ -15,14 +15,20 @@ from typing import List
 from typing import Sequence
 from typing import Tuple
 
+import fmbiopy.fmtype as fmtype
+
+
+class IncorrectCommandFormatError(Exception):
+    """Raised when a command argument cannot be parsed"""
+
 
 def run_command(
         command: Sequence,
         logger_id: str = '',
         log_stdout: bool = True,
         log_stderr: bool = True,
-        mutex_log = None, # We don't specify type explicitely due to circular
-                          # import
+        # We don't specify type explicitely here due to circular import
+        mutex_log=None,
         shell: bool = False) -> Tuple[int, str, str]:
     """Run a bash command with logging support
 
@@ -57,7 +63,7 @@ def run_command(
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                universal_newlines=True, # UTF-8 encoding specification
+                universal_newlines=True,  # UTF-8 encoding specification
                 shell=shell)
     else:
         # If not run in shell, command needs to be a list
@@ -72,7 +78,7 @@ def run_command(
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                universal_newlines=True, # UTF-8 encoding specification
+                universal_newlines=True,  # UTF-8 encoding specification
                 shell=shell)
 
     stdout, stderr = process.communicate()
@@ -90,8 +96,8 @@ def run_command(
         if log_stderr and stderr:
             logger.info(stderr)
 
-
     return (int(process.returncode), stdout, stderr)
+
 
 @contextmanager
 def working_directory(directory: str) -> Generator:
@@ -111,6 +117,20 @@ def working_directory(directory: str) -> Generator:
         os.chdir(owd)
 
 
+def remove_all(names: fmtype.StringOrSequence, silent: bool = False)-> None:
+    """Remove all files given as either a string or list"""
+    if silent:
+        remove_func = silent_remove
+    else:
+        remove_func = os.remove
+
+    if isinstance(names, collections.Iterable) and not isinstance(names, str):
+        for name in names:
+            remove_func(name)
+    else:
+        remove_func(names)
+
+
 @contextmanager
 def delete(paths: Sequence[str]) -> Generator:
     """Context manager for deletion of temporary files.
@@ -126,19 +146,11 @@ def delete(paths: Sequence[str]) -> Generator:
 
     try:
         yield
-    except:
-        if isinstance(paths, str):
-            silent_remove(paths)
-        else:
-            for path in paths:
-                silent_remove(path)
+    except Exception:
+        remove_all(paths)
         raise
     finally:
-        if isinstance(paths, str):
-            silent_remove(paths)
-        else:
-            for path in paths:
-                silent_remove(path)
+        remove_all(paths)
 
 
 def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
@@ -175,9 +187,9 @@ def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
 
     Parameters
     ----------
-    dirnames - List
+    dirnames
         Names of directories to create
-    output_directory - String
+    output_directory
         Name of directory in which to create the directories
 
     Returns
@@ -199,9 +211,11 @@ def silent_remove(filename: str) -> None:
         if err.errno != errno.ENOENT:
             raise
 
+
 def dict_to_list(dictionary: Dict[str, str]) -> List[str]:
     """Convert a dictionary to a flat list """
     return [e for l in dictionary for e in l]
+
 
 def parse_param_dict(param: Dict[str, str]) -> str:
     """Convert a parameter dictionary to a string BASH commands
@@ -222,5 +236,4 @@ def parse_param_dict(param: Dict[str, str]) -> str:
             bash_string += (' '.join([key, value]))
 
         return bash_string
-    else:
-        return ''
+    return ''

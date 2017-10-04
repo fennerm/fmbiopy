@@ -1,6 +1,6 @@
-"""
-Functions for checking that various conditions are met, or. Functions which
-start with 'check_' raise exceptions, all others return bools
+"""Functions for checking that various conditions are met.
+
+Functions which start with 'check_' raise exceptions, all others return bools
 """
 
 from fmbiopy.fmtype import StringOrSequence
@@ -23,7 +23,9 @@ def all_equal(items: typing.Sequence) -> bool:
 
 def exists(paths: typing.Sequence[str]) -> typing.List[bool]:
     """Apply os.path.exists to a list of paths"""
-    return map(os.path.exists, paths)
+    if isinstance(paths, str):
+        return [os.path.exists(paths)]
+    return [os.path.exists(p) for p in paths]
 
 
 def any_exist(paths: typing.Sequence[str]) -> bool:
@@ -39,6 +41,23 @@ def any_dont_exist(paths: typing.Sequence[str]) -> bool:
 def all_exist(paths: typing.Sequence[str]) -> bool:
     """Return True if all paths in list exist """
     return all(exists(paths))
+
+
+def filesize_nonzero(paths: typing.Sequence[str]) -> typing.Sequence[bool]:
+    """Check whether each file in list has a nonzero file size.
+
+    Returns
+    -------
+    A list of bools"""
+    if isinstance(paths, str):
+        return [os.path.getsize(paths) > 0]
+    return [os.path.getsize(p) > 0 for p in paths]
+
+
+def all_filesize_nonzero(paths: typing.Sequence[str]) -> bool:
+    """Return True if all paths in list exist, and are non-empty"""
+    check_all_exist(paths)
+    return all(filesize_nonzero(paths))
 
 
 def any_endswith(items: typing.Sequence[str], suffix) -> bool:
@@ -58,7 +77,7 @@ def check_suffix(name: str, suffixes: StringOrSequence) -> None:
     has_suffix = any([name.endswith(suffix) for suffix in suffixes])
 
     if not has_suffix:
-        raise ValueError(name + " does not have the correct suffix " + \
+        raise ValueError(name + " does not have the correct suffix " +
                          ' '.join(suffixes))
 
 

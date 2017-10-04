@@ -3,15 +3,17 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 
-import fmbiopy.fmpaths as fmpaths
-import fmbiopy.fmsam as fmsam
-import fmbiopy.fmsystem as fmsystem
-from fmbiopy.fmtype import StringOrSequence
 import logging
 import os
 from ruffus.proxy_logger import make_shared_logger_and_proxy
 from ruffus.proxy_logger import setup_std_shared_logger
 import typing
+
+import fmbiopy.fmcheck as fmcheck
+import fmbiopy.fmlist as fmlist
+import fmbiopy.fmpaths as fmpaths
+import fmbiopy.fmsystem as fmsystem
+from fmbiopy.fmtype import StringOrSequence
 
 """Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
@@ -115,23 +117,42 @@ class RuffusTask(object):
         One or more input file names
     output_files
         One or more output file names
-    log_results
+    log_results : Optional
         If True, stdout and stderr are logged to the pipeline's logfile
-    param
+    param : Optional
         A list of bash parameters e.g ['--foo', 'bar', '-x', '1']
+
+    Other Parameters
+    ----------------
+    run_on_init : Optional
+        If True, the associated bash command is run upon initialization. If
+        False, the command is constructed but not run.
 
     Attributes
     ----------
     exit_code : int
-       The exit code returned by the task's bash process
+        The exit code returned by the task's bash process
+    stdout : str
+        The standard output produced by the task
+    stderr : str
+        The standard error produced by the task
+    input_typ str
+        (Class attribute) Expected input file extension. If None then any file
+        type is acceptable input.
+    output_type : str
+        (Class attribute) Expected output file extension. If '' then the
+        extension of the input is stripped in the output.
     """
+    input_type : typing.List[typing.Iterable] = ['']
+    output_type = ['']
     _logger = ROOT_LOGGER
 
     def __init__(self,
                  input_files: typing.Sequence[str],
                  output_files: typing.Sequence[str],
                  log_results: bool = True,
-                 param: typing.Sequence[str] = None) -> None:
+                 param: typing.Sequence[str] = [],
+                 run_on_init: bool = True) -> None:
         # Store parameters
         self._input_files = input_files
         self._output_files = output_files
@@ -139,168 +160,165 @@ class RuffusTask(object):
         self._param = param
 
         # Init attributes
-        self._command = None
-        self.exit_code = None
+
+        self.exit_code : int = None
+        self.stdout = ''
+        self.stderr = ''
+
+        # Bash command as list
+        self._command : typing.List = []
+
+        # If True, command run directly in shell
         self._shell = False
+
+        # If True, the command is a list of subcommands, which should be run
+        # successively. This is essentially a mini-pipeline.
+        self._multi_stage = False
+
+        # If True, the input files are deleted once the output files are
+        # produced.
+        self._inplace = False
 
     def _construct_command(self)-> None:
         """Subclasses construct their own tasks"""
         pass
 
+    def _add_extra_outputs(self) -> None:
+        """Add additional non-specified outputs to the output file list"""
+        pass
+
     def _run_command(self)-> None:
         """Run a command set with `_construct_command`"""
-        if self._command:
-            if self._log_results:
-                _logger.write_header(['Running:'] + self._command)
+        try:
+            if not self._multi_stage:
+                # Convert to list of lists so we can loop through anyway
+                self._command = [self._command]
 
-            self.exit_code = fmsystem.run_command(
-                    command=self._command,
-                    log_stdout=self._log_results,
-                    log_stderr=self._log_results,
-                    mutex_log=_logger,
-                    shell=self._shell)
+            for subcommand in self._command:
 
-        return self.exit_code
+                if self._log_results:
+                    self._logger.write_header(['Running:'] + subcommand)
 
-class Bowtie2IndexFasta(RuffusTask):
-    """Index a .fasta file using bowtie2-build
+                (self.exit_code, self.stdout, self.stderr) = (
+                    fmsystem.run_command(
+                        command=subcommand,
+                        log_stdout=self._log_results,
+                        log_stderr=self._log_results,
+                        mutex_log=self._logger,
+                        shell=self._shell))
 
-    Parameters
-    ----------
-    input_files
-        Name of input .fasta file
-    output_files
-        Name of output bowtie2 index prefix
-    log_results
-        If True, stdout and stderr are logged to the pipeline's logfile
-    param
-        A list of bash parameters e.g ['--foo', 'bar', '-x', '1']
-    """
-    def __init__(self,
-                 input_files: typing.Sequence[str],
-                 output_files: typing.Sequence[str],
-                 log_results: bool = True,
-                 param: typing.Sequence[str] = None) -> None:
-        super().__init__(input_files, output_files, log_results, param)
+            if self._inplace:
+                if fmcheck.all_filesize_nonzero(self._output_files):
+                    fmsystem.remove_all(self._input_files, silent=True)
+
+        except Exception:
+            self._cleanup()
+
+    def _cleanup(self)-> None:
+        fmsystem.remove_all(self._output_files)
+
+
+class SamtoolsIndexFasta(RuffusTask):
+    """Index a .fasta file using samtools faidx"""
+
+    input_type = ['fasta']
+    output_type = ['fai']
+
+    def __init__(self, *args, **kwargs)-> None:
+        super().__init__(*args, **kwargs)
         self._construct_command()
         self._run_command()
 
-    def _construct_command(self) -> typing.List[str]:
+    def _construct_command(self) -> None:
         """Construct the bash command"""
-        self._command = ['bowtie2-build'] + param + [input_files, output_files]
+        self._command = fmlist.flatten([
+            'samtools', 'faidx', self._input_files])
 
 
-def samtools_index_fasta(input_fasta: str,
-        output_index: str,
-        logger: RuffusLog = None,
-        log_results: bool = False
-        ) -> int:
-    """Index a list of .fasta files using samtools faidx
+class Gunzip(RuffusTask):
+    """Unzip a file with gunzip"""
+    input_type = ['gz']
+    output_type = ['']
 
-    Parameters
-    ----------
-    input_fasta
-        Path to fasta file to be indexed
-    output_index
-        Path to the output .fai file
-    logger
-        The Ruffus logging instance
-    log_results
-        If False, results will not be logged to file
-    Returns
-    -------
-    The error code of the process
+    def __init__(self, *args, **kwargs)-> None:
+        super().__init__(*args, **kwargs)
+        self._shell = True
+        self._inplace = True
+        self._construct_command()
+        self._run_command()
 
-    """
+    def _construct_command(self) -> None:
+        """Construct the bash command"""
+        self._command = fmlist.flatten([
+            'gunzip', '-c', self._param, self._input_files, '>',
+            self._output_files])
 
-    # Construct the samtools command
-    command = ['samtools', 'faidx', input_fasta]
-
-    # Run the command
-    exit_code = _run_ruffus_command(command, logger, log_results)
-    return exit_code
+    def _cleanup(self)-> None:
+        """Gzip the file back up"""
+        Gzip(self._output_files[0], self._input_files[0])
 
 
-def gunzip(
-        input_file: str,
-        output_file: str,
-        param: typing.List[str] = []) -> int:
-    """Gunzip a file and keep the original
+class Gzip(RuffusTask):
+    """Compress a file with g zip"""
+    input_type = ['any']
+    output_type = ['gz']
 
-    Parameters
-    ----------
-    input_file
-        Path to input file
-    output_file
-        Path to the gunzipped output
-    param
-        A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
-    """
-    command = ['gunzip', '-c'] + param + [input_file]
-    exit_code, stdout, _ = fmsystem.run_command(
-            command, log_stdout=False, log_stderr=False)
-    with open(output_file, "w") as f:
-        f.write(stdout)
-    return exit_code
+    def __init__(self, *args, **kwargs)-> None:
+        super().__init__(*args, **kwargs)
+        self._shell = True
+        self._inplace = True
+        self._construct_command()
+        self._run_command()
 
+    def _construct_command(self) -> None:
+        """Construct the bash command"""
+        self._command = fmlist.flatten([
+            'gzip', '-c', self._param, self._input_files, '>',
+            self._output_files])
 
-def gzip(
-        input_file: str,
-        output_file: str,
-        param: typing.List[str] = []) -> int:
-    """Gzip a file
-
-    Parameters
-    ----------
-    input_file
-        Path to input file
-    output_file
-        Path to the gzipped output
-    param
-        A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
-    """
-    command = ['gzip'] + param + [input_file]
-    exit_code = fmsystem.run_command(
-            command, log_stdout=False, log_stderr=False)[0]
-    return exit_code
+    def _cleanup(self) -> None:
+        """Unzip the files again"""
+        Gunzip(self._output_files[0], self._input_files[0])
 
 
-def paired_bowtie2_align(
-        input_files: typing.Tuple[str, str, str],
-        output_bam: str,
-        param: typing.List[str] = [],
-        logger: RuffusLog = None,
-        log_results: bool = False) -> int:
-    """Align a pair of fastq files to a fasta file using bowtie2
+class PairedBowtie2Align(RuffusTask):
+    """Align a pair of fastq files to a fasta file using bowtie2"""
+    input_type = [('fastq', 'fastq'), 'fasta']
+    output_type = ['bam']
 
-    Parameters
-    ----------
-    input_files
-        A Tuple of the form (Forward reads, Reverse reads, Bowtie2 index)
-    output_bam
-        Path to the output .bam file
-    param
-        A list of bash parameters. E.g ['-x', 'foo', '--long', 'bar']
-    logger
-        The Ruffus logging instance
-    log_results
-        If False, results will not be logged to file
-    Returns
-    -------
-    The exit code of the process
-    """
+    def __init__(self, *args, **kwargs)-> None:
+        super().__init__(*args, **kwargs)
+        self._multi_stage = True
+        self._shell = True
+        self._construct_command()
+        self._run_command()
 
-    fwd_reads = input_files[0]
-    rev_reads = input_files[1]
-    bowtie2_index = input_files[2]
+    def _add_extra_outputs(self) -> None:
+        """Add the .bt2 and .bai files to the output file list"""
+        prefix = fmpaths.remove_suffix(self._input_files[2])
+        bowtie2_indices = fmpaths.get_bowtie2_indices(prefix)
+        bai_file = fmpaths.add_suffix(self._output_files[0], '.bai')
+        self._output_files = fmlist.flatten([
+                self._output_files, bowtie2_indices, bai_file])
 
-    # Construct command
-    output_sam = fmpaths.replace_suffix(output_bam, '.bam', '.sam')
-    command = ['bowtie2', '-1', fwd_reads, '-2', rev_reads, '-x',
-            bowtie2_index, '-S', output_sam]
+    def _construct_command(self) -> None:
+        """Construct the bash command"""
+        fwd_fastq = self._input_files[0]
+        rev_fastq = self._input_files[1]
+        fasta = self._input_files[2]
+        output_bam = self._output_files[0]
 
-    # Run command
-    exit_code = _run_ruffus_command(command, logger, log_results)
+        # Index fasta first
+        bowtie2_index = fmpaths.remove_suffix(fasta)
+        self._command.append(fmlist.flatten([
+            'bowtie2-build', fasta, bowtie2_index, '>', '/dev/null', '2>&1']))
 
-    # Convert to a sorted Bam
-    fmsam.sam_to_bam(output_sam, output_bam)
+        #  Run Bowtie2 and pipe the output to a sorted bam file
+        self._command.append(fmlist.flatten([
+            'bowtie2', '-1', fwd_fastq, '-2', rev_fastq, '-x', bowtie2_index,
+            '|', 'samtools', 'view', '-bS', '-', '|', 'samtools', 'sort',
+            '-f', '-', output_bam]))
+
+        # Index the bam file
+        self._command.append(fmlist.flatten([
+            'samtools', 'index', output_bam, '/dev/null', '2>&1']))

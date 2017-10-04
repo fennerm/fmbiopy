@@ -1,13 +1,8 @@
 from fmbiopy.biofile import BioFileGroup
-from fmbiopy.biofile import Bowtie2IndexGroup as Bowtie2Index
-from fmbiopy.biofile import FastqGroup as Fasta
 from fmbiopy.biofile import FastqGroup as Fastq
-from fmbiopy.biofile import IndexedFastaGroup as IndexedFasta
 from fmbiopy.biofile import MatchedPrefixGroup as MatchedPrefixGroup
 from fmbiopy.biofile import PairedFastqGroup as PairedFastq
-from fmbiopy.biofile import SamtoolsFAIndexGroup as SamtoolsFAIndex
 from fmbiopy.fmpaths import add_suffix
-from get_dat import get_dat
 import os
 import pytest
 
@@ -92,7 +87,7 @@ class TestPairedFastq():
 
 class TestBowtie2Index():
     def test_bowtie2_index_name_setter(self, bowtie2_indices):
-        testdir = os.path.abspath('testdat/bowtie2_indices/')
+        testdir = os.path.abspath('sandbox/bowtie2_indices/')
         assert bowtie2_indices._index_prefixes == [
                 testdir+'/FA_SC.scaffolds',
                 testdir+'/FB_SC.scaffolds',

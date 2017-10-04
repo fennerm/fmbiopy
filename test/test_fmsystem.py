@@ -1,5 +1,3 @@
-## Pytests for run_bowtie2.py
-
 import os
 import tempfile
 import pytest
@@ -26,7 +24,7 @@ class TestRunCommand():
             succ_and_fail = fmsystem.run_command(command)
             assert succ_and_fail[0] == 1
             assert succ_and_fail[1] == (
-                    '      0 /\n      3 '+temp.name+'\n      3 total\n')
+                    '      0 /\n      3 ' + temp.name + '\n      3 total\n')
             assert succ_and_fail[2] == 'wc: /: Is a directory\n'
 
     def test_trivial_failure(self):
@@ -42,6 +40,7 @@ class TestRunCommand():
         assert process[0] == 0
         assert process[1] == "foo\n"
         assert not process[2]
+
 
 class TestDelete():
     def test_normal_usage(self):

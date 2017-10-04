@@ -3,128 +3,115 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 
-import fmbiopy.fmpaths as fmpaths
-import fmbiopy.fmruffus as fmruffus
-import fmbiopy.fmsystem as fmsystem
-from get_dat import get_dat
-from glob import glob
 import os
 import pytest
-from tempfile import NamedTemporaryFile as tmp
+
+import fmbiopy.fmcheck as fmcheck
+import fmbiopy.fmclass as fmclass
+import fmbiopy.fmlist as fmlist
+import fmbiopy.fmpaths as fmpaths
+import fmbiopy.fmruffus as fmruffus
+import fmbiopy.fmtest as fmtest
+
 
 class TestRuffusLog(object):
-    def test_empty_name_returns_value_error(self):
-        with pytest.raises(ValueError):
-            fmruffus.RuffusLog("", tmp().name)
-
     def test_non_existant_path(self):
         with pytest.raises(ValueError):
             fmruffus.RuffusLog("foo", "bar/bar.log")
 
     def test_normal_usage(self):
-        temp = tmp()
-        ruflog = fmruffus.RuffusLog("foo", temp.name)
+        tmp = fmtest.gen_tmp()
+        ruflog = fmruffus.RuffusLog("foo", tmp)
         ruflog.write("Test")
-        assert os.path.getsize(temp.name) > 0
+        assert os.path.getsize(tmp) > 0
 
     def test_header(self):
-        temp = tmp()
-        ruflog = fmruffus.RuffusLog("foo", temp.name)
+        tmp = fmtest.gen_tmp()
+        ruflog = fmruffus.RuffusLog("foo", tmp)
         head = "HEADER"
         ruflog.write_header(head)
-        with open(temp.name, 'r') as f:
+        with open(tmp, 'r') as f:
             lines = [line for line in f][:2]
         assert '-' * 30 in lines[0]
         assert head in lines[1]
 
-@pytest.fixture
-def ruffus_task(fasta_paths, samtools_index_paths):
-    return fmruffus.RuffusTask(fasta_paths, samtools_index_paths,
-                               log_results=True)
+
+def get_example_file(filetype):
+    if filetype == 'fasta':
+        return fmtest.get_dat()['assemblies'][0]
+    elif filetype == ('fastq', 'fastq'):
+        return (fmtest.get_dat()['fwd_reads'][0],
+                fmtest.get_dat()['rev_reads'][0])
+    elif filetype == 'fastq':
+        return fmtest.get_dat()['fwd_reads'][0]
+    elif filetype == 'fai':
+        return fmtest.get_dat()['faindices'][0]
+    elif filetype == 'sam':
+        return fmtest.get_dat()['sam'][0]
+    elif filetype == 'bam':
+        return fmtest.get_dat()['bam'][0]
+    elif filetype == 'gz':
+        return fmtest.get_dat()['fwd_reads'][0]
+    return fmtest.gen_tmp(empty=False)
 
 
-class TestRuffusTask(object):
-    def test_initialization(self, ruffus_task):
-        assert ruffus_task.logger.log is not None
+def get_test_instance(task):
+    """Given a RuffusTask name, return an instance of the task"""
+    input_example = [get_example_file(t) for t in task.input_type]
+    input_example = fmlist.flatten(input_example)
+
+    if task.output_type == ['']:
+        output_example = fmpaths.remove_suffix(input_example[0])
+    else:
+        output_suffix = '.' + task.output_type[0]
+        output_example = [
+                fmpaths.add_suffix(path, output_suffix) for path
+                in input_example]
+        # Match the length of the example output to the actual number of
+        # outputs
+        output_example = output_example[0:len(task.output_type)]
+
+    return task(input_example, output_example)
 
 
-def check_ruffus_task(task, input_files, output_files, to_delete):
-    """Check that a Ruffus function runs as expected
+@pytest.fixture(
+        scope="module",
+        params=fmclass.list_classes(
+            'fmbiopy.fmruffus',
+            exclude=[fmruffus.RuffusLog, fmruffus.RuffusTask]))
+def task(request):
+    ruffus_task = get_test_instance(request.param)
+    yield ruffus_task
+    ruffus_task._cleanup()
 
-    Specifically checks that the requested output_files are created, and that
-    the exit code is zero"""
 
-    with fmsystem.delete(to_delete):
-        # Some ruffus tasks might not have a logger argument.
-        exit_code = task(input_files, output_files)
+class TestAllTasks(object):
+    def test_initialization(self, task):
+        assert task._logger.log is not None
+        assert task._construct_command is not None
+        assert task._run_command is not None
 
-        assert exit_code == 0
-        if isinstance(output_files, str):
-            assert os.path.exists(output_files)
+    def test_construct_command_not_none(self, task):
+        assert task._command is not None
+
+    def test_construct_command_is_listlike(self, task):
+        assert not isinstance(task._command, str)
+        assert task._command[0]
+
+    def test_construct_command_has_no_spaces(self, task):
+        for word in task._command:
+            assert ' ' not in word
+
+    def test_run_command_produces_expected_output(self, task):
+        if isinstance(task._output_files, str):
+            os.path.exists(task._output_files)
         else:
-            for f in to_delete:
-                assert os.path.exists(f)
+            for path in task._output_files:
+                assert os.path.exists(path)
 
-def test_samtools_index_fasta():
-    assembly = get_dat()['assemblies'][0]
-    root_index = fmpaths.remove_suffix(assembly)
-    expected_index = assembly + '.fai'
-    fmsystem.silent_remove(expected_index)
+    def test_run_command_produces_zero_exit_code(self, task):
+        assert task.exit_code == 0
 
-    check_ruffus_task(
-            fmruffus.samtools_index_fasta, assembly, expected_index,
-            expected_index)
-
-
-def test_bowtie_index_fasta():
-    assembly = get_dat()['assemblies'][0]
-    root_index = fmpaths.remove_suffix(assembly)
-    bowtie_indices = fmpaths.get_bowtie2_indices(root_index)
-
-    # Cant use check_ruffus_task here because the outputs do not correspond to
-    # files
-    with fmsystem.delete(bowtie_indices):
-        exit_code = fmruffus.bowtie_index_fasta(assembly, root_index)
-        assert exit_code == 0
-        for f in bowtie_indices:
-            assert os.path.exists(f)
-
-
-def test_gunzip():
-    reads = get_dat()['fwd_reads'][0]
-    gunzipped_output = fmpaths.remove_suffix(reads)
-
-    check_ruffus_task(fmruffus.gunzip, reads, gunzipped_output,
-            gunzipped_output)
-
-
-def test_gzip():
-    tmp = tempfile.NamedTemporaryFile()
-    gzipped_output = fmpaths.add_suffix(tmp.name, '.gz')
-
-    with fmsystem.delete(gzipped_output):
-        check_ruffus_task(fmruffus.gzip, tmp.name, gzipped_output,
-                gzipped_output)
-
-
-def test_paired_bowtie2_align():
-    fwd_reads = get_dat()['fwd_reads'][0]
-    rev_reads = get_dat()['rev_reads'][0]
-    gunzip_fwd = fmpaths.remove_suffix(fwd_reads)
-    gunzip_rev = fmpaths.remove_suffix(rev_reads)
-    fmruffus.gunzip(fwd_reads, gunzip_fwd)
-    fmruffus.gunzip(rev_reads, gunzip_rev)
-
-    assembly = get_dat()['assemblies'][0]
-    root_name = fmpaths.remove_suffix(fwd_reads, 2)
-    output_index = fmpaths.remove_suffix(assembly)
-    bowtie2_indices = fmpaths.get_bowtie2_indices(output_index)
-    fmruffus.bowtie_index_fasta(assembly, output_index)
-    output_bam = fmpaths.add_suffix(root_name, '.bam')
-    output_bai = fmpaths.add_suffix(output_bam, '.bai')
-    input_files = (gunzip_fwd, gunzip_rev, output_index)
-    output_files = bowtie2_indices + [output_bam, gunzip_fwd,
-                                      gunzip_rev, output_bai]
-    check_ruffus_task(
-            fmruffus.paired_bowtie2_align, input_files, output_bam,
-            output_files)
+    def test_inplace_tasks_delete_their_inputs(self, task):
+        if task._inplace:
+            assert not fmcheck.any_exist(task._input_files)

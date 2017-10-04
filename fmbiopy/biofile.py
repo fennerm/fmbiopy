@@ -1,6 +1,4 @@
-"""
-Classes for storing and validating various types of bioinformatics
-files.
+"""Classes for storing and validating various types of bioinformatics files.
 
 Most common use case will be for pipeline scripts, which benefit from strict
 validation of files between analysis steps.
@@ -37,12 +35,10 @@ files it maps to.
 """
 
 import fmbiopy.fmcheck as fmcheck
+import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
-import fmbiopy.fmstring as fmstring
 import os
-from typing import List
-from typing import Sequence
-from typing import Union
+import typing
 
 
 class BioFileGroup(object):
@@ -73,71 +69,38 @@ class BioFileGroup(object):
     ----------
     gzipped : bool
         Same as parameter
-    names : List[str]
+    names : typing.List[str]
         The unique IDs of each file.
+    paths : typing.List[str]
+        The paths of the files
     """
 
     def __init__(
             self,
-            files: Sequence[str],
+            files: typing.Sequence[str],
             gzipped: bool = False,
-            possibly_empty: bool = False
-            ) -> None:
+            possibly_empty: bool = False) -> None:
 
-        self._paths = files
-        self.validated = False
-        self._accepted_extensions = None
-        self._possibly_empty = possibly_empty
+        # Store paramaters
+        self.paths = files
         self.gzipped = gzipped
+        self.validated = False
+
+        # List of acceptable extensions for files in BioFileGroup
+        self._accepted_extensions = None
+
+        # True if it is acceptable for the files to be empty
+        self._possibly_empty = possibly_empty
+
+        # Get the actual file extensions
         self._extensions = self._get_extensions()
 
         self._prevalidate()
 
         # These steps are done after prevalidation to prevent unexpected errors
-        self._paths = [os.path.abspath(f) for f in files]
-        self._paths = sorted(files)
+        self.paths = [os.path.abspath(f) for f in files]
+        self.paths = sorted(files)
         self.names = self._get_names()
-
-    @property
-    def paths(self) -> List[str]:
-        """The list of file paths"""
-        return self._paths
-
-    def validate(self) -> None:
-        """Validation function to be used upon attempted access
-
-        It is only called upon the first access attempt
-        """
-        self._check_extensions()
-        self._check_files_non_empty()
-        self.validated = True
-
-    def _get_extensions(self) -> List[str]:
-        """Get the file extensions of the files.
-
-        Returns
-        -------
-        If gzipped then it returns the two part extension E.g fq.gz. Otherwise
-        just returns the final extension.
-        """
-
-        # If gzipped we return the two part extension E.g 'fq.gz'
-        if self.gzipped:
-            return [fmpaths.last_two_suffix(f) for f in self._paths]
-        else:
-            return [fmpaths.get_final_suffix(f) for f in self._paths]
-
-    def _get_names(self) -> List[str]:
-        """Get the names of the files in the group
-
-        Returns
-        -------
-        The substring of the paths' basenames before the first dot. E.g
-        'FA_SC.trim.map.sam' -> 'FA_SC'
-        """
-        basenames = [os.path.basename(path) for path in self._paths]
-        names = [fmpaths.get_prefix(basename) for basename in basenames]
-        return names
 
     def __getitem__(self, item) -> str:
         """Get a file from the group"""
@@ -145,7 +108,7 @@ class BioFileGroup(object):
         if not self.validated:
             self.validate()
 
-        return self._paths[item]
+        return self.paths[item]
 
     def __eq__(self, other) -> bool:
         """Test for BioFileGroup is equal to another"""
@@ -161,6 +124,59 @@ class BioFileGroup(object):
 
         return True
 
+    def __len__(self) -> int:
+        """Length of file list"""
+        return len(self.paths)
+
+    def validate(self) -> None:
+        """Validation function to be used upon attempted access
+
+        It is only called upon the first access attempt
+        """
+        self._check_extensions()
+        self._check_files_non_empty()
+        self.validated = True
+
+    def _check_paths_not_none(self) -> None:
+        """Check paths not an empty list"""
+        if not self.paths:
+            raise ValueError('Empty paths in BioFileGroup')
+
+    def _check_paths_not_string(self) -> None:
+        """Check that paths is not a single string"""
+
+        if isinstance(self.paths, str):
+            raise TypeError("""
+            Input to BioFileGroup is a string (expects list)
+            """)
+
+    def _get_extensions(self) -> typing.List[str]:
+        """Get the file extensions of the files.
+
+        Returns
+        -------
+        If gzipped then it returns the two part extension E.g fq.gz. Otherwise
+        just returns the final extension.
+        """
+
+        # If gzipped we return the two part extension E.g 'fq.gz'
+        if self.gzipped:
+            return [fmpaths.last_two_suffix(f) for f in self.paths]
+        else:
+            return [fmpaths.get_final_suffix(f) for f in self.paths]
+
+    def _get_names(self) -> typing.List[str]:
+        """Get the names of the files in the group
+
+        Returns
+        -------
+        The substring of the paths' basenames before the first dot. E.g
+        'FA_SC.trim.map.sam' -> 'FA_SC'
+        """
+        basenames = [os.path.basename(path) for path in self.paths]
+        names = [fmpaths.get_prefix(basename) for basename in basenames]
+        return names
+
     def _prevalidate(self) -> None:
         """Do some basic input validation upon initialization"""
 
@@ -170,22 +186,9 @@ class BioFileGroup(object):
 
     def _check_files_non_empty(self) -> None:
         if not self._possibly_empty:
-            for path in self._paths:
+            for path in self.paths:
                 if os.path.getsize(path) < 3:
                     raise ValueError(path + " is empty")
-
-    def _check_paths_not_none(self) -> None:
-        """Check paths not an empty list"""
-        if not self._paths:
-            raise ValueError('Empty paths in BioFileGroup')
-
-    def _check_paths_not_string(self) -> None:
-        """Check that paths is not a single string"""
-
-        if isinstance(self._paths, str):
-            raise TypeError("""
-            Input to BioFileGroup is a string (expects list)
-            """)
 
     def _check_extensions(self) -> None:
         """Check that the file extensions match the accepted extensions
@@ -208,10 +211,6 @@ class BioFileGroup(object):
         else:
             if fmcheck.any_endswith(self._extensions, 'gz'):
                 raise TypeError("Files are gzipped, but gzipped flag not set")
-
-    def __len__(self) -> int:
-        """Length of file list"""
-        return len(self._paths)
 
 
 class FastqGroup(BioFileGroup):
@@ -277,17 +276,17 @@ class Bowtie2IndexGroup(BioFileGroup):
         self.names = self._get_names()
 
     @property
-    def index_files(self) -> List[str]:
+    def index_files(self) -> typing.List[str]:
         """Simple getter function to retrieve the paths of all index files."""
 
-        return self._paths()
+        return self.paths()
 
-    def _get_index_prefixes(self) -> List[str]:
-        """ """
+    def _get_index_prefixes(self) -> typing.List[str]:
+        """Get the prefixes of the bowtie2 indices"""
         names = []
 
         # Get the prefixes of each .bt2 index
-        for path in self._paths:
+        for path in self.paths:
             # Reverse bowtie2 indices need three extensions removed, the rest
             # just need two
             if '.rev.' in os.path.basename(path):
@@ -296,7 +295,7 @@ class Bowtie2IndexGroup(BioFileGroup):
                 names.append(fmpaths.remove_suffix(path, 2))
 
         # Get the unique elements
-        names = fmstring.get_unique(names)
+        names = fmlist.get_unique(names)
 
         return names
 
@@ -309,10 +308,11 @@ class Bowtie2IndexGroup(BioFileGroup):
 
 
 """
-TypeVar for typing module which groups different types of fasta index classes
+typing module TypeVar which groups different types of fasta index classes
 into a single type
 """
-FastaIndexGroup = Union[SamtoolsFAIndexGroup, Bowtie2IndexGroup]
+FastaIndexGroup = typing.Union[SamtoolsFAIndexGroup, Bowtie2IndexGroup]
+
 
 class MatchedPrefixGroup(object):
     """Stores groups of matched BioFileGroups with same prefix
@@ -322,14 +322,14 @@ class MatchedPrefixGroup(object):
     Parameters
     ----------
     groups
-        List of matched BioFileGroups
+        typing.List of matched BioFileGroups
 
     Attributes
     ----------
-    groups : List[BioFileGroup]
+    groups : typing.List[BioFileGroup]
         Same as Parameters
     """
-    def __init__(self, groups: List[BioFileGroup]) -> None:
+    def __init__(self, groups: typing.List[BioFileGroup]) -> None:
         self.groups = groups
         self._prevalidate()
 
@@ -355,7 +355,7 @@ class MatchedPrefixGroup(object):
         """Length of the MatchedPrefixGroup """
         return len(self.groups[0])
 
-    def __getitem__(self, item) -> List[FastqGroup]:
+    def __getitem__(self, item) -> typing.List[FastqGroup]:
         """Get the pair of Fastq files indexed by 'item' """
         return list([self.fwd[item], self.rev[item]])
 
@@ -377,20 +377,11 @@ class PairedFastqGroup(MatchedPrefixGroup):
     def __init__(
             self,
             forward_fastq: FastqGroup,
-            reverse_fastq: FastqGroup
-            ) -> None:
+            reverse_fastq: FastqGroup) -> None:
         self.fwd = forward_fastq
         self.rev = reverse_fastq
         self.groups = [self.fwd, self.rev]
         super()._prevalidate()
-
-    ##def __len__(self) -> int:
-    ##    """Length of the PairedFastqGroup """
-    #    return super().__
-
-    #def __getitem__(self, item) -> List[FastqGroup]:
-    #    """Get the pair of Fastq files indexed by 'item' """
-    #    return super().__getitem__()
 
 
 class IndexedFastaGroup(object):
@@ -398,11 +389,10 @@ class IndexedFastaGroup(object):
     def __init__(
             self,
             fasta: FastaGroup,
-            *indices: FastaIndexGroup
-            ) -> None:
+            *indices: FastaIndexGroup) -> None:
         self.fasta = fasta
         self.indices = indices
 
-    def __getitem__(self, item) -> List[str]:
+    def __getitem__(self, item) -> typing.List[str]:
         index_items = [index[item] for index in self.indices]
         return [self.fasta[item]] + index_items

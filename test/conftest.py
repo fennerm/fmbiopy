@@ -1,3 +1,5 @@
+import pytest
+
 from fmbiopy.biofile import BioFileGroup
 from fmbiopy.biofile import Bowtie2IndexGroup as Bowtie2Index
 from fmbiopy.biofile import FastaGroup as Fasta
@@ -5,26 +7,27 @@ from fmbiopy.biofile import FastqGroup as Fastq
 from fmbiopy.biofile import IndexedFastaGroup as IndexedFasta
 from fmbiopy.biofile import PairedFastqGroup as PairedFastq
 from fmbiopy.biofile import SamtoolsFAIndexGroup as SamtoolsFAIndex
-from fmbiopy.fmpaths import add_suffix
-from get_dat import get_dat
-import pytest
+import fmbiopy.fmtest as fmtest
+from fmbiopy.fmtest import get_dat
+from fmbiopy.fmtest import initial_test_state
+from fmbiopy.fmtest import load_sandbox
 
 
 @pytest.fixture
 def fasta_paths():
-    dat = get_dat()['assemblies']
+    dat = fmtest.get_dat()['assemblies']
     return dat
 
 
 @pytest.fixture
 def read_paths():
-    dat = get_dat()
+    dat = fmtest.get_dat()
     return (dat['fwd_reads'], dat['rev_reads'])
 
 
 @pytest.fixture
 def diff_prefix_paths():
-    return get_dat()['diff_prefix']
+    return fmtest.get_dat()['diff_prefix']
 
 
 @pytest.fixture
@@ -34,17 +37,22 @@ def diff_prefix(diff_prefix_paths):
 
 @pytest.fixture
 def empty_paths():
-    return get_dat()['empty']
+    return fmtest.get_dat()['empty']
+
+
+@pytest.fixture
+def fasta(fasta_paths):
+    return BioFileGroup(fasta_paths)
 
 
 @pytest.fixture
 def bowtie_index_paths():
-    return get_dat()['bowtie2_indices']
+    return fmtest.get_dat()['bowtie2_indices']
 
 
 @pytest.fixture
 def samtools_index_paths():
-    return get_dat()['faindices']
+    return fmtest.get_dat()['faindices']
 
 
 @pytest.fixture
@@ -70,11 +78,6 @@ def samtools_indices(samtools_index_paths):
 @pytest.fixture
 def paired_fastq(read_paths, fwd_fastq, rev_fastq):
     return PairedFastq(fwd_fastq, rev_fastq)
-
-
-@pytest.fixture
-def fasta(fasta_paths):
-    return BioFileGroup(fasta_paths)
 
 
 @pytest.fixture

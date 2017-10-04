@@ -9,7 +9,7 @@ def gen_tmp_logfile():
     return tmp
 
 def test_root_logging():
-    """ Test that logging.info writes a line to the logfile""" 
+    """ Test that logging.info writes a line to the logfile"""
 
     logfile = gen_tmp_logfile()
     logging.info("foo")
