@@ -179,6 +179,9 @@ class RuffusTask(object):
         # produced.
         self._inplace = False
 
+        # Extra output files produced which are not specified by the user.
+        self._extra_outputs : typing.List[str] = []
+
     def _construct_command(self)-> None:
         """Subclasses construct their own tasks"""
         pass
@@ -215,7 +218,9 @@ class RuffusTask(object):
             self._cleanup()
 
     def _cleanup(self)-> None:
-        fmsystem.remove_all(self._output_files)
+        fmsystem.remove_all(
+                self._output_files + self._extra_outputs,
+                silent=True)
 
 
 class SamtoolsIndexFasta(RuffusTask):
@@ -290,6 +295,7 @@ class PairedBowtie2Align(RuffusTask):
         super().__init__(*args, **kwargs)
         self._multi_stage = True
         self._shell = True
+        self._add_extra_outputs()
         self._construct_command()
         self._run_command()
 
@@ -298,7 +304,8 @@ class PairedBowtie2Align(RuffusTask):
         prefix = fmpaths.remove_suffix(self._input_files[2])
         bowtie2_indices = fmpaths.get_bowtie2_indices(prefix[0])
         bai_file = fmpaths.add_suffix(self._output_files[0], '.bai')
-        self._output_files = fmlist.flatten([
+
+        self._extra_outputs = fmlist.flatten([
                 self._output_files, bowtie2_indices, bai_file])
 
     def _construct_command(self) -> None:
