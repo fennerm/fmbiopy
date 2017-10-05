@@ -169,18 +169,30 @@ class RuffusTask(object):
         self._command : typing.List = []
 
         # If True, command run directly in shell
-        self._shell = False
+        try:
+            self._shell
+        except AttributeError:
+            self._shell = False
 
         # If True, the command is a list of subcommands, which should be run
         # successively. This is essentially a mini-pipeline.
-        self._multi_stage = False
+        try:
+            self._multi_stage
+        except AttributeError:
+            self._multi_stage = False
 
         # If True, the input files are deleted once the output files are
         # produced.
-        self._inplace = False
+        try:
+            self._inplace
+        except AttributeError:
+            self._inplace = False
 
         # Extra output files produced which are not specified by the user.
         self._extra_outputs : typing.List[str] = []
+        self._add_extra_outputs()
+        self._construct_command()
+        self._run_command()
 
     def _construct_command(self)-> None:
         """Subclasses construct their own tasks"""
@@ -231,8 +243,6 @@ class SamtoolsIndexFasta(RuffusTask):
 
     def __init__(self, *args, **kwargs)-> None:
         super().__init__(*args, **kwargs)
-        self._construct_command()
-        self._run_command()
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
@@ -246,11 +256,9 @@ class Gunzip(RuffusTask):
     output_type = ['']
 
     def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
         self._shell = True
         self._inplace = True
-        self._construct_command()
-        self._run_command()
+        super().__init__(*args, **kwargs)
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
@@ -269,11 +277,9 @@ class Gzip(RuffusTask):
     output_type = ['gz']
 
     def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
         self._shell = True
         self._inplace = True
-        self._construct_command()
-        self._run_command()
+        super().__init__(*args, **kwargs)
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
@@ -292,12 +298,9 @@ class PairedBowtie2Align(RuffusTask):
     output_type = ['bam']
 
     def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
         self._multi_stage = True
         self._shell = True
-        self._add_extra_outputs()
-        self._construct_command()
-        self._run_command()
+        super().__init__(*args, **kwargs)
 
     def _add_extra_outputs(self) -> None:
         """Add the .bt2 and .bai files to the output file list"""
