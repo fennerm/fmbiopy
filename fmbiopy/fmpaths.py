@@ -1,11 +1,12 @@
 """ Path manipulation utilities """
 
-import fmbiopy.fmcheck as fmcheck
-from fmbiopy.fmtype import StringOrSequence
 from glob import glob
 import os
 from re import sub
 import typing
+
+import fmbiopy.fmcheck as fmcheck
+from fmbiopy.fmtype import StringOrSequence
 
 
 def get_prefix(path: str) -> str:
@@ -41,29 +42,28 @@ def replace_suffix(path: str, old_suffix: str, new_suffix: str) -> str:
     return sub(old_suffix, new_suffix, path)
 
 
-def add_suffix(names: StringOrSequence, suffix: str) -> typing.Sequence[str]:
+def add_suffix(names: str, suffix: str) -> str:
     """Append a suffix to a string or list of strings"""
-
-    if isinstance(names, str):
-        return names + suffix
-
-    return [add_suffix(name, suffix) for name in names]
+    return names + suffix
 
 
-def remove_suffix(names: StringOrSequence, nremove=1) -> StringOrSequence:
+def remove_suffix(names: StringOrSequence, nremove=1) -> typing.List[str]:
     """Remove n suffixes from a list of strings """
     if nremove == 0:
-        return names
+        # To ensure that return type is consistent, we return a list if given a
+        # string
+        if isinstance(names, str):
+            return [names]
+        return list(names)
 
     if isinstance(names, str):
         # If x is a string its simple
-        unsuffixed = os.path.splitext(names)[0]
+        unsuffixed = [os.path.splitext(names)[0]]
     else:
         # If x is a list, recursively apply
-        unsuffixed = [remove_suffix(name, 1) for name in names]
+        unsuffixed = [remove_suffix(name, 1)[0] for name in names]
 
     nremove -= 1
-
     return remove_suffix(unsuffixed, nremove)
 
 

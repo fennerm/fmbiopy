@@ -33,15 +33,16 @@ FileGroups are designed to be initialized and then used without editing. Once
 a group has been initialized, it is not recommended to attempt to change the
 files it maps to.
 """
+import collections
+import os
+import typing
 
 import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
-import os
-import typing
 
 
-class BioFileGroup(object):
+class BioFileGroup(collections.abc.Sized):
     """Superclass for storing and validating groups of bioinformatics files.
 
     Classes of more specific filetypes inherit the majority of their attributes
@@ -87,7 +88,7 @@ class BioFileGroup(object):
         self.validated = False
 
         # List of acceptable extensions for files in BioFileGroup
-        self._accepted_extensions = None
+        self._accepted_extensions : typing.List[str] = None
 
         # True if it is acceptable for the files to be empty
         self._possibly_empty = possibly_empty
@@ -118,7 +119,7 @@ class BioFileGroup(object):
             return False
 
         # Test that all paths are the same
-        for me, you in zip(self, other):
+        for me, you in zip(self, other):  # type: ignore
             if me != you:
                 return False
 
@@ -148,6 +149,9 @@ class BioFileGroup(object):
         if isinstance(self.paths, str):
             raise TypeError("""
             Input to BioFileGroup is a string (expects list)
+
+
+
             """)
 
     def _get_extensions(self) -> typing.List[str]:
@@ -276,10 +280,9 @@ class Bowtie2IndexGroup(BioFileGroup):
         self.names = self._get_names()
 
     @property
-    def index_files(self) -> typing.List[str]:
+    def index_files(self) -> typing.Sequence[str]:
         """Simple getter function to retrieve the paths of all index files."""
-
-        return self.paths()
+        return self.paths
 
     def _get_index_prefixes(self) -> typing.List[str]:
         """Get the prefixes of the bowtie2 indices"""
@@ -290,9 +293,9 @@ class Bowtie2IndexGroup(BioFileGroup):
             # Reverse bowtie2 indices need three extensions removed, the rest
             # just need two
             if '.rev.' in os.path.basename(path):
-                names.append(fmpaths.remove_suffix(path, 3))
+                names.append(fmpaths.remove_suffix(path, 3)[0])
             else:
-                names.append(fmpaths.remove_suffix(path, 2))
+                names.append(fmpaths.remove_suffix(path, 2)[0])
 
         # Get the unique elements
         names = fmlist.get_unique(names)
@@ -352,12 +355,12 @@ class MatchedPrefixGroup(object):
             raise ValueError("Files don't have the same prefix")
 
     def __len__(self) -> int:
-        """Length of the MatchedPrefixGroup """
+        """Length of the `MatchedPrefixGroup`"""
         return len(self.groups[0])
 
-    def __getitem__(self, item) -> typing.List[FastqGroup]:
-        """Get the pair of Fastq files indexed by 'item' """
-        return list([self.fwd[item], self.rev[item]])
+    def __getitem__(self, item) -> typing.List[str]:
+        """Index the `MatchedPrefixGroup`"""
+        return [g[item] for g in self.groups]
 
 
 class PairedFastqGroup(MatchedPrefixGroup):

@@ -1,4 +1,6 @@
 import pytest
+from typing import List
+from typing import Tuple
 
 from fmbiopy.biofile import BioFileGroup
 from fmbiopy.biofile import Bowtie2IndexGroup as Bowtie2Index
@@ -14,13 +16,13 @@ from fmbiopy.fmtest import load_sandbox
 
 
 @pytest.fixture
-def fasta_paths():
+def fasta_paths() -> List[str]:
     dat = fmtest.get_dat()['assemblies']
     return dat
 
 
 @pytest.fixture
-def read_paths():
+def read_paths() -> Tuple[List[str], List[str]]:
     dat = fmtest.get_dat()
     return (dat['fwd_reads'], dat['rev_reads'])
 

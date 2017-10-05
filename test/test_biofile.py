@@ -48,7 +48,7 @@ class TestBioFileGroup(object):
 
     def test_empty_files_raise_value_error(self, empty_paths):
         bfg = BioFileGroup(empty_paths)
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError):
             bfg[1]
 
     def test_possibly_empty_prevents_error(self, empty_paths):
@@ -61,12 +61,12 @@ class TestBioFileGroup(object):
 
 
 class TestFastq():
-
     def test_if_incorrect_extension_raises_value_error(self, read_paths):
-        incorrect_suffix = add_suffix(read_paths[0], '.x')
+        incorrect_suffix = [add_suffix(p, '.x') for p in read_paths[0]]
 
         fq = Fastq(incorrect_suffix)
         with pytest.raises(ValueError) as exc:
+
             fq[1]
 
 

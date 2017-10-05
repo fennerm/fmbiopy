@@ -5,12 +5,16 @@ import os
 import pytest
 import shutil
 import tempfile
-import typing
+from typing import Dict
+from typing import Generator
+from typing import Iterator
+from typing import List
+from typing import Tuple
 
 import fmbiopy.fmpaths as fmpaths
 
 
-def gen_tmp(empty=True)-> str:
+def gen_tmp(empty: bool = True)-> str:
     """Generate a named temporary file
 
     Parameters
@@ -30,7 +34,7 @@ def gen_tmp(empty=True)-> str:
     return tmpfile
 
 
-def gen_mixed_tmpfiles():
+def gen_mixed_tmpfiles() -> List[str]:
     """Generate a list of two tempfiles - the first is nonempty"""
     tmps = [tempfile.NamedTemporaryFile(delete=False).name
             for i in range(0, 2)]
@@ -40,7 +44,7 @@ def gen_mixed_tmpfiles():
 
 
 @pytest.fixture(scope='session', autouse=True)
-def load_sandbox() -> None:
+def load_sandbox() -> Generator:
     """Copy all test data files to the sandbox for the testing session"""
     if os.path.exists('sandbox'):
         shutil.rmtree('sandbox')
@@ -51,12 +55,12 @@ def load_sandbox() -> None:
 
 
 @pytest.fixture(scope='class', autouse=True)
-def initial_test_state() -> typing.List[str]:
+def initial_test_state() -> Iterator[Tuple[str, List[str], List[str]]]:
     """Stores the initial state of the test data directory"""
     return os.walk('sandbox')
 
 
-def get_dat() -> typing.Dict[str, typing.List[str]]:
+def get_dat() -> Dict[str, List[str]]:
     """Create a dictionary of test data
 
     Assumes test directory is structured such that all test data is stored in

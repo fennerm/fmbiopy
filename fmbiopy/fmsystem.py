@@ -9,6 +9,7 @@ import errno
 import logging
 import os
 import subprocess
+from typing import Any
 from typing import Dict
 from typing import Generator
 from typing import List
@@ -122,7 +123,7 @@ def remove_all(names: fmtype.StringOrSequence, silent: bool = False)-> None:
     if silent:
         remove_func = silent_remove
     else:
-        remove_func = os.remove
+        remove_func = os.remove  # type: ignore
 
     if isinstance(names, collections.Iterable) and not isinstance(names, str):
         for name in names:
@@ -203,7 +204,7 @@ def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
     return abspaths
 
 
-def silent_remove(filename: str) -> None:
+def silent_remove(filename : Any) -> None:
     """Try to remove a file, ignore exception if doesn't exist """
     try:
         os.remove(filename)

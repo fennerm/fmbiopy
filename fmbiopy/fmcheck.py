@@ -3,9 +3,10 @@
 Functions which start with 'check_' raise exceptions, all others return bools
 """
 
-from fmbiopy.fmtype import StringOrSequence
 import os
 import typing
+
+from fmbiopy.fmtype import StringOrSequence
 
 
 def check_non_empty(items: typing.Sequence) -> None:
@@ -68,7 +69,7 @@ def any_endswith(items: typing.Sequence[str], suffix) -> bool:
 def check_all_exist(paths: typing.Sequence[str]) -> None:
     """Raise OSError if any paths in list do not exist """
     if not all_exist(paths):
-        raise OSError("Not all paths exist: \n" + paths)
+        raise OSError("Not all paths exist: \n" + ' '.join(paths))
 
 
 def check_suffix(name: str, suffixes: StringOrSequence) -> None:

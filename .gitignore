@@ -10,5 +10,6 @@ scripts/ssh_add_github_repo
 *.fai
 *.bt2
 *.cache
+pipeline.log
 .mypy_cache
 Makefile

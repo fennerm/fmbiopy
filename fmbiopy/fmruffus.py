@@ -296,7 +296,7 @@ class PairedBowtie2Align(RuffusTask):
     def _add_extra_outputs(self) -> None:
         """Add the .bt2 and .bai files to the output file list"""
         prefix = fmpaths.remove_suffix(self._input_files[2])
-        bowtie2_indices = fmpaths.get_bowtie2_indices(prefix)
+        bowtie2_indices = fmpaths.get_bowtie2_indices(prefix[0])
         bai_file = fmpaths.add_suffix(self._output_files[0], '.bai')
         self._output_files = fmlist.flatten([
                 self._output_files, bowtie2_indices, bai_file])

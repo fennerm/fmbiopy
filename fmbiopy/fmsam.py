@@ -1,6 +1,5 @@
 """Functions for manipulating Sam and Bam files"""
 
-import fmbiopy.fmsystem as fmsystem
 import os
 
 

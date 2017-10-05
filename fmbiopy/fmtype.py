@@ -1,9 +1,10 @@
 """ Custom types for static typing with the typing module and mypy"""
 
-from typing import Union, Sequence
-from pathlib import Path
+from typing import List
+from typing import Sequence
+from typing import Union
+
 
 StringOrSequence = Union[str, Sequence[str]]
 
-PathsOrStrings = Union[Sequence[str], Sequence[Path]]
-
+StringOrList = Union[str, List[str]]
