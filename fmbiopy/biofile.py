@@ -34,12 +34,108 @@ a group has been initialized, it is not recommended to attempt to change the
 files it maps to.
 """
 import collections
+from itertools import compress
 import os
-import typing
+from typing import List
+from typing import Sequence
+from typing import Union
 
 import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
+
+
+class BioFileValidationError(Exception):
+    """Basic exception for errors raised by BioFile validation checks
+
+    Parameters
+    ----------
+    filenames
+        The files which caused the error
+
+    Attributes
+    ----------
+    msg
+        The formatted error message
+    """
+    def __init__(self, filenames : Sequence[str] = []) -> None:
+        self.filenames = filenames
+        self._construct_msg()
+        super().__init__(self.msg)
+
+    def _formatted_filenames(self) -> str:
+        """Construct the part of the error message which lists files"""
+        return '\n'.join(['Files:', ', '.join(self.filenames)])
+
+    def _err_description(self) -> str:
+        """Construct the error description to output"""
+        return ''
+
+    def _construct_msg(self) -> None:
+        """Construct the combined error message"""
+        self.msg : str = '\n'.join([
+                self._formatted_filenames(),
+                self._err_description()])
+
+
+class MatchedPrefixGroupValidationError(BioFileValidationError):
+    """Basic exception for errors raised by `MatchedPrefixGroup` validation"""
+    def __init__(self, filenames) -> None:
+        super().__init__(filenames)
+
+    def _formatted_filenames(self) -> None:
+        """Format the file group names for printing"""
+        formatted_filenames = 'Groups:\n'
+
+        for fs in self.filenames:
+            formatted_filenames += '[' + ', '.join(fs) + ']\n'
+        return formatted_filenames
+
+
+class EmptyFileError(BioFileValidationError):
+    """Exception raised when one or more of the stored files are empty"""
+    def __init__(self, filenames) -> None:
+        super().__init__(filenames)
+
+    def _err_description(self) -> str:
+        return "File is empty but possibly_empty is False"
+
+
+class GzipStatusError(BioFileValidationError):
+    """Exception raised when one or more of the stored files are empty"""
+    def __init__(self, filenames) -> None:
+        super().__init__(filenames)
+
+    def _err_description(self) -> str:
+        return "Gzip status of files does not match the gzip argument"
+
+
+class FileExtensionError(BioFileValidationError):
+    """Exception raised when files do not have the expected file extension"""
+    def __init__(self, filenames) -> None:
+        super().__init__(filenames)
+
+    def _err_description(self) -> str:
+        return "Unexpected file extension"
+
+
+class DuplicateFilegroupError(MatchedPrefixGroupValidationError):
+    """Exception raised when a `BioFileGroup` is matched with itself"""
+    def __init__(self, filenames) -> None:
+        super().__init__(filenames)
+
+
+class PrefixMatchError(MatchedPrefixGroupValidationError):
+    """Exception raised the files do not share a prefix"""
+    def __init__(self, filenames) -> None:
+        super().__init__(filenames)
+
+
+class GroupLengthError(MatchedPrefixGroupValidationError):
+    """Exception raised `MatchedPrefixGroups`s don't have equal lengths"""
+
+    def __init__(self, filenames) -> None:
+        super().__init__(filenames)
 
 
 class BioFileGroup(collections.abc.Sized):
@@ -78,7 +174,7 @@ class BioFileGroup(collections.abc.Sized):
 
     def __init__(
             self,
-            files: typing.Sequence[str],
+            files: Sequence[str],
             gzipped: bool = False,
             possibly_empty: bool = False) -> None:
 
@@ -148,13 +244,9 @@ class BioFileGroup(collections.abc.Sized):
 
         if isinstance(self.paths, str):
             raise TypeError("""
-            Input to BioFileGroup is a string (expects list)
+            Input to BioFileGroup is a string (expects list)""")
 
-
-
-            """)
-
-    def _get_extensions(self) -> typing.List[str]:
+    def _get_extensions(self) -> List[str]:
         """Get the file extensions of the files.
 
         Returns
@@ -169,7 +261,7 @@ class BioFileGroup(collections.abc.Sized):
         else:
             return [fmpaths.get_final_suffix(f) for f in self.paths]
 
-    def _get_names(self) -> typing.List[str]:
+    def _get_names(self) -> List[str]:
         """Get the names of the files in the group
 
         Returns
@@ -190,9 +282,12 @@ class BioFileGroup(collections.abc.Sized):
 
     def _check_files_non_empty(self) -> None:
         if not self._possibly_empty:
+            empty = []
             for path in self.paths:
                 if os.path.getsize(path) < 3:
-                    raise ValueError(path + " is empty")
+                    empty.append(path)
+            if len(empty) > 0:
+                raise EmptyFileError(empty)
 
     def _check_extensions(self) -> None:
         """Check that the file extensions match the accepted extensions
@@ -201,20 +296,29 @@ class BioFileGroup(collections.abc.Sized):
         use this method for extension validation.
         """
         if self._accepted_extensions:
-            for extension in self._extensions:
+            incorrect_extensions = []
+            for i, extension in enumerate(self._extensions):
                 # Extension check is not caps sensitive
                 if not extension.lower() in self._accepted_extensions:
-                    raise ValueError("Invalid file extension")
+                    incorrect_extensions.append(self.paths[i])
+
+            if len(incorrect_extensions) > 1:
+                raise FileExtensionError([self.paths[i]])
 
     def _check_gzip(self) -> None:
         """Check that the gzipped flag parameter is correct"""
 
+        which_gzipped = [ext.endswith('gz') for ext in self._extensions]
+        is_gzipped = list(compress(self.paths, which_gzipped))
+        which_not_gzipped = [not x for x in is_gzipped]
+        not_gzipped = list(compress(self.paths, which_not_gzipped))
+
         if self.gzipped:
-            if not fmcheck.any_endswith(self._extensions, 'gz'):
-                raise TypeError("Files are not gzipped")
+            if any(which_not_gzipped):
+                raise GzipStatusError(not_gzipped)
         else:
-            if fmcheck.any_endswith(self._extensions, 'gz'):
-                raise TypeError("Files are gzipped, but gzipped flag not set")
+            if any(which_gzipped):
+                raise GzipStatusError(is_gzipped)
 
 
 class FastqGroup(BioFileGroup):
@@ -280,11 +384,11 @@ class Bowtie2IndexGroup(BioFileGroup):
         self.names = self._get_names()
 
     @property
-    def index_files(self) -> typing.Sequence[str]:
+    def index_files(self) -> Sequence[str]:
         """Simple getter function to retrieve the paths of all index files."""
         return self.paths
 
-    def _get_index_prefixes(self) -> typing.List[str]:
+    def _get_index_prefixes(self) -> List[str]:
         """Get the prefixes of the bowtie2 indices"""
         names = []
 
@@ -314,7 +418,7 @@ class Bowtie2IndexGroup(BioFileGroup):
 typing module TypeVar which groups different types of fasta index classes
 into a single type
 """
-FastaIndexGroup = typing.Union[SamtoolsFAIndexGroup, Bowtie2IndexGroup]
+FastaIndexGroup = Union[SamtoolsFAIndexGroup, Bowtie2IndexGroup]
 
 
 class MatchedPrefixGroup(object):
@@ -330,35 +434,40 @@ class MatchedPrefixGroup(object):
     Attributes
     ----------
     groups : typing.List[BioFileGroup]
-        Same as Parameters
-    """
-    def __init__(self, groups: typing.List[BioFileGroup]) -> None:
+        Same as Parameters """
+    def __init__(self, groups: List[BioFileGroup]) -> None:
         self.groups = groups
         self._prevalidate()
 
     def _prevalidate(self) -> None:
         """Check that the MatchedPrefixGroup is valid"""
         self.__check_files_not_same()
-        self.__check_matched_names_identical()
+        self.__check_lengths_match()
+        self.__check_same_file_prefix()
 
     def __check_files_not_same(self) -> None:
         """Check that none of the filegroups are the exact same"""
         for i, group1 in enumerate(self.groups):
             for j, group2 in enumerate(self.groups):
                 if i != j and group1 == group2:
-                    raise ValueError("Non-unique groups")
+                    raise DuplicateFilegroupError(self.groups)
 
-    def __check_matched_names_identical(self) -> None:
+    def __check_lengths_match(self) -> None:
+        group_lengths = [len(g) for g in self.groups]
+        if not fmcheck.all_equal(group_lengths):
+            raise GroupLengthError(self.groups)
+
+    def __check_same_file_prefix(self) -> None:
         """Check that the stored BioFileGroups all have the same prefixes"""
         names = [group.names for group in self.groups]
         if not fmcheck.all_equal(names):
-            raise ValueError("Files don't have the same prefix")
+            raise PrefixMatchError(self.groups)
 
     def __len__(self) -> int:
         """Length of the `MatchedPrefixGroup`"""
         return len(self.groups[0])
 
-    def __getitem__(self, item) -> typing.List[str]:
+    def __getitem__(self, item) -> List[str]:
         """Index the `MatchedPrefixGroup`"""
         return [g[item] for g in self.groups]
 
@@ -396,6 +505,6 @@ class IndexedFastaGroup(object):
         self.fasta = fasta
         self.indices = indices
 
-    def __getitem__(self, item) -> typing.List[str]:
+    def __getitem__(self, item) -> List[str]:
         index_items = [index[item] for index in self.indices]
         return [self.fasta[item]] + index_items
