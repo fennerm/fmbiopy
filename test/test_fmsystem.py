@@ -1,8 +1,8 @@
-import os
 import tempfile
 import pytest
-from fmbiopy import fmsystem
+import fmbiopy.fmsystem as fmsystem
 from fmbiopy.fmcheck import any_exist, all_exist
+
 
 class TestRunCommand():
 
@@ -13,7 +13,7 @@ class TestRunCommand():
             temp.flush()
             succ = fmsystem.run_command(command)
             assert succ[0] == 0
-            assert succ[1] == '3 '+temp.name + '\n'
+            assert succ[1] == '3 '+ temp.name + '\n'
             assert succ[2] == ''
 
     def test_trivial_mixed_success(self):

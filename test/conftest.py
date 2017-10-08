@@ -9,10 +9,8 @@ from fmbiopy.biofile import FastqGroup as Fastq
 from fmbiopy.biofile import IndexedFastaGroup as IndexedFasta
 from fmbiopy.biofile import PairedFastqGroup as PairedFastq
 from fmbiopy.biofile import SamtoolsFAIndexGroup as SamtoolsFAIndex
-import fmbiopy.fmtest as fmtest
-from fmbiopy.fmtest import get_dat
-from fmbiopy.fmtest import initial_test_state
 from fmbiopy.fmtest import load_sandbox
+import fmbiopy.fmtest as fmtest
 
 
 @pytest.fixture

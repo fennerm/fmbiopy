@@ -33,7 +33,7 @@ class TestCheckAllSuffix():
 
 
 class TestFileSizeNonZero(object):
-    def test_normal_usage(self):
-        mixed_tmpfiles = fmtest.gen_mixed_tmpfiles()
+    def test_normal_usage(self, tmpdir):
+        mixed_tmpfiles = fmtest.gen_mixed_tmpfiles(directory=tmpdir)
 
         assert fmcheck.filesize_nonzero(mixed_tmpfiles) == [True, False]

@@ -19,14 +19,14 @@ class TestRuffusLog(object):
         with pytest.raises(ValueError):
             fmruffus.RuffusLog("foo", "bar/bar.log")
 
-    def test_normal_unbuffered_usage(self):
-        tmp = fmtest.gen_tmp()
+    def test_normal_unbuffered_usage(self, tmpdir):
+        tmp = fmtest.gen_tmp(directory=tmpdir)
         ruflog = fmruffus.RuffusLog("foo", tmp, buffered=False)
         ruflog.write("Test")
         assert os.path.getsize(tmp) > 0
 
-    def test_header(self):
-        tmp = fmtest.gen_tmp()
+    def test_header(self, tmpdir):
+        tmp = fmtest.gen_tmp(directory=tmpdir)
         ruflog = fmruffus.RuffusLog("foo", tmp, buffered=False)
         head = "HEADER"
         ruflog.write_header(head)
@@ -35,8 +35,8 @@ class TestRuffusLog(object):
         assert '=' * 80 in lines[0]
         assert head in lines[1]
 
-    def test_normal_buffered_usage(self):
-        tmp = fmtest.gen_tmp()
+    def test_normal_buffered_usage(self, tmpdir):
+        tmp = fmtest.gen_tmp(directory=tmpdir)
         ruflog = fmruffus.RuffusLog("foo", tmp, buffered=True)
         ruflog.write("bar")
         with open(tmp, 'r') as f:
@@ -48,57 +48,64 @@ class TestRuffusLog(object):
         assert lines
 
 
-
-def get_example_file(filetype):
-    if filetype == 'fasta':
-        return fmtest.get_dat()['assemblies'][0]
-    elif filetype == ('fastq', 'fastq'):
-        return (fmtest.get_dat()['fwd_reads'][0],
-                fmtest.get_dat()['rev_reads'][0])
-    elif filetype == 'fastq':
-        return fmtest.get_dat()['fwd_reads'][0]
-    elif filetype == 'fai':
-        return fmtest.get_dat()['faindices'][0]
-    elif filetype == 'sam':
-        return fmtest.get_dat()['sam'][0]
-    elif filetype == 'bam':
-        return fmtest.get_dat()['bam'][0]
-    elif filetype == 'gz':
-        return fmtest.get_dat()['fwd_reads'][0]
-    return fmtest.gen_tmp(empty=False)
-
-
-def get_test_instance(task):
-    """Given a RuffusTask name, return an instance of the task"""
-    input_example = [get_example_file(t) for t in task.input_type]
-    input_example = fmlist.flatten(input_example)
-
-    if task.output_type == ['']:
-        output_example = fmpaths.remove_suffix(input_example[0])
-    else:
-        output_suffix = '.' + task.output_type[0]
-        output_example = [
-                fmpaths.add_suffix(path, output_suffix) for path
-                in input_example]
-        # Match the length of the example output to the actual number of
-        # outputs
-        output_example = output_example[0:len(task.output_type)]
-
-    return task(input_example, output_example)
-
-
 @pytest.fixture(
-        scope="module",
         params=fmclass.list_classes(
             'fmbiopy.fmruffus',
             exclude=[fmruffus.RuffusLog, fmruffus.RuffusTask]))
-def task(request):
-    ruffus_task = get_test_instance(request.param)
+def task(request, instance_of):
+    task_class = request.param
+    ruffus_task = instance_of(task_class)
     yield ruffus_task
     ruffus_task._cleanup()
 
 
+@pytest.fixture
+def example_file(tmpdir):
+    def get_example_file(filetype):
+        if filetype == 'fasta':
+            return fmtest.get_dat()['assemblies'][0]
+        elif filetype == ('fastq', 'fastq'):
+            return (fmtest.get_dat()['fwd_reads'][0],
+                    fmtest.get_dat()['rev_reads'][0])
+        elif filetype == 'fastq':
+            return fmtest.get_dat()['fwd_reads'][0]
+        elif filetype == 'fai':
+            return fmtest.get_dat()['faindices'][0]
+        elif filetype == 'sam':
+            return fmtest.get_dat()['sam'][0]
+        elif filetype == 'bam':
+            return fmtest.get_dat()['bam'][0]
+        elif filetype == 'gz':
+            return fmtest.get_dat()['fwd_reads'][0]
+        return fmtest.gen_tmp(directory=tmpdir)
+
+    return get_example_file
+
+
+@pytest.fixture
+def instance_of(example_file):
+    """Given a RuffusTask name, return an instance of the task"""
+    def make_test_instance(task_name):
+        input_example = [example_file(t) for t in task_name.input_type]
+        input_example = fmlist.flatten(input_example)
+
+        if task_name.output_type == ['']:
+            output_example = fmpaths.remove_suffix(input_example[0])
+        else:
+            output_suffix = '.' + task_name.output_type[0]
+            output_example = [
+                    fmpaths.add_suffix(path, output_suffix) for path
+                    in input_example]
+            # Match the length of the example output to the actual number of
+            # outputs
+            output_example = output_example[0:len(task_name.output_type)]
+
+        return task_name(input_example, output_example)
+    return make_test_instance
+
+
 class TestAllTasks(object):
+
     def test_initialization(self, task):
         assert task._logger.log is not None
         assert task._construct_command is not None

@@ -1,4 +1,7 @@
-"""Set of functions to aid in testing"""
+"""Set of functions to aid in testing
+
+Modules which import fmtest must also import load_sandbox explicitely.
+"""
 
 import glob
 import os
@@ -12,32 +15,52 @@ from typing import List
 from typing import Tuple
 
 import fmbiopy.fmpaths as fmpaths
+import fmbiopy.fmsystem as fmsystem
 
 
-def gen_tmp(empty: bool = True)-> str:
-    """Generate a named temporary file
+def gen_tmp(
+        empty: bool = True,
+        suffix: str = '',
+        directory: str = 'sandbox') -> str:
+    """Generate a named temporary file.
+
+    Warning: These files need to be deleted manually if a non-temporary
+    directory is used.
 
     Parameters
     ----------
     empty
         If True, the file is empty. Otherwise it has content.
+    suffix, optional
+        If defined, the generated files will have the given extension
+    directory, optional
+        If defined, the generated files will be produced in the given
+        directory. By default the directory produced by load_sandbox is used.
 
     Returns
     -------
     The path to the created temporary file
     """
-    tmpfile = tempfile.NamedTemporaryFile(delete=False).name
+
+    tmpfile = tempfile.NamedTemporaryFile(
+            delete=False, dir=directory, suffix=suffix).name
+
     if not empty:
         with open(tmpfile, 'w') as f:
             f.write('foo')
-
+    else:
+        with open(tmpfile, 'w') as f:
+            f.write('')
     return tmpfile
 
 
-def gen_mixed_tmpfiles() -> List[str]:
-    """Generate a list of two tempfiles - the first is nonempty"""
-    tmps = [tempfile.NamedTemporaryFile(delete=False).name
-            for i in range(0, 2)]
+def gen_mixed_tmpfiles(*args, **kwargs) -> List[str]:
+    """Generate a list of two tempfiles - the first is nonempty
+
+    All arguments are passed to `gen_tmp`
+    """
+    tmps = [gen_tmp(empty=False, *args, **kwargs)] + \
+        [gen_tmp(empty=True, *args, **kwargs)]
     with open(tmps[0], "w") as f:
         f.write("foo")
     return tmps
