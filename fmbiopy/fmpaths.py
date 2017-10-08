@@ -1,9 +1,11 @@
 """ Path manipulation utilities """
 
 from glob import glob
+from pathlib import Path
 import os
 from re import sub
-import typing
+from typing import List
+from typing import Sequence
 
 import fmbiopy.fmcheck as fmcheck
 from fmbiopy.fmtype import StringOrSequence
@@ -47,7 +49,7 @@ def add_suffix(names: str, suffix: str) -> str:
     return names + suffix
 
 
-def remove_suffix(names: StringOrSequence, nremove=1) -> typing.List[str]:
+def remove_suffix(names: StringOrSequence, nremove=1) -> List[str]:
     """Remove n suffixes from a list of strings """
     if nremove == 0:
         # To ensure that return type is consistent, we return a list if given a
@@ -67,7 +69,7 @@ def remove_suffix(names: StringOrSequence, nremove=1) -> typing.List[str]:
     return remove_suffix(unsuffixed, nremove)
 
 
-def listdirs(directory: str) -> typing.Sequence[str]:
+def listdirs(directory: str) -> Sequence[str]:
     """List all the subdirectories of a directory"""
     # Get all paths in directory including regular files
     contents = glob(directory + '/*')
@@ -83,8 +85,30 @@ def listdirs(directory: str) -> typing.Sequence[str]:
     return dirs
 
 
-def get_bowtie2_indices(prefix: str) -> typing.List[str]:
+def get_bowtie2_indices(prefix: str) -> List[str]:
     """Given the bowtie2 index prefix, return the bowtie2 indices"""
     bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
                        '.rev.2.bt2']
     return sorted([prefix + suf for suf in bowtie_suffixes])
+
+
+def files_of_type(directory : str, types : Sequence[str]) -> List[str]:
+    """List all files with a given file extension in `directory`
+
+    Parameters
+    ----------
+    directory
+        The name of the directory to search in
+    types
+        List of target file extensions (e.g py, txt)
+
+    Returns
+    -------
+    List[str]
+        List of files with the given extensions"""
+
+    hits : List[str] = []
+    for typ in types:
+        hits += glob(directory + '/*.' + typ)
+
+    return sorted(hits)
