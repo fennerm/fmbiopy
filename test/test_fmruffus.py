@@ -19,21 +19,34 @@ class TestRuffusLog(object):
         with pytest.raises(ValueError):
             fmruffus.RuffusLog("foo", "bar/bar.log")
 
-    def test_normal_usage(self):
+    def test_normal_unbuffered_usage(self):
         tmp = fmtest.gen_tmp()
-        ruflog = fmruffus.RuffusLog("foo", tmp)
+        ruflog = fmruffus.RuffusLog("foo", tmp, buffered=False)
         ruflog.write("Test")
         assert os.path.getsize(tmp) > 0
 
     def test_header(self):
         tmp = fmtest.gen_tmp()
-        ruflog = fmruffus.RuffusLog("foo", tmp)
+        ruflog = fmruffus.RuffusLog("foo", tmp, buffered=False)
         head = "HEADER"
         ruflog.write_header(head)
         with open(tmp, 'r') as f:
             lines = [line for line in f][:2]
-        assert '-' * 30 in lines[0]
+        assert '=' * 80 in lines[0]
         assert head in lines[1]
+
+    def test_normal_buffered_usage(self):
+        tmp = fmtest.gen_tmp()
+        ruflog = fmruffus.RuffusLog("foo", tmp, buffered=True)
+        ruflog.write("bar")
+        with open(tmp, 'r') as f:
+            lines = [line for line in f][:2]
+        assert not lines
+        ruflog.flush()
+        with open(tmp, 'r') as f:
+            lines = [line for line in f][:2]
+        assert lines
+
 
 
 def get_example_file(filetype):

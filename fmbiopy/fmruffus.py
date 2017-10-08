@@ -13,7 +13,6 @@ import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmsystem as fmsystem
-from fmbiopy.fmtype import StringOrSequence
 
 """Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
@@ -40,6 +39,9 @@ class RuffusLog(object):
         If True, file opening deferred until first log action
     level
         Logging level, see logging module docs
+    buffered
+        If True, the `write` statements are appended to the buffer, but nothing
+        is logged until the buffer is `flush`ed.
 
     Attributes
     ----------
@@ -56,7 +58,8 @@ class RuffusLog(object):
             location: str,
             formatter: str = DEFAULT_LOG_FORMAT,
             delay: bool = True,
-            level: int = logging.DEBUG) -> None:
+            level: int = logging.DEBUG,
+            buffered: bool = True) -> None:
 
         logdir = os.path.dirname(location)
         if logdir:
@@ -66,38 +69,65 @@ class RuffusLog(object):
         self.config = {'file_name' : location,
                        'formatter' : formatter,
                        'delay' : delay,
-                       'level' : level}
+                       'level' : level,
+                       'buffered' : buffered}
+
+        if self.config['buffered']:
+            self._buffer = ''
 
         self.log, self.mutex = make_shared_logger_and_proxy(
                 setup_std_shared_logger, name, self.config)
 
-    def write(self, message: StringOrSequence) -> None:
+    def write(self, msg: str) -> None:
         """Log a message with mutex lock
 
         Parameters
         ----------
-        message
+        msg
             Message to be logged to the Ruffus logfile. List is converted to
             string and spaces are added. If already a string just log directly
-        header, optional
-            Header string. Will precede message and be wrapped in dashes to
-            stand out from other text.
-
         """
         with self.mutex:
-            if not isinstance(message, str):
-                message = ' '.join(message)
-            self.log.info(message)
+            if self.config['buffered']:
+                self._buffer += '\n' + msg
+            else:
+                self.log.info(msg)
 
-    def _divider(self):
-        """Write a text divider to logfile"""
-        self.write('-' * 30)
+    def _divider(self, sub: bool):
+        """Write a text divider to logfile
 
-    def write_header(self, message: StringOrSequence) -> None:
-        """Write a header to the logfile"""
-        self._divider()
-        self.write(message)
-        self._divider()
+        Parameters
+        ----------
+        sub
+            If True, the divider is made up of dashes. Else, the divider is
+            made up of equal signs
+        """
+        if sub:
+            self.write('-' * 80)
+        else:
+            self.write('=' * 80)
+
+    def write_header(self, msg: str, buffered=False, sub=False) -> None:
+        """Write a header to the logfile
+
+        Parameters
+        ----------
+        msg
+            A string or list of words to be written as the header text
+        buffered, optional
+            If buffered, the header is stored in the log buffer to be written
+            later
+        sub, optional
+            If True, write a subheader, instead of a header
+        """
+        self._divider(sub=sub)
+        self.write(msg=msg)
+        self._divider(sub=sub)
+
+    def flush(self):
+        """Write the buffer to the logfile and clear it"""
+        self.log.info(self._buffer)
+        self._buffer = ''
 
 
 """The `RuffusLog` shared across all `RuffusTasks`"""
@@ -205,6 +235,11 @@ class RuffusTask(object):
     def _run_command(self)-> None:
         """Run a command set with `_construct_command`"""
         try:
+            if self._log_results:
+                header = 'Task: ' + self.__class__.__name__ + '\n'
+                header += 'Input_files: ' + ', '.join(self._input_files) + '\n'
+                header += 'Output_files: ' + ', '.join(self._output_files)
+                self._logger.write_header(header)
             if not self._multi_stage:
                 # Convert to list of lists so we can loop through anyway
                 self._command = [self._command]
@@ -212,15 +247,19 @@ class RuffusTask(object):
             for subcommand in self._command:
 
                 if self._log_results:
-                    self._logger.write_header(['Running:'] + subcommand)
+                    self._logger.write_header(
+                            ' '.join(['Running:'] + subcommand),
+                            sub=True)
 
                 (self.exit_code, self.stdout, self.stderr) = (
                     fmsystem.run_command(
                         command=subcommand,
-                        log_stdout=self._log_results,
-                        log_stderr=self._log_results,
-                        mutex_log=self._logger,
+                        log_stdout=False,
+                        log_stderr=False,
                         shell=self._shell))
+
+            # Write the task's log
+            self._logger.flush()
 
             if self._inplace:
                 if fmcheck.all_filesize_nonzero(self._output_files):
