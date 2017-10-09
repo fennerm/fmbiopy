@@ -1,7 +1,6 @@
 """ Path manipulation utilities """
 
 from glob import glob
-from pathlib import Path
 import os
 from re import sub
 from typing import List
@@ -92,23 +91,36 @@ def get_bowtie2_indices(prefix: str) -> List[str]:
     return sorted([prefix + suf for suf in bowtie_suffixes])
 
 
-def files_of_type(directory : str, types : Sequence[str]) -> List[str]:
-    """List all files with a given file extension in `directory`
+def match_files(
+        directory : str,
+        types : Sequence[str] = None,
+        contains : Sequence[str] = None) -> List[str]:
+    """List all files with a given file extension and/or substring
 
     Parameters
     ----------
     directory
         The name of the directory to search in
-    types
+    types, optional
         List of target file extensions (e.g py, txt)
+    contains, optional
+        List of target substrings
 
     Returns
     -------
     List[str]
-        List of files with the given extensions"""
+        List of files with the given extensions and substrings"""
 
     hits : List[str] = []
-    for typ in types:
-        hits += glob(directory + '/*.' + typ)
 
+    # Filter by file extension
+    if types:
+        for typ in types:
+            hits += glob(directory + '/*.' + typ)
+    else:
+        hits = glob(directory + '/*')
+
+    # Filter by substring
+    if contains:
+        hits = [hit for hit in hits if contains in hit]
     return sorted(hits)

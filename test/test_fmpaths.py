@@ -4,7 +4,7 @@ import fmbiopy.fmtest as fmtest
 import fmbiopy.fmpaths as fmpaths
 
 
-def test_files_of_type(tmpdir):
+def test_match_files(tmpdir):
     tmpdir = str(tmpdir)
     foo_files = sorted([
         fmtest.gen_tmp(empty=False, suffix='.foo', directory=tmpdir)
@@ -13,6 +13,9 @@ def test_files_of_type(tmpdir):
         fmtest.gen_tmp(empty=False, suffix='.bar', directory=tmpdir)
         for i in range(0, 4)])
 
-    assert fmpaths.files_of_type(directory=tmpdir, types=['foo']) == foo_files
-    assert fmpaths.files_of_type(directory=tmpdir, types=['foo', 'bar']) == \
+    assert fmpaths.match_files(directory=tmpdir, types=['foo']) == foo_files
+    assert fmpaths.match_files(directory=tmpdir, types=['foo', 'bar']) == \
         sorted(foo_files + bar_files)
+    assert fmpaths.match_files(
+            directory=tmpdir, types=['foo', 'bar'],
+            contains='.fo') == sorted(foo_files)
