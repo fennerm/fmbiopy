@@ -94,7 +94,7 @@ def get_bowtie2_indices(prefix: str) -> List[str]:
 def match_files(
         directory : str,
         types : Sequence[str] = None,
-        contains : Sequence[str] = None) -> List[str]:
+        substring : str = None) -> List[str]:
     """List all files with a given file extension and/or substring
 
     Parameters
@@ -103,8 +103,8 @@ def match_files(
         The name of the directory to search in
     types, optional
         List of target file extensions (e.g py, txt)
-    contains, optional
-        List of target substrings
+    substring, optional
+        Target substring
 
     Returns
     -------
@@ -121,6 +121,12 @@ def match_files(
         hits = glob(directory + '/*')
 
     # Filter by substring
-    if contains:
-        hits = [hit for hit in hits if contains in hit]
-    return sorted(hits)
+
+    if substring:
+        out = []
+        for hit in hits:
+            if substring in hit:
+                out.append(hit)
+    else:
+        out = hits
+    return sorted(out)

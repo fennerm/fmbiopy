@@ -1,7 +1,7 @@
 """Test fmbiopy.fmpaths"""
 
-import fmbiopy.fmtest as fmtest
 import fmbiopy.fmpaths as fmpaths
+import fmbiopy.fmtest as fmtest
 
 
 def test_match_files(tmpdir):
@@ -18,4 +18,4 @@ def test_match_files(tmpdir):
         sorted(foo_files + bar_files)
     assert fmpaths.match_files(
             directory=tmpdir, types=['foo', 'bar'],
-            contains='.fo') == sorted(foo_files)
+            substring='.fo') == sorted(foo_files)

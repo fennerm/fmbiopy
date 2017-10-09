@@ -184,8 +184,14 @@ class RuffusTask(object):
                  param: typing.Sequence[str] = [],
                  run_on_init: bool = True) -> None:
         # Store parameters
-        self._input_files = input_files
-        self._output_files = output_files
+        if isinstance(input_files, str):
+            self._input_files = [input_files]
+        else:
+            self._input_files = input_files
+        if isinstance(output_files, str):
+            self._output_files = [output_files]
+        else:
+            self._output_files = output_files
         self._log_results = log_results
         self._param = param
 
@@ -267,6 +273,7 @@ class RuffusTask(object):
 
         except Exception:
             self._cleanup()
+            raise
 
     def _cleanup(self)-> None:
         fmsystem.remove_all(
@@ -333,7 +340,7 @@ class Gzip(RuffusTask):
 
 class PairedBowtie2Align(RuffusTask):
     """Align a pair of fastq files to a fasta file using bowtie2"""
-    input_type = [('fastq', 'fastq'), 'fasta']
+    input_type = ['fasta', ('fastq', 'fastq')]
     output_type = ['bam']
 
     def __init__(self, *args, **kwargs)-> None:
@@ -343,7 +350,7 @@ class PairedBowtie2Align(RuffusTask):
 
     def _add_extra_outputs(self) -> None:
         """Add the .bt2 and .bai files to the output file list"""
-        prefix = fmpaths.remove_suffix(self._input_files[2])
+        prefix = fmpaths.remove_suffix(self._input_files[0])
         bowtie2_indices = fmpaths.get_bowtie2_indices(prefix[0])
         bai_file = fmpaths.add_suffix(self._output_files[0], '.bai')
 
@@ -352,9 +359,9 @@ class PairedBowtie2Align(RuffusTask):
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
-        fwd_fastq = self._input_files[0]
-        rev_fastq = self._input_files[1]
-        fasta = self._input_files[2]
+        fasta = self._input_files[0]
+        fwd_fastq = self._input_files[1]
+        rev_fastq = self._input_files[2]
         output_bam = self._output_files[0]
 
         # Index fasta first
