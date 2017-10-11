@@ -14,13 +14,7 @@ from typing import Iterator
 from typing import List
 from typing import Tuple
 
-from fmbiopy.biofile import BioFileGroup
-from fmbiopy.biofile import Bowtie2IndexGroup as Bowtie2Index
-from fmbiopy.biofile import FastaGroup as Fasta
-from fmbiopy.biofile import FastqGroup as Fastq
-from fmbiopy.biofile import IndexedFastaGroup as IndexedFasta
-from fmbiopy.biofile import PairedFastqGroup as PairedFastq
-from fmbiopy.biofile import SamtoolsFAIndexGroup as SamtoolsFAIndex
+import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
 
 
@@ -75,12 +69,20 @@ def gen_mixed_tmpfiles(*args, **kwargs) -> List[str]:
 @pytest.fixture(scope='session', autouse=True)
 def load_sandbox() -> Generator:
     """Copy all test data files to the sandbox for the testing session"""
+
+    def _ignore_git(*args):
+        """Copying the git directory is unnecessary so we ignore it
+
+        This function is used by `shutil.copytree`"""
+        return '.git'
+
     if os.path.exists('sandbox'):
         shutil.rmtree('sandbox')
 
-    shutil.copytree('testdat', 'sandbox')
+    shutil.copytree('testdat', 'sandbox', ignore=_ignore_git)
     yield
-    shutil.rmtree('sandbox')
+    if os.path.exists('sandbox'):
+        shutil.rmtree('sandbox')
 
 
 @pytest.fixture(scope='class', autouse=True)
@@ -89,7 +91,69 @@ def initial_test_state() -> Iterator[Tuple[str, List[str], List[str]]]:
     return os.walk('sandbox')
 
 
-def get_dat() -> Dict[str, List[str]]:
+@pytest.fixture
+def example_file(dat, tmpdir):
+    """Given a file extension, return a testfile of that type"""
+
+    def get_example_file(filetype):
+        if filetype == 'fasta':
+            return dat['assemblies'][0]
+        elif filetype == ('fastq', 'fastq'):
+            return (dat['fwd_reads'][0], dat['rev_reads'][0])
+        elif filetype == 'fastq':
+            return dat['fwd_reads'][0]
+        elif filetype == 'fai':
+            return dat['faindices'][0]
+        # elif filetype == 'sam':
+        #     return dat['sam'][0]
+        # elif filetype == 'bam':
+        #     return dat['bam'][0]
+        elif filetype == 'gz':
+            return dat['zipped_fwd_reads'][0]
+        return gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
+
+    return get_example_file
+
+
+@pytest.fixture
+def instance_of(example_file):
+    """Given a class name, return an instance of the task
+
+    Only works for classes with the class attributes input_type and/or
+    output_type. Extra parameters cannot be passed. Designed for testing groups
+    of closely related classes which are all initialized using the same basic
+    process but with different types of input files.
+    """
+    def make_test_instance(class_name):
+        input_example = [example_file(t) for t in class_name.input_type]
+        input_example = fmlist.flatten(input_example)
+
+        try:
+            if len(input_example) == 1 and class_name.output_type == ['']:
+                output_example = [fmpaths.remove_suffix(input_example[0])]
+            else:
+                # If we have multiple inputs, the output suffix is added to
+                # the first input as in ruffus
+                input_prefix = fmpaths.remove_suffix(input_example[0])
+                output_example = []
+                for typ in class_name.output_type:
+                    output_example.append(
+                            fmpaths.add_suffix(input_prefix, '.' + typ))
+
+            if len(input_example) == 1:
+                input_example = input_example[0]
+            if len(output_example) == 1:
+                output_example = output_example[0]
+            return class_name(input_example, output_example)
+        except AttributeError:
+            if len(input_example) == 1:
+                input_example = input_example[0]
+            return class_name(input_example)
+    return make_test_instance
+
+
+@pytest.fixture(scope='session')
+def dat() -> Dict[str, List[str]]:
     """Create a dictionary of test data
 
     Assumes test directory is structured such that all test data is stored in
@@ -114,87 +178,3 @@ def get_dat() -> Dict[str, List[str]]:
         base = os.path.basename(d)
         dat[base] = sorted(glob.glob(d + '/*'))
     return dat
-
-
-@pytest.fixture
-def fasta_paths() -> List[str]:
-    dat = get_dat()['assemblies']
-    return dat
-
-
-@pytest.fixture
-def read_paths() -> Tuple[List[str], List[str]]:
-    dat = get_dat()
-    return (dat['fwd_reads'], dat['rev_reads'])
-
-
-@pytest.fixture
-def diff_prefix_paths():
-    return get_dat()['diff_prefix']
-
-
-@pytest.fixture
-def diff_prefix(diff_prefix_paths):
-    return Fasta(diff_prefix_paths)
-
-
-@pytest.fixture
-def empty_paths():
-    return get_dat()['empty']
-
-
-@pytest.fixture
-def fasta(fasta_paths):
-    return BioFileGroup(fasta_paths)
-
-
-@pytest.fixture
-def bowtie_index_paths():
-    return get_dat()['bowtie2_indices']
-
-
-@pytest.fixture
-def samtools_index_paths():
-    return get_dat()['faindices']
-
-
-@pytest.fixture
-def fwd_fastq(read_paths):
-    return Fastq(read_paths[0], gzipped=True)
-
-
-@pytest.fixture
-def rev_fastq(read_paths):
-    return Fastq(read_paths[1], gzipped=True)
-
-
-@pytest.fixture
-def bowtie2_indices(bowtie_index_paths):
-    return Bowtie2Index(bowtie_index_paths)
-
-
-@pytest.fixture
-def samtools_indices(samtools_index_paths):
-    return SamtoolsFAIndex(samtools_index_paths)
-
-
-@pytest.fixture
-def paired_fastq(read_paths, fwd_fastq, rev_fastq):
-    return PairedFastq(fwd_fastq, rev_fastq)
-
-
-@pytest.fixture
-def nonexistant_fasta(fasta_paths):
-    nonexistant = ['foo/' + path for path in fasta_paths[0]]
-
-    return BioFileGroup(nonexistant)
-
-
-@pytest.fixture
-def readfiles(read_paths):
-    return BioFileGroup(read_paths[0], gzipped=True)
-
-
-@pytest.fixture
-def indexed_fasta(fasta, samtools_indices, bowtie2_indices):
-    return IndexedFasta(fasta, samtools_indices, bowtie2_indices)

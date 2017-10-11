@@ -56,10 +56,9 @@ class TestParseParamDict():
     @pytest.fixture
     def example_dict(self):
         example = {
-                '-a':'a_val',
-                '-b':'b_val',
-                '--long':'long_val'
-                }
+                '-a': 'a_val',
+                '-b': 'b_val',
+                '--long': 'long_val'}
         return example
 
     def test_parse_correct_output(self, example_dict):

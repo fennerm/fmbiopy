@@ -4,14 +4,15 @@ Ruffus: http://www.ruffus.org.uk/
 """
 
 import os
+
 import pytest
 
 import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmclass as fmclass
-import fmbiopy.fmlist as fmlist
-import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmruffus as fmruffus
 import fmbiopy.fmtest as fmtest
+from fmbiopy.fmtest import example_file
+from fmbiopy.fmtest import instance_of
 
 
 class TestRuffusLog(object):
@@ -51,57 +52,12 @@ class TestRuffusLog(object):
 @pytest.fixture(
         params=fmclass.list_classes(
             'fmbiopy.fmruffus',
-            exclude=[fmruffus.RuffusLog, fmruffus.RuffusTask]))
+            exclude=['RuffusLog', 'RuffusTask']))
 def task(request, instance_of):
     task_class = request.param
     ruffus_task = instance_of(task_class)
     yield ruffus_task
     ruffus_task._cleanup()
-
-
-@pytest.fixture
-def example_file(tmpdir):
-    def get_example_file(filetype):
-        if filetype == 'fasta':
-            return fmtest.get_dat()['assemblies'][0]
-        elif filetype == ('fastq', 'fastq'):
-            return (fmtest.get_dat()['fwd_reads'][0],
-                    fmtest.get_dat()['rev_reads'][0])
-        elif filetype == 'fastq':
-            return fmtest.get_dat()['fwd_reads'][0]
-        elif filetype == 'fai':
-            return fmtest.get_dat()['faindices'][0]
-        elif filetype == 'sam':
-            return fmtest.get_dat()['sam'][0]
-        elif filetype == 'bam':
-            return fmtest.get_dat()['bam'][0]
-        elif filetype == 'gz':
-            return fmtest.get_dat()['fwd_reads'][0]
-        return fmtest.gen_tmp(directory=tmpdir)
-
-    return get_example_file
-
-
-@pytest.fixture
-def instance_of(example_file):
-    """Given a RuffusTask name, return an instance of the task"""
-    def make_test_instance(task_name):
-        input_example = [example_file(t) for t in task_name.input_type]
-        input_example = fmlist.flatten(input_example)
-
-        if task_name.output_type == ['']:
-            output_example = fmpaths.remove_suffix(input_example[0])
-        else:
-            output_suffix = '.' + task_name.output_type[0]
-            output_example = [
-                    fmpaths.add_suffix(path, output_suffix) for path
-                    in input_example]
-            # Match the length of the example output to the actual number of
-            # outputs
-            output_example = output_example[0:len(task_name.output_type)]
-
-        return task_name(input_example, output_example)
-    return make_test_instance
 
 
 class TestAllTasks(object):
@@ -130,7 +86,8 @@ class TestAllTasks(object):
                 assert os.path.exists(path)
 
     def test_run_command_produces_zero_exit_code(self, task):
-        assert task.exit_code == 0
+        for code in task.exit_code:
+            assert code == 0
 
     def test_inplace_tasks_delete_their_inputs(self, task):
         if task._inplace:

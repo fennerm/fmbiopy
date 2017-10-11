@@ -85,17 +85,18 @@ def run_command(
     stdout, stderr = process.communicate()
 
     # Log results
-    if mutex_log:
-        if log_stdout and stdout:
-            mutex_log.write(stdout)
-        if log_stderr and stderr:
-            mutex_log.write(stderr)
-    else:
-        logger = logging.getLogger(logger_id)
-        if log_stdout and stdout:
-            logger.info(stdout)
-        if log_stderr and stderr:
-            logger.info(stderr)
+    if stdout or stderr:
+        if mutex_log:
+            if log_stdout and stdout:
+                mutex_log.write(stdout)
+            if log_stderr and stderr:
+                mutex_log.write(stderr)
+        else:
+            logger = logging.getLogger(logger_id)
+            if log_stdout and stdout:
+                logger.info(stdout)
+            if log_stderr and stderr:
+                logger.info(stderr)
 
     return (int(process.returncode), stdout, stderr)
 

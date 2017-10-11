@@ -1,116 +1,175 @@
+"""Test fmbiopy.biofile"""
+
 import os
 import pytest
 
 import fmbiopy.biofile as biofile
+import fmbiopy.fmclass as fmclass
 import fmbiopy.fmpaths as fmpaths
+from fmbiopy.fmtest import dat
+from fmbiopy.fmtest import example_file
+from fmbiopy.fmtest import instance_of
 
 
-class TestBioFileGroup(object):
+@pytest.fixture(
+        params=fmclass.list_classes(
+            'fmbiopy.biofile',
+            of_type='Biofile'))
+def biofiles(request):
+    return request.param
 
-    def test_if_file_exists_then_access_works(self, fasta_paths, fasta):
-        assert fasta[1] == fasta_paths[1]
 
-    def test_extension_setter(self, fasta, ):
-        assert fasta._extensions == ['fasta'] * 4
+@pytest.fixture
+def inst_biofiles(instance_of, biofiles):
+    """Return instances of all Biofile types"""
+    return instance_of(biofiles)
 
-    def test_name_setter(self, fasta):
-        assert fasta.names == ['FA_SC', 'FB_SC', 'IA_SC', 'IC_SC']
 
-    def test_empty_input_raises_value_err(self):
+# @pytest.fixture(
+#         params=fmclass.list_classes(
+#             'fmbiopy.biofile',
+#             of_type='Biofile'))
+# def groups(request, instance_of):
+#     biofile_class = request.param
+#     return instance_of(biofile_class)
+
+
+def test_type_to_class():
+    assert biofile.type_to_class('fastq') == biofile.Fastq
+    assert biofile.type_to_class('fasta') == biofile.Fasta
+    assert biofile.type_to_class('foo') == biofile.Biofile
+    assert not biofile.type_to_class(None)
+
+
+class TestBiofile(object):
+    """Test `Biofile` class"""
+
+    def test_extension_set(self, inst_biofiles):
+        assert hasattr(inst_biofiles, 'accepted_extensions')
+
+    def test_input_type_set(self, inst_biofiles):
+        assert hasattr(inst_biofiles, 'input_type')
+
+    def test_name_set(self, inst_biofiles):
+        assert hasattr(inst_biofiles, 'name')
+
+    def test_path_set(self, inst_biofiles):
+        assert hasattr(inst_biofiles, 'path')
+
+    def test_gzipped_set(self, inst_biofiles):
+        assert hasattr(inst_biofiles, 'gzipped')
+
+    def test_empty_input_raises_value_err(self, biofiles):
         with pytest.raises(ValueError):
-            biofile.BioFileGroup([])
+            biofiles('')
 
-    def test_undeclared_gzip_raises_gzip_error(self, read_paths):
+    def test_undeclared_gzip_raises_gzip_error(self, dat):
         with pytest.raises(biofile.GzipStatusError):
-            biofile.BioFileGroup(read_paths[0])
+            biofile.Biofile(dat['zipped_fwd_reads'][0]).validate()
 
-    def test_length_method(self, fasta, fasta_paths):
-        assert len(fasta) == len(fasta_paths)
-
-    def test_string_input_raises_type_err(self):
+    def test_list_input_raises_type_error(self, example_file, biofiles):
         with pytest.raises(TypeError):
-            biofile.BioFileGroup('foo')
+            biofiles([example_file(biofiles.input_type)])
 
-    def test_biofiles_can_be_zipped(self, fasta, readfiles):
-        max_index = max(len(fasta), len(readfiles))
-        for assembly, reads, i in zip(fasta, readfiles, range(max_index)):
-            assert assembly == fasta[i]
-            assert reads == readfiles[i]
+    def test_if_files_dont_exist_raise_err(self):
+        with pytest.raises(FileNotFoundError):
+            biofile.Biofile('i_dont_exist.fa').validate()
 
-    def test_if_files_dont_exist_raise_os_error(self, nonexistant_fasta):
-        with pytest.raises(OSError):
-            nonexistant_fasta[1]
-
-    def test_length_nonexist_doesnt_raise_os_error(self, nonexistant_fasta):
-        len(nonexistant_fasta)
-
-    def test_empty_files_raises_err(self, empty_paths):
-        bfg = biofile.BioFileGroup(empty_paths)
+    def test_empty_files_raises_err(self, dat):
+        bf = biofile.Biofile(dat['empty_reads'][0])
         with pytest.raises(biofile.EmptyFileError):
-            bfg[1]
+            bf.validate()
 
-    def test_possibly_empty_prevents_error(self, empty_paths):
-        bfg = biofile.BioFileGroup(empty_paths, possibly_empty=True)
-        assert bfg[0] == empty_paths[0]
+    def test_possibly_empty_prevents_error(self, dat):
+        bf = biofile.Biofile(dat['empty_reads'][0], possibly_empty=True)
+        assert bf.validate()
 
-    def test_equality_operator(self, fasta, diff_prefix):
-        assert fasta == fasta
-        assert fasta != diff_prefix
+    def test_incorrect_extension_raises_extension_err(self, biofiles, dat):
+        read_path = dat['fwd_reads'][0]
+        incorrect_suffix = fmpaths.add_suffix(read_path, '.foobar')
 
+        if biofiles.accepted_extensions != ['ANY']:
+            with pytest.raises(biofile.FileExtensionError):
+                biofiles(incorrect_suffix)
 
-class TestFastq():
-    def test_if_incorrect_extension_raises_extension_err(self, read_paths):
-        incorrect_suffix = [fmpaths.add_suffix(p, '.x') for p in read_paths[0]]
-
-        fq = biofile.FastqGroup(incorrect_suffix)
-        with pytest.raises(biofile.FileExtensionError):
-            fq[1]
-
-
-class TestPairedFastq():
-
-    def test_valid_input_access(self, paired_fastq, fwd_fastq, rev_fastq):
-        assert paired_fastq[0] == list([fwd_fastq[0], rev_fastq[0]])
-
-    def test_different_lengths_raises_err(self, read_paths):
-        fwd_fastq = biofile.FastqGroup([read_paths[0][0]] * 3, gzipped=True)
-        rev_fastq = biofile.FastqGroup([read_paths[1][0]] * 2, gzipped=True)
-        with pytest.raises(biofile.GroupLengthError):
-            biofile.PairedFastqGroup(fwd_fastq, rev_fastq)
-
-    def test_length_method(self, fwd_fastq, paired_fastq):
-        assert len(paired_fastq) == len(fwd_fastq)
-
-
-class TestBowtie2Index():
-    def test_bowtie2_index_name_setter(self, bowtie2_indices):
-        testdir = os.path.abspath('sandbox/bowtie2_indices/')
-        assert bowtie2_indices._index_prefixes == [
-                testdir + '/FA_SC.scaffolds',
-                testdir + '/FB_SC.scaffolds',
-                testdir + '/IA_SC.scaffolds',
-                testdir + '/IC_SC.scaffolds']
-
-
-class TestIndexedFasta():
-    def test_attributes(self, fasta, samtools_indices, bowtie2_indices,
-                        indexed_fasta):
-        assert indexed_fasta.fasta == fasta
-        assert indexed_fasta.indices == tuple([samtools_indices,
-                                               bowtie2_indices])
-
-    def test_access(
-            self, fasta, samtools_indices, bowtie2_indices, indexed_fasta):
-        assert indexed_fasta[0] == [fasta[0], samtools_indices[0],
-                                    bowtie2_indices[0]]
-
-
-class TestMatchedPrefixGroup():
-    def test_diff_prefixes_raise_err(self, diff_prefix, fwd_fastq,
-                                     rev_fastq):
-        with pytest.raises(biofile.PrefixMatchError):
-            biofile.MatchedPrefixGroup([diff_prefix, fwd_fastq, rev_fastq])
-
-    def test_same_filename_raise_value_error(self, fwd_fastq):
-        with pytest.raises(biofile.DuplicateFilegroupError):
-            biofile.MatchedPrefixGroup([fwd_fastq, fwd_fastq])
+# class TestBiofileGroup(object):
+#
+#     def test_empty_input_raises_value_err(self):
+#         with pytest.raises(ValueError):
+#             biofile.BiofileGroup([])
+#
+#     def test_access_returns_path(self, dat):
+#         fasta_paths = dat['assemblies']
+#         assert biofile.BiofileGroup(fasta_paths)[0] == fasta_paths[0]
+#
+#     def test_length_method(self, dat):
+#         fasta_paths = dat['assemblies']
+#         assert len(biofile.Biofilegroup(fasta_paths)) == len(fasta_paths)
+#
+#     def test_string_input_raises_type_err(self):
+#         with pytest.raises(TypeError):
+#             biofile.BiofileGroup('foo')
+#
+#     def test_biofilegroups_can_be_zipped(self, dat):
+#         fasta_group = biofile.BiofileGroup(dat['assemblies'])
+#         fwd_read_group = biofile.BiofileGroup(dat['fwd_reads'])
+#         max_index = max(len(fasta_group), len(fwd_read_group))
+#         for fa, reads, i in zip(fasta_group, fwd_read_group, range(max_index)):
+#             assert fa == fasta_group[i]
+#             assert reads == fwd_read_group[i]
+#
+#     def test_length_nonexist_doesnt_raise_error(self):
+#         len(biofile.BiofileGroup(['foo.foo', 'bar.bar']))
+#
+#     def test_equality_operator(self, dat):
+#         a = biofile.BiofileGroup(dat['assemblies'])
+#         b = biofile.BiofileGroup(dat['assemblies'])
+#         c = biofile.BiofileGroup(dat['diff_prefix'])
+#         assert a == b
+#         assert a != c
+#
+#     def test_different_extensions_raises_value_err(self):
+#         with pytest.raises(ValueError):
+#             biofile.BiofileGroup(['a.fa', 'b.fasta', 'c.fa'])
+#
+#     def test_one_nonexistant_file_caught_by_validation(self):
+#         assert False
+#
+#     def test_biofile_initialization(self):
+#         assert False
+#
+# class TestMatchedPrefixGroup():
+#     def test_diff_prefixes_raise_err(self, diff_prefix, fwd_fastq,
+#                                      rev_fastq):
+#         with pytest.raises(biofile.PrefixMatchError):
+#             biofile.MatchedPrefixGroup([diff_prefix, fwd_fastq, rev_fastq])
+#
+#     def test_same_filename_raise_value_error(self, fwd_fastq):
+#         with pytest.raises(biofile.DuplicateFilegroupError):
+#             biofile.MatchedPrefixGroup([fwd_fastq, fwd_fastq])
+#
+#     def test_length_method(self, fwd_fastq, paired_fastq):
+#         assert len(paired_fastq) == len(fwd_fastq)
+#
+#
+# class TestBowtie2Index():
+#     def test_bowtie2_index_name_setter(self, bowtie2_indices):
+#         testdir = os.path.abspath('sandbox/bowtie2_indices/')
+#         assert bowtie2_indices._index_prefixes == [
+#                 testdir + '/FA_SC.scaffolds',
+#                 testdir + '/FB_SC.scaffolds',
+#                 testdir + '/IA_SC.scaffolds',
+#                 testdir + '/IC_SC.scaffolds']
+#
+#
+# class TestIndexedFasta():
+#     def test_attributes(self, fasta, samtools_indices, bowtie2_indices,
+#                         indexed_fasta):
+#         assert indexed_fasta.fasta == fasta
+#         assert indexed_fasta.indices == tuple([samtools_indices,
+#                                                bowtie2_indices])
+#
+#     def test_access(
+#             self, fasta, samtools_indices, bowtie2_indices, indexed_fasta):
+#         assert indexed_fasta[0] == [fasta[0], samtools_indices[0],
+#                                     bowtie2_indices[0]]

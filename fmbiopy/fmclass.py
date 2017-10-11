@@ -2,18 +2,26 @@
 
 import importlib
 import inspect
-import typing
+from typing import List
 
+def classname(cls: 'class') -> str:
+    """Return the name of a class"""
+    return cls.__name__
 
-def list_classes(module_name: str, exclude=None) -> typing.List:
+def list_classes(
+        module_name: str,
+        exclude: List[str] = None,
+        of_type: List[str] = None) -> List[str]:
     """List all classes in a python module
 
     Parameters
     ----------
     module_name
         Module name to inspect
-    exclude : List[class], Optional
+    exclude, Optional
         List of classes to exclude from the return
+    type, Optional
+        Only classes of given type should be returned
 
     Returns
     -------
@@ -21,15 +29,25 @@ def list_classes(module_name: str, exclude=None) -> typing.List:
 
     """
     module = importlib.import_module(module_name)
-    tasks = []
+    classes = []
 
     # List all classes
-    for name, obj in inspect.getmembers(module):
+    for _, obj in inspect.getmembers(module):
         if inspect.isclass(obj):
-            tasks.append(obj)
+            if obj.__module__ == module.__name__:
+                if of_type:
+                    # List object's class and class inheritance
+                    class_inheritance = inspect.getmro(obj)
+                    # Get class inheritance names
+                    inheritance_names = [classname(cls)
+                                         for cls in class_inheritance]
+                    if of_type in inheritance_names:
+                        classes.append(obj)
+                else:
+                    classes.append(obj)
 
     # Exclude some
     if exclude:
-        tasks = [task for task in tasks if task not in exclude]
+        classes = [cls for cls in classes if cls.__name__ not in exclude]
 
-    return tasks
+    return sorted(classes, key=classname)

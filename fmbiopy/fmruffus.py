@@ -5,16 +5,19 @@ Ruffus: http://www.ruffus.org.uk/
 
 import logging
 import os
+from typing import Iterable
+from typing import List
+from typing import Sequence
+
 from ruffus.proxy_logger import make_shared_logger_and_proxy
 from ruffus.proxy_logger import setup_std_shared_logger
-import typing
 
 import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmsystem as fmsystem
 
-"""Default logging format"""
+# Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
 
 
@@ -107,16 +110,13 @@ class RuffusLog(object):
         else:
             self.write('=' * 80)
 
-    def write_header(self, msg: str, buffered=False, sub=False) -> None:
+    def write_header(self, msg: str, sub=False) -> None:
         """Write a header to the logfile
 
         Parameters
         ----------
         msg
             A string or list of words to be written as the header text
-        buffered, optional
-            If buffered, the header is stored in the log buffer to be written
-            later
         sub, optional
             If True, write a subheader, instead of a header
         """
@@ -130,7 +130,7 @@ class RuffusLog(object):
         self._buffer = ''
 
 
-"""The `RuffusLog` shared across all `RuffusTasks`"""
+# The `RuffusLog` shared across all `RuffusTasks`"""
 ROOT_LOGGER = RuffusLog("", "pipeline.log")
 
 
@@ -173,23 +173,23 @@ class RuffusTask(object):
         (Class attribute) Expected output file extension. If '' then the
         extension of the input is stripped in the output.
     """
-    input_type : typing.List[typing.Iterable] = ['']
+    input_type: List[Iterable] = ['']
     output_type = ['']
     _logger = ROOT_LOGGER
 
     def __init__(self,
-                 input_files: typing.Sequence[str],
-                 output_files: typing.Sequence[str],
+                 input_files: Sequence[str],
+                 output_files: List[str],
                  log_results: bool = True,
-                 param: typing.Sequence[str] = [],
+                 param: Sequence[str] = [''],
                  run_on_init: bool = True) -> None:
         # Store parameters
         if isinstance(input_files, str):
-            self._input_files = [input_files]
+            self._input_files: Sequence[str] = [input_files]
         else:
             self._input_files = input_files
         if isinstance(output_files, str):
-            self._output_files = [output_files]
+            self._output_files: List[str] = [output_files]
         else:
             self._output_files = output_files
         self._log_results = log_results
@@ -197,38 +197,43 @@ class RuffusTask(object):
 
         # Init attributes
 
-        self.exit_code : int = None
-        self.stdout = ''
-        self.stderr = ''
+        self.exit_code: List[int] = []
+        self.stdout: List[str] = []
+        self.stderr: List[str] = []
 
         # Bash command as list
-        self._command : typing.List = []
+        self._command: List = []
 
         # If True, command run directly in shell
-        try:
-            self._shell
-        except AttributeError:
-            self._shell = False
+        if not hasattr(self, '_shell'):
+            self._shell: bool = False
 
         # If True, the command is a list of subcommands, which should be run
         # successively. This is essentially a mini-pipeline.
-        try:
-            self._multi_stage
-        except AttributeError:
-            self._multi_stage = False
+        if not hasattr(self, '_multi_stage'):
+            self._multi_stage: bool = False
 
         # If True, the input files are deleted once the output files are
         # produced.
-        try:
-            self._inplace
-        except AttributeError:
-            self._inplace = False
+        if not hasattr(self, '_inplace'):
+            self._inplace: bool = False
+
+        # Check the input files
+        self._check_inputs()
 
         # Extra output files produced which are not specified by the user.
-        self._extra_outputs : typing.List[str] = []
+        self._extra_outputs: List[str] = []
         self._add_extra_outputs()
         self._construct_command()
-        self._run_command()
+
+        if run_on_init:
+            self._run_command()
+
+    def _check_inputs(self)-> bool:
+        """Check that the inputs meet expectations"""
+        if len(self._input_files) != len(fmlist.flatten(self.input_type)):
+            raise ValueError('Unexpected number of inputs')
+        return True
 
     def _construct_command(self)-> None:
         """Subclasses construct their own tasks"""
@@ -257,12 +262,16 @@ class RuffusTask(object):
                             ' '.join(['Running:'] + subcommand),
                             sub=True)
 
-                (self.exit_code, self.stdout, self.stderr) = (
+                (exit_code, stdout, stderr) = (
                     fmsystem.run_command(
                         command=subcommand,
-                        log_stdout=False,
-                        log_stderr=False,
+                        log_stdout=True,
+                        log_stderr=True,
+                        mutex_log=self._logger,
                         shell=self._shell))
+                self.exit_code.append(exit_code)
+                self.stdout.append(stdout)
+                self.stderr.append(stderr)
 
             # Write the task's log
             self._logger.flush()
@@ -285,10 +294,7 @@ class SamtoolsIndexFasta(RuffusTask):
     """Index a .fasta file using samtools faidx"""
 
     input_type = ['fasta']
-    output_type = ['fai']
-
-    def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
+    output_type = ['fasta.fai']
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
@@ -319,7 +325,7 @@ class Gunzip(RuffusTask):
 
 class Gzip(RuffusTask):
     """Compress a file with g zip"""
-    input_type = ['any']
+    input_type = ['ANY']
     output_type = ['gz']
 
     def __init__(self, *args, **kwargs)-> None:
@@ -351,7 +357,7 @@ class PairedBowtie2Align(RuffusTask):
     def _add_extra_outputs(self) -> None:
         """Add the .bt2 and .bai files to the output file list"""
         prefix = fmpaths.remove_suffix(self._input_files[0])
-        bowtie2_indices = fmpaths.get_bowtie2_indices(prefix[0])
+        bowtie2_indices = fmpaths.get_bowtie2_indices(prefix)
         bai_file = fmpaths.add_suffix(self._output_files[0], '.bai')
 
         self._extra_outputs = fmlist.flatten([
@@ -378,3 +384,14 @@ class PairedBowtie2Align(RuffusTask):
         # Index the bam file
         self._command.append(fmlist.flatten([
             'samtools', 'index', output_bam, '/dev/null', '2>&1']))
+
+
+class SymlinkInputs(RuffusTask):
+    """Create symlinks of the input arguments"""
+    input_type = ['ANY']
+    output_type = ['SAME']
+
+    def _construct_command(self) -> None:
+        """Construct the bash command"""
+        self._command = fmlist.flatten([
+            'ln', '-s', self._input_files, self._output_files])

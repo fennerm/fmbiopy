@@ -7,7 +7,6 @@ from typing import List
 from typing import Sequence
 
 import fmbiopy.fmcheck as fmcheck
-from fmbiopy.fmtype import StringOrSequence
 
 
 def get_prefix(path: str) -> str:
@@ -43,27 +42,17 @@ def replace_suffix(path: str, old_suffix: str, new_suffix: str) -> str:
     return sub(old_suffix, new_suffix, path)
 
 
-def add_suffix(names: str, suffix: str) -> str:
-    """Append a suffix to a string or list of strings"""
-    return names + suffix
+def add_suffix(name: str, suffix: str) -> str:
+    """Append a suffix to a string"""
+    return name + suffix
 
 
-def remove_suffix(names: StringOrSequence, nremove=1) -> List[str]:
-    """Remove n suffixes from a list of strings """
+def remove_suffix(name: str, nremove=1) -> str:
+    """Remove n suffixes from a string"""
     if nremove == 0:
-        # To ensure that return type is consistent, we return a list if given a
-        # string
-        if isinstance(names, str):
-            return [names]
-        return list(names)
+        return name
 
-    if isinstance(names, str):
-        # If x is a string its simple
-        unsuffixed = [os.path.splitext(names)[0]]
-    else:
-        # If x is a list, recursively apply
-        unsuffixed = [remove_suffix(name, 1)[0] for name in names]
-
+    unsuffixed = os.path.splitext(name)[0]
     nremove -= 1
     return remove_suffix(unsuffixed, nremove)
 
