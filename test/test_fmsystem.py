@@ -52,6 +52,7 @@ class TestDelete():
 
         assert not any_exist(tmpfile_names)
 
+
 class TestParseParamDict():
     @pytest.fixture
     def example_dict(self):

@@ -2,9 +2,9 @@
 
 from typing import List
 from typing import Sequence
+from typing import Tuple
+from typing import TypeVar
 from typing import Union
 
-
-StringOrSequence = Union[str, Sequence[str]]
-
-StringOrList = Union[str, List[str]]
+"""Generic TypeVar for specifying that output type is based upon input type"""
+Object = TypeVar('Object')

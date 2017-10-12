@@ -11,7 +11,6 @@ import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmclass as fmclass
 import fmbiopy.fmruffus as fmruffus
 import fmbiopy.fmtest as fmtest
-from fmbiopy.fmtest import example_file
 from fmbiopy.fmtest import instance_of
 
 
@@ -55,7 +54,7 @@ class TestRuffusLog(object):
             exclude=['RuffusLog', 'RuffusTask']))
 def task(request, instance_of):
     task_class = request.param
-    ruffus_task = instance_of(task_class)
+    ruffus_task = instance_of(task_class, 'tiny')
     yield ruffus_task
     ruffus_task._cleanup()
 

@@ -16,8 +16,6 @@ from typing import List
 from typing import Sequence
 from typing import Tuple
 
-import fmbiopy.fmtype as fmtype
-
 
 class IncorrectCommandFormatError(Exception):
     """Raised when a command argument cannot be parsed"""
@@ -119,7 +117,7 @@ def working_directory(directory: str) -> Generator:
         os.chdir(owd)
 
 
-def remove_all(names: fmtype.StringOrSequence, silent: bool = False)-> None:
+def remove_all(names: Sequence[str], silent: bool = False)-> None:
     """Remove all files given as either a string or list"""
     if silent:
         remove_func = silent_remove
@@ -205,7 +203,7 @@ def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
     return abspaths
 
 
-def silent_remove(filename : Any) -> None:
+def silent_remove(filename: Any) -> None:
     """Try to remove a file, ignore exception if doesn't exist """
     try:
         os.remove(filename)

@@ -35,21 +35,19 @@ FileGroups are designed to be initialized and then used without editing. Once
 a group has been initialized, it is not recommended to attempt to change the
 files it maps to.
 """
-import collections
 import os
 from typing import List
 from typing import Sequence
-from typing import Union
+from typing import Type
 
-import fmbiopy.fmcheck as fmcheck
-import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
 
 
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
-def type_to_class(typ: str) -> 'class':
+def type_to_class(typ: str) -> Type[object]:
+    """Convert a type variable to its corresponding Biofile object"""
     if typ:
         try:
             cls = eval(typ.capitalize())
@@ -58,12 +56,41 @@ def type_to_class(typ: str) -> 'class':
         return cls
     return None
 
+
+# -----------------------------------------------------------------------------
+# Filetyped Superclass
+# -----------------------------------------------------------------------------
+
+
+class Filetyped(object):
+    """Specifies filetype for classes which handle system files
+
+    Classes which handle files generally take paths as strings for input. In
+    many cases these classes can only handle files of certain types. These
+    classes can inherit from Filetyped to indicate there input and output
+    types.
+
+    Attributes
+    ----------
+    input_type: List
+        Input filetype(s)
+    output_type: List
+        Output filetype(s)
+    accepted_extensions: List
+        List of possible file extensions for the given input types
+    """
+
+    input_type: List[str] = None
+    output_type: List[str] = None
+    accepted_extensions: List[str] = None
+
+
 # -----------------------------------------------------------------------------
 # Biofile Objects
 # -----------------------------------------------------------------------------
 
 
-class Biofile():
+class Biofile(Filetyped):
     """Superclass for storing and validating bioinformatics files.
 
     Classes of more specific filetypes inherit the majority of their attributes
@@ -417,7 +444,8 @@ class Fasta(Biofile):
 #
 #     @property
 #     def name(self) -> Sequence[str]:
-#         """Simple getter function to retrieve the paths of all index files."""
+#         """Simple getter function to retrieve the paths of all index
+#            files."""
 #
 #         return self.paths
 #
@@ -639,8 +667,8 @@ class MatchedPrefixGroupValidationError(BiofileGroupValidationError):
         """Format the file group names for printing"""
         formatted_filenames = 'Groups:\n'
 
-        for g in self.name:
-            formatted_filenames += '[' + ', '.join(g) + ']\n'
+        for group in self.name:
+            formatted_filenames += '[' + ', '.join(group) + ']\n'
         return formatted_filenames
 
 

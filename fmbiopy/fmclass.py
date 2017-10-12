@@ -3,10 +3,13 @@
 import importlib
 import inspect
 from typing import List
+from typing import Type
 
-def classname(cls: 'class') -> str:
+
+def classname(cls: Type[object]) -> str:
     """Return the name of a class"""
     return cls.__name__
+
 
 def list_classes(
         module_name: str,
@@ -50,4 +53,4 @@ def list_classes(
     if exclude:
         classes = [cls for cls in classes if cls.__name__ not in exclude]
 
-    return sorted(classes, key=classname)
+    return sorted(classes, key=classname)  # type: ignore

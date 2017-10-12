@@ -1,8 +1,9 @@
 """ Path manipulation utilities """
 
-from glob import glob
+import glob
 import os
 from re import sub
+from typing import Dict
 from typing import List
 from typing import Sequence
 
@@ -60,7 +61,7 @@ def remove_suffix(name: str, nremove=1) -> str:
 def listdirs(directory: str) -> Sequence[str]:
     """List all the subdirectories of a directory"""
     # Get all paths in directory including regular files
-    contents = glob(directory + '/*')
+    contents = glob.glob(directory + '/*')
 
     # Convert to absolute paths
     abs_paths = [os.path.abspath(item) for item in contents]
@@ -72,6 +73,26 @@ def listdirs(directory: str) -> Sequence[str]:
             dirs.append(path)
     return dirs
 
+def contents_to_dict(direc: str) -> Dict[str, List[str]]:
+    """Represent the contents of a directory as a dictionary
+
+    Parameters
+    ----------
+    direc
+        A directory
+
+    Returns
+    -------
+    Output dictionary is of the form Dict[x, y] where x is a subdirectory of
+    `direc` and and y is the contents of x as a list.
+    """
+    subdirs = listdirs(direc)
+    out_dict = {}
+    for d in subdirs:
+        base = os.path.basename(d)
+        out_dict[base] = sorted(glob.glob(d + '/*'))
+    return out_dict
+
 
 def get_bowtie2_indices(prefix: str) -> List[str]:
     """Given the bowtie2 index prefix, return the bowtie2 indices"""
@@ -81,9 +102,9 @@ def get_bowtie2_indices(prefix: str) -> List[str]:
 
 
 def match_files(
-        directory : str,
-        types : Sequence[str] = None,
-        substring : str = None) -> List[str]:
+        directory: str,
+        types: Sequence[str] = None,
+        substring: str = None) -> List[str]:
     """List all files with a given file extension and/or substring
 
     Parameters
@@ -100,14 +121,14 @@ def match_files(
     List[str]
         List of files with the given extensions and substrings"""
 
-    hits : List[str] = []
+    hits: List[str] = []
 
     # Filter by file extension
     if types:
         for typ in types:
-            hits += glob(directory + '/*.' + typ)
+            hits += glob.glob(directory + '/*.' + typ)
     else:
-        hits = glob(directory + '/*')
+        hits = glob.glob(directory + '/*')
 
     # Filter by substring
 

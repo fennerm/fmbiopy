@@ -5,13 +5,13 @@ Ruffus: http://www.ruffus.org.uk/
 
 import logging
 import os
-from typing import Iterable
 from typing import List
 from typing import Sequence
 
 from ruffus.proxy_logger import make_shared_logger_and_proxy
 from ruffus.proxy_logger import setup_std_shared_logger
 
+import fmbiopy.biofile as biofile
 import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
@@ -134,7 +134,7 @@ class RuffusLog(object):
 ROOT_LOGGER = RuffusLog("", "pipeline.log")
 
 
-class RuffusTask(object):
+class RuffusTask(biofile.Filetyped):
     """A superclass representing a task to be run with Ruffus
 
     Each subclass is expected to define its own method for constructing the
@@ -173,8 +173,8 @@ class RuffusTask(object):
         (Class attribute) Expected output file extension. If '' then the
         extension of the input is stripped in the output.
     """
-    input_type: List[Iterable] = ['']
-    output_type = ['']
+    input_type: List[str] = ['']
+    output_type: List[str] = ['']
     _logger = ROOT_LOGGER
 
     def __init__(self,
@@ -346,7 +346,7 @@ class Gzip(RuffusTask):
 
 class PairedBowtie2Align(RuffusTask):
     """Align a pair of fastq files to a fasta file using bowtie2"""
-    input_type = ['fasta', ('fastq', 'fastq')]
+    input_type = ['fasta', 'fwd_fastq', 'rev_fastq']
     output_type = ['bam']
 
     def __init__(self, *args, **kwargs)-> None:

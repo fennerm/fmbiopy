@@ -1,6 +1,5 @@
 """Test fmbiopy.biofile"""
 
-import os
 import pytest
 
 import fmbiopy.biofile as biofile
@@ -22,7 +21,7 @@ def biofiles(request):
 @pytest.fixture
 def inst_biofiles(instance_of, biofiles):
     """Return instances of all Biofile types"""
-    return instance_of(biofiles)
+    return instance_of(biofiles, 'tiny')
 
 
 # @pytest.fixture(
@@ -65,27 +64,27 @@ class TestBiofile(object):
 
     def test_undeclared_gzip_raises_gzip_error(self, dat):
         with pytest.raises(biofile.GzipStatusError):
-            biofile.Biofile(dat['zipped_fwd_reads'][0]).validate()
+            biofile.Biofile(dat['tiny']['zipped_fwd_reads'][0]).validate()
 
     def test_list_input_raises_type_error(self, example_file, biofiles):
         with pytest.raises(TypeError):
-            biofiles([example_file(biofiles.input_type)])
+            biofiles([example_file(biofiles.input_type, 'tiny')])
 
     def test_if_files_dont_exist_raise_err(self):
         with pytest.raises(FileNotFoundError):
             biofile.Biofile('i_dont_exist.fa').validate()
 
     def test_empty_files_raises_err(self, dat):
-        bf = biofile.Biofile(dat['empty_reads'][0])
+        bf = biofile.Biofile(dat['tiny']['empty_reads'][0])
         with pytest.raises(biofile.EmptyFileError):
             bf.validate()
 
     def test_possibly_empty_prevents_error(self, dat):
-        bf = biofile.Biofile(dat['empty_reads'][0], possibly_empty=True)
+        bf = biofile.Biofile(dat['tiny']['empty_reads'][0], possibly_empty=True)
         assert bf.validate()
 
     def test_incorrect_extension_raises_extension_err(self, biofiles, dat):
-        read_path = dat['fwd_reads'][0]
+        read_path = dat['tiny']['fwd_reads'][0]
         incorrect_suffix = fmpaths.add_suffix(read_path, '.foobar')
 
         if biofiles.accepted_extensions != ['ANY']:
