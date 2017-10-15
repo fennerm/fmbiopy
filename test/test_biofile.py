@@ -108,21 +108,41 @@ class TestBiofile(object):
             with pytest.raises(biofile.FileExtensionError):
                 biofiles(incorrect_suffix)
 
+
+@pytest.fixture()
+def diff_prefix(dat):
+    return biofile.BiofileGroup(dat['tiny']['diff_prefix'], 'fasta')
+
+
+@pytest.fixture()
+def fwd_reads(dat):
+    return biofile.BiofileGroup(dat['tiny']['fwd_reads'], 'fastq')
+
+
+@pytest.fixture()
+def rev_reads(dat):
+    return biofile.BiofileGroup(dat['tiny']['rev_reads'], 'fastq')
+
+
+@pytest.fixture()
+def assemblies(dat):
+    return biofile.BiofileGroup(dat['tiny']['assemblies'], 'fasta')
+
+
 class TestBiofileGroup(object):
 
     def test_empty_input_raises_value_err(self):
         with pytest.raises(ValueError):
             biofile.BiofileGroup([], filetype='fasta')
 
-    def test_access_returns_path(self, dat):
+    def test_access_returns_path(self, dat, assemblies):
         fasta_paths = dat['tiny']['assemblies']
-        actual = biofile.BiofileGroup(fasta_paths, filetype='fasta')[0]
         expect = fasta_paths[0]
-        assert actual == expect
+        assert assemblies[0] == expect
 
-    def test_length_method(self, dat):
+    def test_length_method(self, dat, assemblies):
         fasta_paths = dat['tiny']['assemblies']
-        actual = len(biofile.BiofileGroup(fasta_paths, filetype='fasta'))
+        actual = len(assemblies)
         expect = len(fasta_paths)
         assert actual == expect
 
@@ -130,47 +150,44 @@ class TestBiofileGroup(object):
         with pytest.raises(TypeError):
             biofile.BiofileGroup(Path('foo.fa'), filetype='fasta')
 
-    def test_biofilegroups_can_be_zipped(self, dat):
-        fasta_group = biofile.BiofileGroup(
-                dat['tiny']['assemblies'], filetype='fasta')
-        fwd_read_group = biofile.BiofileGroup(
-                dat['tiny']['fwd_reads'], filetype='fastq')
-        max_index = max(len(fasta_group), len(fwd_read_group))
-        for fa, reads, i in zip(fasta_group, fwd_read_group, range(max_index)):
-            assert fa == fasta_group[i]
-            assert reads == fwd_read_group[i]
+    def test_biofilegroups_can_be_zipped(self, assemblies, fwd_reads):
+        max_index = max(len(assemblies), len(fwd_reads))
+        for fa, reads, i in zip(assemblies, fwd_reads, range(max_index)):
+            assert fa == assemblies[i]
+            assert reads == fwd_reads[i]
 
     def test_length_nonexist_doesnt_raise_error(self):
         paths = fmpaths.as_path(['foo.fa', 'bar.fa'])
         len(biofile.BiofileGroup(paths, filetype='fasta'))
 
-    def test_equality_operator(self, dat):
-        a = biofile.BiofileGroup(dat['tiny']['assemblies'], filetype='fasta')
-        b = biofile.BiofileGroup(dat['tiny']['assemblies'], filetype='fasta')
-        c = biofile.BiofileGroup(dat['tiny']['diff_prefix'], filetype='fasta')
-        assert a == b
-        assert a != c
+    def test_equality_operator(self, assemblies, diff_prefix):
+        assert assemblies != diff_prefix
 
     def test_different_extensions_raises_value_err(self):
         with pytest.raises(biofile.FileExtensionsNotSameError):
             paths = fmpaths.as_path(['a.fa', 'b.fasta', 'c.fa'])
             biofile.BiofileGroup(paths, filetype='fasta')
 
+    def test_optional_param_are_passed_to_biofile(self, dat):
+        with pytest.raises(biofile.GzipStatusError):
+            biofile.BiofileGroup(
+                    dat['tiny']['fwd_reads'],
+                    filetype='fastq',
+                    gzipped=True)
 
-# class TestMatchedPrefixGroup():
-#     def test_diff_prefixes_raise_err(self, diff_prefix, fwd_fastq,
-#                                      rev_fastq):
-#         with pytest.raises(biofile.PrefixMatchError):
-#             biofile.MatchedPrefixGroup([diff_prefix, fwd_fastq, rev_fastq])
-#
-#     def test_same_filename_raise_value_error(self, fwd_fastq):
-#         with pytest.raises(biofile.DuplicateFilegroupError):
-#             biofile.MatchedPrefixGroup([fwd_fastq, fwd_fastq])
-#
-#     def test_length_method(self, fwd_fastq, paired_fastq):
-#         assert len(paired_fastq) == len(fwd_fastq)
-#
-#
+
+
+
+class TestMatchedPrefixGroup():
+    def test_diff_prefixes_raise_err(self, diff_prefix, fwd_reads, rev_reads):
+        with pytest.raises(biofile.PrefixMatchError):
+            biofile.MatchedPrefixGroup([diff_prefix, fwd_reads, rev_reads])
+
+    def test_same_filename_raise_value_error(self, fwd_reads):
+        with pytest.raises(biofile.DuplicateFilegroupError):
+            biofile.MatchedPrefixGroup([fwd_reads, fwd_reads])
+
+
 # class TestBowtie2Index():
 #     def test_bowtie2_index_name_setter(self, bowtie2_indices):
 #         testdir = os.path.abspath('sandbox/bowtie2_indices/')

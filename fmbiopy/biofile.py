@@ -296,7 +296,7 @@ class BiofileGroup(collections.abc.Sized):
         self.validated = False
 
         self.cls = type_to_class(self.filetype)
-        self._biofiles = self._initialize_biofiles()
+        self._biofiles = self._initialize_biofiles(*args, **kwargs)
         self._prevalidate()
 
     def validate(self) -> None:
@@ -311,12 +311,14 @@ class BiofileGroup(collections.abc.Sized):
 
     @property
     def paths(self) -> Sequence[Path]:
+        """The stored filepaths"""
         if not self.validated:
             self.validate()
         return self._paths
 
     @property
     def biofiles(self) -> Sequence[Biofile]:
+        """The group of `Biofile` objects"""
         if not self.validated:
             self.validate()
         return self._biofiles
@@ -420,58 +422,72 @@ class BiofileGroup(collections.abc.Sized):
 # FastaIndexGroup = Union[SamtoolsFAIndex, Bowtie2Indices]
 #
 #
-# class MatchedPrefixGroup(object):
-#     """Stores groups of matched BiofileGroups with same prefix
-#
-#     Prefixes are checked for equality. Groups are checked for equal length.
-#
-#     Parameters
-#     ----------
-#     groups
-#         List of matched BiofileGroups
-#
-#     Attributes
-#     ----------
-#     groups : List[BiofileGroup]
-#     """
-#     input_type = ['ANY*']
-#     accepted_extensions = ['ANY']
-#
-#     def __init__(self, groups: List[BiofileGroup]) -> None:
-#         self.groups = groups
-#         self._prevalidate()
-#
-#     def _prevalidate(self) -> None:
-#         """Check that the MatchedPrefixGroup is valid"""
-#         self.__check_files_not_same()
-#         self.__check_lengths_match()
-#         self.__check_same_file_prefix()
-#
-#     def __check_files_not_same(self) -> None:
-#         """Check that none of the filegroups are the exact same"""
-#         for i, group1 in enumerate(self.groups):
-#             for j, group2 in enumerate(self.groups):
-#                 if i != j and group1 == group2:
-#                     raise DuplicateFilegroupError(self.groups)
-#
-#     def __check_lengths_match(self) -> None:
-#         group_lengths = [len(g) for g in self.groups]
-#         if not fmcheck.all_equal(group_lengths):
-#             raise GroupLengthError(self.groups)
-#
-#     def __check_same_file_prefix(self) -> None:
-#         """Check that the stored BiofileGroups all have the same prefixes"""
-#         names = [group.names for group in self.groups]
-#         if not fmcheck.all_equal(names):
-#             raise PrefixMatchError(self.groups)
-#
-#     def __len__(self) -> int:
-#         """Length of the `MatchedPrefixGroup`"""
-#         return len(self.groups[0])
-#
-#     def __getitem__(self, item) -> List[str]:
-#         """Index the `MatchedPrefixGroup`"""
-#         return [g[item] for g in self.groups]
+
+
+class MatchedPrefixGroup(object):
+    """Stores groups of matched BiofileGroups with same prefix
+
+    Prefixes are checked for equality. Groups are checked for equal length.
+
+    Parameters
+    ----------
+    groups
+        List of matched BiofileGroups
+
+    Attributes
+    ----------
+    groups : List[BiofileGroup]
+    """
+    input_type = ['ANY*']
+    accepted_extensions = ['ANY']
+
+    def __init__(self, groups: List[BiofileGroup]) -> None:
+        self.groups = groups
+        self.validated = False
+        self._prevalidate()
+
+    def _prevalidate(self) -> None:
+        """Check that the MatchedPrefixGroup is valid"""
+        self.__check_files_not_same()
+        self.__check_lengths_match()
+        self.__check_same_file_prefix()
+
+    def validate(self)-> bool:
+        """Validate the `BiofileGroup`s"""
+        if not self.validated:
+            for group in self.groups:
+                group.validate()
+        self.validated=True
+        return True
+
+    def __check_files_not_same(self) -> None:
+        """Check that none of the filegroups are the exact same"""
+        for i, group1 in enumerate(self.groups):
+            for j, group2 in enumerate(self.groups):
+                if i != j and group1 == group2:
+                    raise DuplicateFilegroupError(self.groups)
+
+    def __check_lengths_match(self) -> None:
+        group_lengths = [len(g) for g in self.groups]
+        if not fmcheck.all_equal(group_lengths):
+            raise GroupLengthError(self.groups)
+
+    def __check_same_file_prefix(self) -> None:
+        """Check that the stored BiofileGroups all have the same prefixes"""
+        group_paths = [group._paths for group in self.groups]
+        prefixes = []
+        for paths in group_paths:
+            prefixes.append([fmpaths.prefix(path) for path in paths])
+        if not fmcheck.all_equal(prefixes):
+            raise PrefixMatchError(self.groups)
+
+    def __len__(self) -> int:
+        """Length of the `MatchedPrefixGroup`"""
+        return len(self.groups[0])
+
+    def __getitem__(self, item) -> List[str]:
+        """Index the `MatchedPrefixGroup`"""
+        return [g[item] for g in self.groups]
 #
 #
 # class PairedFastqGroup(MatchedPrefixGroup):
@@ -609,7 +625,7 @@ class MatchedPrefixGroupValidationError(BiofileGroupValidationError):
     groups
         Nested list of filenames involved in the error.
     """
-    def __init__(self, groups: Sequence[Sequence[PurePath]] = None) -> None:
+    def __init__(self, groups: Sequence[BiofileGroup] = None) -> None:
         self.groups = groups
         super().__init__()
 
@@ -618,8 +634,8 @@ class MatchedPrefixGroupValidationError(BiofileGroupValidationError):
         formatted_filenames = 'Groups:\n'
 
         for group in self.groups:
-            formatted_filenames += '[' + ', '.join(fmpaths.as_str(group)) + \
-                                   ']\n'
+            filename_str = ', '.join(fmpaths.as_str(group._paths))
+            formatted_filenames += ''.join(['[', filename_str, ']\n'])
         return formatted_filenames
 
 
