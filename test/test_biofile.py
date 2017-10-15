@@ -176,8 +176,6 @@ class TestBiofileGroup(object):
                     gzipped=True)
 
 
-
-
 class TestMatchedPrefixGroup():
     def test_diff_prefixes_raise_err(self, diff_prefix, fwd_reads, rev_reads):
         with pytest.raises(biofile.PrefixMatchError):

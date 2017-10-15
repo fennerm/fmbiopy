@@ -7,19 +7,11 @@ from typing import List
 from typing import Sequence
 
 
-def as_path(strs: Sequence[str])-> List[Path]:
-    """Convert a list of `str` to `pathlib.Path`"""
-    return [Path(string) for string in strs]
-
-
-def as_str(paths: Sequence[PurePath])-> List[str]:
-    """Convert a list of `pathlib.Path` to string"""
-    return [str(path) for path in paths]
-
-
-def prefix(path: PurePath)-> str:
-    """Get the part of a string before the first dot"""
-    return path.name.split('.')[0]
+def absglob(directory: Path, pattern: str)-> List[Path]:
+    """Like normal glob except absolute paths are returned"""
+    relative = sorted(list(directory.glob(pattern)))
+    absolute = [path.resolve() for path in relative]
+    return absolute
 
 
 def add_suffix(path: PurePath, suffix: str)-> PurePath:
@@ -27,28 +19,9 @@ def add_suffix(path: PurePath, suffix: str)-> PurePath:
     return PurePath(path.name + suffix)
 
 
-def apply_exists(paths: Sequence[Path]) -> List[bool]:
-    """Apply os.path.exists to a list of paths"""
-    return [p.exists() for p in paths]
-
-
-def any_exist(paths: Sequence[Path]) -> bool:
-    """Return True if any path in list exists """
-    return any(apply_exists(paths))
-
-
 def all_exist(paths: Sequence[Path]) -> bool:
     """Return True if all paths in list exist """
     return all(apply_exists(paths))
-
-
-def filesize_nonzero(paths: Sequence[Path]) -> Sequence[bool]:
-    """Check whether each file in list has a nonzero file size.
-
-    Returns
-    -------
-    A list of bools"""
-    return [p.stat().st_size > 0 for p in paths]
 
 
 def all_filesize_nonzero(paths: Sequence[Path]) -> bool:
@@ -57,25 +30,19 @@ def all_filesize_nonzero(paths: Sequence[Path]) -> bool:
     return all(filesize_nonzero(paths))
 
 
-def check_all_exist(paths: Sequence[Path]) -> None:
-    """Raise OSError if any paths in list do not exist """
-    if not all_exist(paths):
-        raise OSError("Not all paths exist: \n" + ' '.join(as_str(paths)))
-
-
 def any_dont_exist(paths: Sequence[Path]) -> bool:
     """Return True if any path in list does not exist """
     return not all(apply_exists(paths))
 
 
-def listdirs(directory: Path) -> List[Path]:
-    """List all the subdirectories of a directory"""
-    contents = absglob(directory, '*')
-    out = []
-    for path in contents:
-        if path.is_dir():
-            out.append(path)
-    return out
+def any_exist(paths: Sequence[Path]) -> bool:
+    """Return True if any path in list exists """
+    return any(apply_exists(paths))
+
+
+def apply_exists(paths: Sequence[Path]) -> List[bool]:
+    """Apply os.path.exists to a list of paths"""
+    return [p.exists() for p in paths]
 
 
 def as_dict(directory: Path) -> Dict[str, List[Path]]:
@@ -98,18 +65,29 @@ def as_dict(directory: Path) -> Dict[str, List[Path]]:
     return output
 
 
-def get_bowtie2_indices(prefix: str)-> List[PurePath]:
-    """Given the bowtie2 index prefix, return the bowtie2 indices"""
-    bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
-                       '.rev.2.bt2']
-    paths = [PurePath(prefix + suffix) for suffix in bowtie_suffixes]
-    return paths
+def as_path(strs: Sequence[str])-> List[Path]:
+    """Convert a list of `str` to `pathlib.Path`"""
+    return [Path(string) for string in strs]
 
-def absglob(directory: Path, pattern: str)-> List[Path]:
-    """Like normal glob except absolute paths are returned"""
-    relative = list(directory.glob(pattern))
-    absolute = [path.resolve() for path in relative]
-    return absolute
+
+def as_str(paths: Sequence[PurePath])-> List[str]:
+    """Convert a list of `pathlib.Path` to string"""
+    return [str(path) for path in paths]
+
+
+def check_all_exist(paths: Sequence[Path]) -> None:
+    """Raise OSError if any paths in list do not exist """
+    if not all_exist(paths):
+        raise OSError("Not all paths exist: \n" + ' '.join(as_str(paths)))
+
+
+def filesize_nonzero(paths: Sequence[Path]) -> Sequence[bool]:
+    """Check whether each file in list has a nonzero file size.
+
+    Returns
+    -------
+    A list of bools"""
+    return [p.stat().st_size > 0 for p in paths]
 
 
 def find(
@@ -134,7 +112,7 @@ def find(
     hits: List[Path] = []
     if extensions is not None:
         for ext in extensions:
-            hits += absglob(directory, '*.' + ext)
+            hits += absglob(directory, '*' + ext)
     else:
         hits = absglob(directory, '*')
 
@@ -147,3 +125,34 @@ def find(
     else:
         out = hits
     return sorted(out)
+
+
+def get_bowtie2_indices(prefix: str)-> List[PurePath]:
+    """Given the bowtie2 index prefix, return the bowtie2 indices"""
+    bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
+                       '.rev.2.bt2']
+    paths = [PurePath(prefix + suffix) for suffix in bowtie_suffixes]
+    return paths
+
+
+def listdirs(directory: Path) -> List[Path]:
+    """List all the subdirectories of a directory"""
+    contents = absglob(directory, '*')
+    out = []
+    for path in contents:
+        if path.is_dir():
+            out.append(path)
+    return out
+
+
+def prefix(path: PurePath)-> str:
+    """Get the part of a string before the first dot"""
+    return path.name.split('.')[0]
+
+
+def resolve(path: str, *args, **kwargs)-> str:
+    """Return the absolute path of a string path
+
+    Additional parameters are passed to `Path.resolve()`
+    """
+    return str(Path(path).resolve(*args, **kwargs))

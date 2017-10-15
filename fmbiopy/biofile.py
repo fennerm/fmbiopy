@@ -45,7 +45,6 @@ from typing import Type
 import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmpaths as fmpaths
 
-
 # -----------------------------------------------------------------------------
 # Biofile Objects
 # -----------------------------------------------------------------------------
