@@ -1,84 +1,89 @@
 """ Path manipulation utilities """
 
-import glob
-import os
-from re import sub
+from pathlib import Path
+from pathlib import PurePath
 from typing import Dict
 from typing import List
 from typing import Sequence
 
-import fmbiopy.fmcheck as fmcheck
+
+def as_path(strs: Sequence[str])-> List[Path]:
+    """Convert a list of `str` to `pathlib.Path`"""
+    return [Path(string) for string in strs]
 
 
-def get_prefix(path: str) -> str:
+def as_str(paths: Sequence[PurePath])-> List[str]:
+    """Convert a list of `pathlib.Path` to string"""
+    return [str(path) for path in paths]
+
+
+def prefix(path: PurePath)-> str:
     """Get the part of a string before the first dot"""
-    return path.split(".")[0]
+    return path.name.split('.')[0]
 
 
-def get_suffix(path: str) -> str:
-    """Get the part of a string after the first dot"""
-    return ''.join(path.split(".")[1:])
+def add_suffix(path: PurePath, suffix: str)-> PurePath:
+    """Append a suffix to a path"""
+    return PurePath(path.name + suffix)
 
 
-def get_final_suffix(path: str) -> str:
-    """Get the part of a string after the last dot"""
-    dot_split = path.split(".")
-    final_index = len(dot_split) - 1
-    return dot_split[final_index]
+def apply_exists(paths: Sequence[Path]) -> List[bool]:
+    """Apply os.path.exists to a list of paths"""
+    return [p.exists() for p in paths]
 
 
-def last_two_suffix(path: str) -> str:
-    """Get the last two suffixes of a filename as a string"""
-    dot_split = path.split(".")
-    suffix_list = [dot_split[len(dot_split) - 2],
-                   dot_split[len(dot_split) - 1]]
-    return '.'.join(suffix_list)
+def any_exist(paths: Sequence[Path]) -> bool:
+    """Return True if any path in list exists """
+    return any(apply_exists(paths))
 
 
-def replace_suffix(path: str, old_suffix: str, new_suffix: str) -> str:
-    """Replace the suffix of a string"""
-    # Check that the given path has the given suffix
-    fmcheck.check_suffix(path, old_suffix)
-    # Replace the suffix
-    return sub(old_suffix, new_suffix, path)
+def all_exist(paths: Sequence[Path]) -> bool:
+    """Return True if all paths in list exist """
+    return all(apply_exists(paths))
 
 
-def add_suffix(name: str, suffix: str) -> str:
-    """Append a suffix to a string"""
-    return name + suffix
+def filesize_nonzero(paths: Sequence[Path]) -> Sequence[bool]:
+    """Check whether each file in list has a nonzero file size.
+
+    Returns
+    -------
+    A list of bools"""
+    return [p.stat().st_size > 0 for p in paths]
 
 
-def remove_suffix(name: str, nremove=1) -> str:
-    """Remove n suffixes from a string"""
-    if nremove == 0:
-        return name
-
-    unsuffixed = os.path.splitext(name)[0]
-    nremove -= 1
-    return remove_suffix(unsuffixed, nremove)
+def all_filesize_nonzero(paths: Sequence[Path]) -> bool:
+    """Return True if all paths in list exist, and are non-empty"""
+    check_all_exist(paths)
+    return all(filesize_nonzero(paths))
 
 
-def listdirs(directory: str) -> Sequence[str]:
+def check_all_exist(paths: Sequence[Path]) -> None:
+    """Raise OSError if any paths in list do not exist """
+    if not all_exist(paths):
+        raise OSError("Not all paths exist: \n" + ' '.join(as_str(paths)))
+
+
+def any_dont_exist(paths: Sequence[Path]) -> bool:
+    """Return True if any path in list does not exist """
+    return not all(apply_exists(paths))
+
+
+def listdirs(directory: Path) -> List[Path]:
     """List all the subdirectories of a directory"""
-    # Get all paths in directory including regular files
-    contents = glob.glob(directory + '/*')
+    contents = absglob(directory, '*')
+    out = []
+    for path in contents:
+        if path.is_dir():
+            out.append(path)
+    return out
 
-    # Convert to absolute paths
-    abs_paths = [os.path.abspath(item) for item in contents]
 
-    # Select only the directories
-    dirs = []
-    for path in abs_paths:
-        if os.path.isdir(path):
-            dirs.append(path)
-    return dirs
-
-def contents_to_dict(direc: str) -> Dict[str, List[str]]:
+def as_dict(directory: Path) -> Dict[str, List[Path]]:
     """Represent the contents of a directory as a dictionary
 
     Parameters
     ----------
-    direc
+    directory
         A directory
 
     Returns
@@ -86,56 +91,58 @@ def contents_to_dict(direc: str) -> Dict[str, List[str]]:
     Output dictionary is of the form Dict[x, y] where x is a subdirectory of
     `direc` and and y is the contents of x as a list.
     """
-    subdirs = listdirs(direc)
-    out_dict = {}
+    subdirs = listdirs(directory)
+    output = {}
     for d in subdirs:
-        base = os.path.basename(d)
-        out_dict[base] = sorted(glob.glob(d + '/*'))
-    return out_dict
+        output[d.name] = absglob(d, '*')
+    return output
 
 
-def get_bowtie2_indices(prefix: str) -> List[str]:
+def get_bowtie2_indices(prefix: str)-> List[PurePath]:
     """Given the bowtie2 index prefix, return the bowtie2 indices"""
     bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
                        '.rev.2.bt2']
-    return sorted([prefix + suf for suf in bowtie_suffixes])
+    paths = [PurePath(prefix + suffix) for suffix in bowtie_suffixes]
+    return paths
+
+def absglob(directory: Path, pattern: str)-> List[Path]:
+    """Like normal glob except absolute paths are returned"""
+    relative = list(directory.glob(pattern))
+    absolute = [path.resolve() for path in relative]
+    return absolute
 
 
-def match_files(
-        directory: str,
-        types: Sequence[str] = None,
-        substring: str = None) -> List[str]:
+def find(
+        directory: Path,
+        extensions: Sequence[str] = None,
+        substring: str = None)-> List[Path]:
     """List all files with a given file extension and/or substring
 
     Parameters
     ----------
     directory
         The name of the directory to search in
-    types, optional
+    extensions, optional
         List of target file extensions (e.g py, txt)
     substring, optional
         Target substring
 
     Returns
     -------
-    List[str]
-        List of files with the given extensions and substrings"""
-
-    hits: List[str] = []
-
+    List of files with the given extensions and substrings"""
     # Filter by file extension
-    if types:
-        for typ in types:
-            hits += glob.glob(directory + '/*.' + typ)
+    hits: List[Path] = []
+    if extensions is not None:
+        for ext in extensions:
+            hits += absglob(directory, '*.' + ext)
     else:
-        hits = glob.glob(directory + '/*')
+        hits = absglob(directory, '*')
 
     # Filter by substring
-
-    if substring:
-        out = []
+    if substring is not None:
+        out: List[Path] = []
         for hit in hits:
-            if substring in hit:
+            if substring in hit.name:
                 out.append(hit)
     else:
         out = hits

@@ -1,13 +1,30 @@
 """Test fmbiopy.biofile"""
 
+from pathlib import Path
 import pytest
+from typing import Callable
+from typing import Type
 
 import fmbiopy.biofile as biofile
 import fmbiopy.fmclass as fmclass
 import fmbiopy.fmpaths as fmpaths
-from fmbiopy.fmtest import dat
-from fmbiopy.fmtest import example_file
-from fmbiopy.fmtest import instance_of
+
+
+InstanceMap = Callable[[Type[biofile.Biofile], str], biofile.Biofile]
+
+
+@pytest.fixture
+def instance_of(
+        example_file: Callable[[str, str], Path]
+        )-> InstanceMap:
+    def _make_test_instance(
+            cls: Type[biofile.Biofile],
+            size: str)-> biofile.Biofile:
+
+        input_example = example_file(cls.input_type, size)
+
+        return cls(input_example)
+    return _make_test_instance
 
 
 @pytest.fixture(
@@ -59,20 +76,20 @@ class TestBiofile(object):
         assert hasattr(inst_biofiles, 'gzipped')
 
     def test_empty_input_raises_value_err(self, biofiles):
-        with pytest.raises(ValueError):
-            biofiles('')
+        with pytest.raises(TypeError):
+            biofiles(Path(''))
 
     def test_undeclared_gzip_raises_gzip_error(self, dat):
         with pytest.raises(biofile.GzipStatusError):
             biofile.Biofile(dat['tiny']['zipped_fwd_reads'][0]).validate()
 
     def test_list_input_raises_type_error(self, example_file, biofiles):
-        with pytest.raises(TypeError):
+        with pytest.raises(AttributeError):
             biofiles([example_file(biofiles.input_type, 'tiny')])
 
     def test_if_files_dont_exist_raise_err(self):
         with pytest.raises(FileNotFoundError):
-            biofile.Biofile('i_dont_exist.fa').validate()
+            biofile.Biofile(Path('i_dont_exist.fa')).validate()
 
     def test_empty_files_raises_err(self, dat):
         bf = biofile.Biofile(dat['tiny']['empty_reads'][0])

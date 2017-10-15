@@ -24,7 +24,6 @@ Files need not necessarily exist upon initialization, but they must exist upon
 the first access attempt. In this way, a file group class can act as a promise
 that files will exist later.
 
-Assumes that files are named using a dot based naming scheme with the unique ID
 of the file before the first dot:
     <unique_ID>.<processing_step>.<...>.<extension>
 E.g FA_SC.trim.map.sam
@@ -36,16 +35,19 @@ a group has been initialized, it is not recommended to attempt to change the
 files it maps to.
 """
 import os
+from pathlib import Path
+from pathlib import PurePath
 from typing import List
 from typing import Sequence
 from typing import Type
 
 import fmbiopy.fmpaths as fmpaths
 
-
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
+
+
 def type_to_class(typ: str) -> Type[object]:
     """Convert a type variable to its corresponding Biofile object"""
     if typ:
@@ -58,39 +60,11 @@ def type_to_class(typ: str) -> Type[object]:
 
 
 # -----------------------------------------------------------------------------
-# Filetyped Superclass
-# -----------------------------------------------------------------------------
-
-
-class Filetyped(object):
-    """Specifies filetype for classes which handle system files
-
-    Classes which handle files generally take paths as strings for input. In
-    many cases these classes can only handle files of certain types. These
-    classes can inherit from Filetyped to indicate there input and output
-    types.
-
-    Attributes
-    ----------
-    input_type: List
-        Input filetype(s)
-    output_type: List
-        Output filetype(s)
-    accepted_extensions: List
-        List of possible file extensions for the given input types
-    """
-
-    input_type: List[str] = None
-    output_type: List[str] = None
-    accepted_extensions: List[str] = None
-
-
-# -----------------------------------------------------------------------------
 # Biofile Objects
 # -----------------------------------------------------------------------------
 
 
-class Biofile(Filetyped):
+class Biofile():
     """Superclass for storing and validating bioinformatics files.
 
     Classes of more specific filetypes inherit the majority of their attributes
@@ -118,12 +92,12 @@ class Biofile(Filetyped):
     gzipped : bool
         Same as parameter
     """
-    input_type: List[str] = ['ANY']
+    input_type: str = 'ANY'
     accepted_extensions: List[str] = ['ANY']
 
     def __init__(
             self,
-            path: str,
+            path: PurePath,
             gzipped: bool = False,
             possibly_empty: bool = False) -> None:
 
@@ -140,23 +114,20 @@ class Biofile(Filetyped):
 
         self._prevalidate()
 
-        # These are done after prevalidation to prevent unexpected OSError
-        self._path = os.path.abspath(self._path)
-        self._name = os.path.basename(self._path)
 
     @property
-    def path(self) -> str:
+    def path(self) -> Path:
         """The path to the stored file"""
         if not self.validated:
             self.validate()
-        return self._path
+        return Path(self._path)
 
     @property
     def name(self) -> str:
         """The basename of the stored file"""
         if not self.validated:
             self.validate()
-        return self._name
+        return self._path.name
 
     def validate(self) -> bool:
         """Validation function to be used upon attempted access
@@ -171,15 +142,15 @@ class Biofile(Filetyped):
         self.validated = True
         return True
 
-    def _check_path_not_none(self) -> bool:
-        """Check path not an empty string
+    def _check_not_dir(self) -> bool:
+        """Check that input is not a directory
 
         Returns
         -------
         True if successful
         """
-        if not self._path:
-            raise ValueError('Empty path in Biofile')
+        if Path(self._path).is_dir():
+            raise TypeError('File cannot be a directory')
         return True
 
     def _get_extension(self) -> str:
@@ -192,16 +163,14 @@ class Biofile(Filetyped):
         """
 
         # If gzipped we return the two part extension E.g 'fq.gz'
-        if not isinstance(self._path, str):
-            raise TypeError("Expects a string input")
         if self.gzipped:
-            return fmpaths.last_two_suffix(self._path)
-        return fmpaths.get_final_suffix(self._path)
+            return ''.join(self._path.suffixes[-2:])
+        return self._path.suffix
 
     def _prevalidate(self) -> None:
         """Do some basic input validation upon initialization"""
 
-        self._check_path_not_none()
+        self._check_not_dir()
         self._check_gzip()
         self._check_extension()
 
@@ -243,29 +212,29 @@ class Biofile(Filetyped):
 class Fastq(Biofile):
     """Biofile class for holding .fastq files."""
 
-    input_type = ['fastq']
-    accepted_extensions = ['fastq', 'fq', 'fastq.gz', 'fq.gz']
+    input_type = 'fastq'
+    accepted_extensions = ['.fastq', '.fq', '.fastq.gz', '.fq.gz']
 
 
 class Fasta(Biofile):
     """Biofile for class holding .fasta files."""
 
-    input_type = ['fasta']
-    accepted_extensions = ['fasta', 'fa', 'fasta.gz', 'fa.gz']
+    input_type = 'fasta'
+    accepted_extensions = ['.fasta', '.fa', '.fasta.gz', '.fa.gz']
 
 
 # class Sam(Biofile):
 #     """Biofile class for holding .sam files"""
 #
-#     input_type = ['sam']
-#     accepted_extensions = ['sam']
+#     input_type = 'sam'
+#     accepted_extensions = ['.sam']
 #
 #
 # class Bam(Biofile):
 #     """Biofile class for holding .bam files"""
 #
-#     input_type = ['bam']
-#     accepted_extensions = ['bam']
+#     input_type = 'bam'
+#     accepted_extensions = ['.bam']
 #
 #     def __init__(self, *args, **kwargs) -> None:
 #         """Initialization """
@@ -275,8 +244,8 @@ class Fasta(Biofile):
 #
 # class SamtoolsFAIndex(Biofile):
 #     """Biofile class for holding samtools .fai files"""
-#     input_type = ['fai']
-#     accepted_extension = ['fai']
+#     input_type = 'fai'
+#     accepted_extension = ['.fai']
 
 
 # -----------------------------------------------------------------------------
@@ -581,24 +550,23 @@ class BiofileValidationError(Exception):
     msg
         The formatted error message
     """
-    def __init__(self, name: str = None) -> None:
+    def __init__(self, name: PurePath = None) -> None:
         self.name = name
-        self._construct_msg()
+        self.msg = self._construct_msg()
         super().__init__(self.msg)
 
     def _formatted_filename(self) -> str:
         """Construct the part of the error message which lists the file"""
-        return '\n'.join(['File:', '\t' + self.name])
+        return '\n'.join(['File:', '\t' + str(self.name)])
 
     def _err_description(self) -> str:
         """Construct the error description to output"""
         return ''
 
-    def _construct_msg(self) -> None:
+    def _construct_msg(self) -> str:
         """Construct the combined error message"""
-        self.msg: str = '\n'.join([
-                self._formatted_filename(),
-                self._err_description()])
+        return '\n'.join([
+            self._formatted_filename(), self._err_description()])
 
 
 class EmptyFileError(BiofileValidationError):
@@ -626,7 +594,7 @@ class FileExtensionError(BiofileValidationError):
 # -----------------------------------------------------------------------------
 
 
-class BiofileGroupValidationError(BiofileValidationError):
+class BiofileGroupValidationError(Exception):
     """Basic exception for errors raised by `BiofileGroup` validation checks
 
     Parameters
@@ -639,12 +607,13 @@ class BiofileGroupValidationError(BiofileValidationError):
     msg
         The formatted error message
     """
-    def __init__(self, name: Sequence[str] = None) -> None:
-        super().__init__(self.msg)
+    def __init__(self, names: Sequence[PurePath] = None) -> None:
+        self.names = names
+        super().__init__()
 
     def _formatted_filenames(self) -> str:
         """Construct the part of the error message which lists the file"""
-        return '\n'.join(['Files:', '\t' + ', '.join(self.name)])
+        return '\n'.join(['Files:', '\t' + ', '.join(str(self.names))])
 
 
 # -----------------------------------------------------------------------------
@@ -657,18 +626,20 @@ class MatchedPrefixGroupValidationError(BiofileGroupValidationError):
 
     Parameters
     ----------
-    name
+    groups
         Nested list of filenames involved in the error.
     """
-    def __init__(self, name: Sequence[Sequence[str]] = None) -> None:
+    def __init__(self, groups: Sequence[Sequence[PurePath]] = None) -> None:
+        self.groups = groups
         super().__init__()
 
     def _formatted_filenames(self) -> str:
         """Format the file group names for printing"""
         formatted_filenames = 'Groups:\n'
 
-        for group in self.name:
-            formatted_filenames += '[' + ', '.join(group) + ']\n'
+        for group in self.groups:
+            formatted_filenames += '[' + ', '.join(fmpaths.as_str(group)) + \
+                                   ']\n'
         return formatted_filenames
 
 

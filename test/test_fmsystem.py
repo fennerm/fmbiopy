@@ -1,8 +1,10 @@
 import tempfile
 import pytest
-import fmbiopy.fmsystem as fmsystem
-from fmbiopy.fmcheck import any_exist, all_exist
 
+
+import fmbiopy.fmpaths as fmpaths
+import fmbiopy.fmsystem as fmsystem
+import fmbiopy.fmtest as fmtest
 
 class TestRunCommand():
 
@@ -44,13 +46,12 @@ class TestRunCommand():
 
 class TestDelete():
     def test_normal_usage(self):
-        tmpfiles = [tempfile.NamedTemporaryFile() for i in range(3)]
-        tmpfile_names = [tmpfile.name for tmpfile in tmpfiles]
-        assert all_exist(tmpfile_names)
-        with fmsystem.delete(tmpfile_names):
+        tmpfiles = [fmtest.gen_tmp() for i in range(3)]
+        assert fmpaths.all_exist(tmpfiles)
+        with fmsystem.delete(tmpfiles):
             pass
 
-        assert not any_exist(tmpfile_names)
+        assert not fmpaths.any_exist(tmpfiles)
 
 
 class TestParseParamDict():

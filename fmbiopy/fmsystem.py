@@ -8,6 +8,7 @@ from contextlib import contextmanager
 import errno
 import logging
 import os
+from pathlib import Path
 import subprocess
 from typing import Any
 from typing import Dict
@@ -16,6 +17,7 @@ from typing import List
 from typing import Sequence
 from typing import Tuple
 
+import fmbiopy.fmpaths as fmpaths
 
 class IncorrectCommandFormatError(Exception):
     """Raised when a command argument cannot be parsed"""
@@ -26,8 +28,7 @@ def run_command(
         logger_id: str = '',
         log_stdout: bool = True,
         log_stderr: bool = True,
-        # We don't specify type explicitely here due to circular import
-        mutex_log=None,
+        mutex_log: 'fmruffus.RuffusLog' = None,  # type: ignore
         shell: bool = False) -> Tuple[int, str, str]:
     """Run a bash command with logging support
 
@@ -100,7 +101,7 @@ def run_command(
 
 
 @contextmanager
-def working_directory(directory: str) -> Generator:
+def working_directory(directory: Path) -> Generator:
     """Change working directory context safely.
 
     Usage
@@ -109,30 +110,30 @@ def working_directory(directory: str) -> Generator:
             <code>
     """
 
-    owd = os.getcwd()
+    owd = Path.cwd()
     try:
-        os.chdir(directory)
+        os.chdir(directory.name)
         yield directory
     finally:
-        os.chdir(owd)
+        os.chdir(owd.name)
 
 
-def remove_all(names: Sequence[str], silent: bool = False)-> None:
+def remove_all(names: Sequence[Path], silent: bool = False)-> None:
     """Remove all files given as either a string or list"""
     if silent:
         remove_func = silent_remove
     else:
-        remove_func = os.remove  # type: ignore
+        remove_func = Path.unlink   # type: ignore
 
-    if isinstance(names, collections.Iterable) and not isinstance(names, str):
+    if isinstance(names, collections.Iterable):
         for name in names:
-            remove_func(name)
+            remove_func(name)  # type: ignore
     else:
-        remove_func(names)
+        remove_func(names)  # type: ignore
 
 
 @contextmanager
-def delete(paths: Sequence[str]) -> Generator:
+def delete(paths: Sequence[Path]) -> Generator:
     """Context manager for deletion of temporary files.
 
     Context used for making sure that files are deleted even if an attempted
@@ -158,61 +159,25 @@ def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
     return run_command(command, log_stdout=False, log_stderr=False)
 
 
-def concat(filenames: Sequence[str], outpath: str) -> None:
+def concat(filenames: Sequence[Path], outpath: Path) -> bool:
     """Concatenate a list of files """
-    filenames = ' '.join(filenames)
-    command = 'cat ' + filenames + ' > ' + outpath
+    command = ' '.join(['cat', *fmpaths.as_str(filenames), '>', outpath.name])
     err_code = run_silently(command)[0]
     if err_code != 0:
         raise OSError("File concatenation failed")
+    return True
 
 
-def mkdir(path: str) -> str:
-    """Create a directory if it doesn't exist
-
-    Returns
-    -------
-    Absolute path of the created directory
-    """
-
-    path = str(path)
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-    return os.path.abspath(path)
-
-
-def mkdirs(dirnames: Sequence[str], output_directory: str) -> Sequence[str]:
-    """Create a list directories
-
-    Parameters
-    ----------
-    dirnames
-        Names of directories to create
-    output_directory
-        Name of directory in which to create the directories
-
-    Returns
-    -------
-        The paths of the created directories
-    """
-
-    with working_directory(str(output_directory)):
-        abspaths = [mkdir(dirname) for dirname in dirnames]
-
-    return abspaths
-
-
-def silent_remove(filename: Any) -> None:
+def silent_remove(filename: Path) -> None:
     """Try to remove a file, ignore exception if doesn't exist """
     try:
-        os.remove(filename)
+        filename.unlink()
     except OSError as err:
         if err.errno != errno.ENOENT:
             raise
 
 
-def dict_to_list(dictionary: Dict[str, str]) -> List[str]:
+def dict_to_list(dictionary: Dict) -> List:
     """Convert a dictionary to a flat list """
     return [e for l in dictionary for e in l]
 

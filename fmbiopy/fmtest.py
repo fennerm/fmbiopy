@@ -3,7 +3,7 @@
 Pytest functions must be imported explicitely.
 """
 
-import os
+from pathlib import Path
 import shutil
 import tempfile
 from typing import Callable
@@ -18,16 +18,13 @@ from typing import TypeVar
 import py
 import pytest
 
-import fmbiopy.biofile as biofile
-import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
-import fmbiopy.fmruffus as fmruffus
 
 
 def gen_tmp(
         empty: bool = True,
         suffix: str = '',
-        directory: str = 'sandbox') -> str:
+        directory: str = 'sandbox') -> Path:
     """Generate a named temporary file.
 
     Warning: These files need to be deleted manually if a non-temporary
@@ -48,14 +45,14 @@ def gen_tmp(
     The path to the created temporary file
     """
 
-    tmpfile = tempfile.NamedTemporaryFile(
-        delete=False, dir=directory, suffix=suffix).name
+    tmpfile = Path(tempfile.NamedTemporaryFile(
+        delete=False, dir=directory, suffix=suffix).name)
 
     if not empty:
-        with open(tmpfile, 'w') as f:
+        with tmpfile.open('w') as f:
             f.write('foo')
     else:
-        with open(tmpfile, 'w') as f:
+        with tmpfile.open('w') as f:
             f.write('')
     return tmpfile
 
@@ -76,32 +73,23 @@ def load_sandbox() -> Generator:
         This function is used by `shutil.copytree`"""
         return '.git'
 
-    if os.path.exists('sandbox'):
-        shutil.rmtree('sandbox')
+    sandbox = Path('sandbox')
+    if sandbox.exists():
+        shutil.rmtree(sandbox.name)
 
     shutil.copytree('testdat', 'sandbox', ignore=_ignore_git)
-    yield
-    if os.path.exists('sandbox'):
-        shutil.rmtree('sandbox')
-
-
-""" Type representing the Iterator returned by `os.walk`"""
-Walk = Iterator[Tuple[str, List[str], List[str]]]
-
-
-@pytest.fixture(scope='session', autouse=True)
-def initial_test_state() -> Walk:
-    """Stores the initial state of the test data directory"""
-    return os.walk('sandbox')
+    yield sandbox
+    if sandbox.exists():
+        shutil.rmtree(sandbox.name)
 
 
 @pytest.fixture
 def example_file(
         dat: Dict[str, Dict[str, List[str]]],
-        tmpdir: py.path.local)-> Callable[[str, str], str]:
+        tmpdir: py.path.local)-> Callable[[str, str], Path]:
     """Return an example file generating fixture function"""
 
-    def _get_example_file(filetype: str, size: str)-> str:
+    def _get_example_file(filetype: str, size: str)-> Path:
         """Return an example file of the requested filetype and size
 
         Parameters
@@ -127,56 +115,19 @@ def example_file(
         elif filetype == 'gz':
             outfile = dat[size]['zipped_fwd_reads'][0]
         else:
-            outfile = gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
-        return outfile
+            return gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
+        return Path(outfile)
 
     return _get_example_file
 
 
-"""Generic type variable for the Filetyped classes Biofile and RuffusTask"""
-T = TypeVar('T', fmruffus.RuffusTask, biofile.Biofile)
-
-
-@pytest.fixture
-def instance_of(example_file: Callable[[str, str], str]):
-    """Given a class name, return an instance of the task
-
-    Only works for classes with the class attributes input_type and/or
-    output_type. Extra parameters cannot be passed. Designed for testing groups
-    of closely related classes which are all initialized using the same basic
-    process but with different types of input files.
-    """
-    def _make_test_instance(
-            cls: Type[T],
-            size: str)-> T:
-
-        input_example = [example_file(t, size) for t in cls.input_type]
-        input_example = fmlist.flatten(input_example)
-
-        try:
-            if len(input_example) == 1 and cls.output_type == ['']:
-                output_example = [fmpaths.remove_suffix(input_example[0])]
-            else:
-                # If we have multiple inputs, the output suffix is added to
-                # the first input as in ruffus
-                input_prefix = fmpaths.remove_suffix(input_example[0])
-                output_example = []
-                for typ in cls.output_type:
-                    output_example.append(
-                        fmpaths.add_suffix(input_prefix, '.' + typ))
-
-            if len(input_example) == 1:
-                input_example = input_example[0]  # type: ignore
-            if len(output_example) == 1:
-                output_example = output_example[0]  # type: ignore
-            return cls(input_example, output_example)  # type: ignore
-        except (AttributeError, TypeError):
-            return cls(*input_example)   # type: ignore
-    return _make_test_instance
+@pytest.fixture(autouse=True)
+def tmpdir(tmpdir: py.path.local)-> Path:
+    return Path(tmpdir)
 
 
 @pytest.fixture()
-def nested_dir(tmpdir)-> str:
+def nested_dir(tmpdir: Path)-> Path:
     """Create a set of nested directories and files inside a temp directory
 
     Returns
@@ -184,19 +135,27 @@ def nested_dir(tmpdir)-> str:
     Path of the temporary directory.
     """
 
-    subdirs = ['foo', 'bar', 'car']
-    subdirs = [os.path.join(str(tmpdir), d) for d in subdirs]
+    subdir_names = ['foo', 'bar', 'car']
+    subdirs = [tmpdir / d for d in subdir_names]
     for d in subdirs:
-        os.makedirs(d)
-        subdir_contents = ['a.x', 'b.y']
-        subdir_contents = [os.path.join(d, f) for f in subdir_contents]
+        d.mkdir()
+        subdir_contents = [d / f for f in ['a.x', 'b.y']]
         for f in subdir_contents:
-            open(f, 'a').close()
-    return os.path.abspath(str(tmpdir))
+            f.open('a').close()
+    return Path(tmpdir)
+
+
+@pytest.fixture()
+def full_dir(tmpdir: py.path.local)-> Path:
+    """Create a temporary directory with some misc. temporary files"""
+    paths = [tmpdir / name for name in ['a.x', 'b.y', 'b.x']]
+    for path in paths:
+        path.touch()
+    return tmpdir
 
 
 @pytest.fixture(scope='session')
-def dat() -> Dict[str, Dict[str, List[str]]]:
+def dat() -> Dict[str, Dict[str, List[Path]]]:
     """Create a dictionary of test data
 
     Assumes test directory is structured such that all test data is stored in
@@ -210,9 +169,8 @@ def dat() -> Dict[str, Dict[str, List[str]]]:
     A two level nested dictionary
     """
     # List contents of top level directories
-    subdirs = fmpaths.listdirs('sandbox')
+    subdirs = fmpaths.listdirs(Path('sandbox'))
     dat = {}
     for d in subdirs:
-        base = os.path.basename(d)
-        dat[base] = fmpaths.contents_to_dict(d)
+        dat[d.name] = fmpaths.as_dict(d)
     return dat

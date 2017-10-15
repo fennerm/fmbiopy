@@ -1,5 +1,6 @@
 """Test suite for fmbiopy.fmclass.py"""
 import os
+from pathlib import Path
 import pytest
 
 import fmbiopy.fmclass as fmclass
@@ -18,10 +19,10 @@ def minimal_classfile(load_sandbox):
     eg += "class Car(Exception):\n def __init__(self):\
             \n      super().__init__()\n\n"
 
-    with open(tmpfile, 'w') as f:
+    with tmpfile.open('w') as f:
         f.write(eg)
-    class_name = 'test.sandbox.' + os.path.basename(tmpfile)
-    class_name = fmpaths.remove_suffix(class_name)
+    class_file = Path('.'.join(['test', 'sandbox', tmpfile.name]))
+    class_name = class_file.with_suffix('').name
     return class_name
 
 

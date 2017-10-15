@@ -4,15 +4,13 @@ Ruffus: http://www.ruffus.org.uk/
 """
 
 import logging
-import os
+from pathlib import Path
 from typing import List
 from typing import Sequence
 
 from ruffus.proxy_logger import make_shared_logger_and_proxy
 from ruffus.proxy_logger import setup_std_shared_logger
 
-import fmbiopy.biofile as biofile
-import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmlist as fmlist
 import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmsystem as fmsystem
@@ -33,7 +31,7 @@ class RuffusLog(object):
     Parameters
     ----------
     name
-        The ID used to refer to the logging instance
+        The ID of the logger
     location
         The path to where the logfile should be stored
     formatter
@@ -58,25 +56,23 @@ class RuffusLog(object):
     def __init__(
             self,
             name: str,
-            location: str,
+            location: Path,
             formatter: str = DEFAULT_LOG_FORMAT,
             delay: bool = True,
             level: int = logging.DEBUG,
             buffered: bool = True) -> None:
 
-        logdir = os.path.dirname(location)
-        if logdir:
-            if not os.path.exists(logdir):
-                raise ValueError("Logfile directory does not exist")
-
-        self.config = {'file_name' : location,
-                       'formatter' : formatter,
-                       'delay' : delay,
-                       'level' : level,
-                       'buffered' : buffered}
+        self.config = {'file_name': str(location),
+                       'formatter': formatter,
+                       'delay': delay,
+                       'level': level,
+                       'buffered': buffered}
 
         if self.config['buffered']:
             self._buffer = ''
+
+        if not location.parent.exists():
+            raise ValueError('Parent directory of logfile doesnt exist')
 
         self.log, self.mutex = make_shared_logger_and_proxy(
                 setup_std_shared_logger, name, self.config)
@@ -131,10 +127,10 @@ class RuffusLog(object):
 
 
 # The `RuffusLog` shared across all `RuffusTasks`"""
-ROOT_LOGGER = RuffusLog("", "pipeline.log")
+ROOT_LOGGER = RuffusLog("", Path("pipeline.log"))
 
 
-class RuffusTask(biofile.Filetyped):
+class RuffusTask(object):
     """A superclass representing a task to be run with Ruffus
 
     Each subclass is expected to define its own method for constructing the
@@ -218,9 +214,6 @@ class RuffusTask(biofile.Filetyped):
         if not hasattr(self, '_inplace'):
             self._inplace: bool = False
 
-        # Check the input files
-        self._check_inputs()
-
         # Extra output files produced which are not specified by the user.
         self._extra_outputs: List[str] = []
         self._add_extra_outputs()
@@ -229,11 +222,6 @@ class RuffusTask(biofile.Filetyped):
         if run_on_init:
             self._run_command()
 
-    def _check_inputs(self)-> bool:
-        """Check that the inputs meet expectations"""
-        if len(self._input_files) != len(fmlist.flatten(self.input_type)):
-            raise ValueError('Unexpected number of inputs')
-        return True
 
     def _construct_command(self)-> None:
         """Subclasses construct their own tasks"""
@@ -277,8 +265,8 @@ class RuffusTask(biofile.Filetyped):
             self._logger.flush()
 
             if self._inplace:
-                if fmcheck.all_filesize_nonzero(self._output_files):
-                    fmsystem.remove_all(self._input_files, silent=True)
+                paths = fmpaths.as_path(self._input_files)
+                fmsystem.remove_all(paths, silent=True)
 
         except Exception:
             self._cleanup()
@@ -286,7 +274,7 @@ class RuffusTask(biofile.Filetyped):
 
     def _cleanup(self)-> None:
         fmsystem.remove_all(
-                self._output_files + self._extra_outputs,
+                fmpaths.as_path(self._output_files + self._extra_outputs),
                 silent=True)
 
 
@@ -356,9 +344,9 @@ class PairedBowtie2Align(RuffusTask):
 
     def _add_extra_outputs(self) -> None:
         """Add the .bt2 and .bai files to the output file list"""
-        prefix = fmpaths.remove_suffix(self._input_files[0])
+        prefix = Path(self._input_files[0]).stem
         bowtie2_indices = fmpaths.get_bowtie2_indices(prefix)
-        bai_file = fmpaths.add_suffix(self._output_files[0], '.bai')
+        bai_file = '.'.join([self._output_files[0], 'bai'])
 
         self._extra_outputs = fmlist.flatten([
                 self._output_files, bowtie2_indices, bai_file])
@@ -371,7 +359,7 @@ class PairedBowtie2Align(RuffusTask):
         output_bam = self._output_files[0]
 
         # Index fasta first
-        bowtie2_index = fmpaths.remove_suffix(fasta)
+        bowtie2_index = Path(fasta).stem
         self._command.append(fmlist.flatten([
             'bowtie2-build', fasta, bowtie2_index, '>', '/dev/null', '2>&1']))
 

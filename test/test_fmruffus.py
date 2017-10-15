@@ -3,31 +3,56 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 
-import os
-
+from pathlib import Path
 import pytest
 
-import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmclass as fmclass
+import fmbiopy.fmlist as fmlist
+import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmruffus as fmruffus
 import fmbiopy.fmtest as fmtest
-from fmbiopy.fmtest import instance_of
+
+
+@pytest.fixture
+def instance_of(example_file):
+    """Return example RuffusTask instances"""
+    def _make_test_instance(cls, size):
+
+        input_example = [example_file(t, size) for t in cls.input_type]
+        input_example = fmlist.flatten(input_example)
+
+        # If we have multiple inputs, the output suffix is added to
+        # the first input as in ruffus
+        output_example = []
+        for typ in cls.output_type:
+            if cls.output_type == ['']:
+                output_example.append(
+                        input_example[0].with_suffix(typ))
+            else:
+                output_example.append(
+                        input_example[0].with_suffix('.' + typ))
+
+        return cls(
+                fmpaths.as_str(input_example),
+                fmpaths.as_str(output_example))
+    return _make_test_instance
 
 
 class TestRuffusLog(object):
     def test_non_existant_path(self):
         with pytest.raises(ValueError):
-            fmruffus.RuffusLog("foo", "bar/bar.log")
+            fmruffus.RuffusLog("foo", Path("bar/bar.log"))
 
     def test_normal_unbuffered_usage(self, tmpdir):
         tmp = fmtest.gen_tmp(directory=tmpdir)
-        ruflog = fmruffus.RuffusLog("foo", tmp, buffered=False)
+        ruflog = fmruffus.RuffusLog('foo', tmp, buffered=False)
         ruflog.write("Test")
-        assert os.path.getsize(tmp) > 0
+        # Check filesize non zero
+        assert Path(tmp).read_text()
 
     def test_header(self, tmpdir):
         tmp = fmtest.gen_tmp(directory=tmpdir)
-        ruflog = fmruffus.RuffusLog("foo", tmp, buffered=False)
+        ruflog = fmruffus.RuffusLog('foo', tmp, buffered=False)
         head = "HEADER"
         ruflog.write_header(head)
         with open(tmp, 'r') as f:
@@ -37,7 +62,7 @@ class TestRuffusLog(object):
 
     def test_normal_buffered_usage(self, tmpdir):
         tmp = fmtest.gen_tmp(directory=tmpdir)
-        ruflog = fmruffus.RuffusLog("foo", tmp, buffered=True)
+        ruflog = fmruffus.RuffusLog('foo', tmp, buffered=True)
         ruflog.write("bar")
         with open(tmp, 'r') as f:
             lines = [line for line in f][:2]
@@ -79,10 +104,10 @@ class TestAllTasks(object):
 
     def test_run_command_produces_expected_output(self, task):
         if isinstance(task._output_files, str):
-            os.path.exists(task._output_files)
+            assert Path(task._output_files).exists()
         else:
             for path in task._output_files:
-                assert os.path.exists(path)
+                assert Path(path).exists()
 
     def test_run_command_produces_zero_exit_code(self, task):
         for code in task.exit_code:
@@ -90,4 +115,4 @@ class TestAllTasks(object):
 
     def test_inplace_tasks_delete_their_inputs(self, task):
         if task._inplace:
-            assert not fmcheck.any_exist(task._input_files)
+            assert not fmpaths.any_exist(fmpaths.as_path(task._input_files))
