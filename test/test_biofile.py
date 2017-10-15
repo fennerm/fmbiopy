@@ -108,52 +108,55 @@ class TestBiofile(object):
             with pytest.raises(biofile.FileExtensionError):
                 biofiles(incorrect_suffix)
 
-# class TestBiofileGroup(object):
-#
-#     def test_empty_input_raises_value_err(self):
-#         with pytest.raises(ValueError):
-#             biofile.BiofileGroup([])
-#
-#     def test_access_returns_path(self, dat):
-#         fasta_paths = dat['assemblies']
-#         assert biofile.BiofileGroup(fasta_paths)[0] == fasta_paths[0]
-#
-#     def test_length_method(self, dat):
-#         fasta_paths = dat['assemblies']
-#         assert len(biofile.Biofilegroup(fasta_paths)) == len(fasta_paths)
-#
-#     def test_string_input_raises_type_err(self):
-#         with pytest.raises(TypeError):
-#             biofile.BiofileGroup('foo')
-#
-#     def test_biofilegroups_can_be_zipped(self, dat):
-#         fasta_group = biofile.BiofileGroup(dat['assemblies'])
-#         fwd_read_group = biofile.BiofileGroup(dat['fwd_reads'])
-#         max_index = max(len(fasta_group), len(fwd_read_group))
-#         for fa, reads, i in zip(fasta_group, fwd_read_group, range(max_index)):
-#             assert fa == fasta_group[i]
-#             assert reads == fwd_read_group[i]
-#
-#     def test_length_nonexist_doesnt_raise_error(self):
-#         len(biofile.BiofileGroup(['foo.foo', 'bar.bar']))
-#
-#     def test_equality_operator(self, dat):
-#         a = biofile.BiofileGroup(dat['assemblies'])
-#         b = biofile.BiofileGroup(dat['assemblies'])
-#         c = biofile.BiofileGroup(dat['diff_prefix'])
-#         assert a == b
-#         assert a != c
-#
-#     def test_different_extensions_raises_value_err(self):
-#         with pytest.raises(ValueError):
-#             biofile.BiofileGroup(['a.fa', 'b.fasta', 'c.fa'])
-#
-#     def test_one_nonexistant_file_caught_by_validation(self):
-#         assert False
-#
-#     def test_biofile_initialization(self):
-#         assert False
-#
+class TestBiofileGroup(object):
+
+    def test_empty_input_raises_value_err(self):
+        with pytest.raises(ValueError):
+            biofile.BiofileGroup([], filetype='fasta')
+
+    def test_access_returns_path(self, dat):
+        fasta_paths = dat['tiny']['assemblies']
+        actual = biofile.BiofileGroup(fasta_paths, filetype='fasta')[0]
+        expect = fasta_paths[0]
+        assert actual == expect
+
+    def test_length_method(self, dat):
+        fasta_paths = dat['tiny']['assemblies']
+        actual = len(biofile.BiofileGroup(fasta_paths, filetype='fasta'))
+        expect = len(fasta_paths)
+        assert actual == expect
+
+    def test_single_path_input_raises_type_err(self):
+        with pytest.raises(TypeError):
+            biofile.BiofileGroup(Path('foo.fa'), filetype='fasta')
+
+    def test_biofilegroups_can_be_zipped(self, dat):
+        fasta_group = biofile.BiofileGroup(
+                dat['tiny']['assemblies'], filetype='fasta')
+        fwd_read_group = biofile.BiofileGroup(
+                dat['tiny']['fwd_reads'], filetype='fastq')
+        max_index = max(len(fasta_group), len(fwd_read_group))
+        for fa, reads, i in zip(fasta_group, fwd_read_group, range(max_index)):
+            assert fa == fasta_group[i]
+            assert reads == fwd_read_group[i]
+
+    def test_length_nonexist_doesnt_raise_error(self):
+        paths = fmpaths.as_path(['foo.fa', 'bar.fa'])
+        len(biofile.BiofileGroup(paths, filetype='fasta'))
+
+    def test_equality_operator(self, dat):
+        a = biofile.BiofileGroup(dat['tiny']['assemblies'], filetype='fasta')
+        b = biofile.BiofileGroup(dat['tiny']['assemblies'], filetype='fasta')
+        c = biofile.BiofileGroup(dat['tiny']['diff_prefix'], filetype='fasta')
+        assert a == b
+        assert a != c
+
+    def test_different_extensions_raises_value_err(self):
+        with pytest.raises(biofile.FileExtensionsNotSameError):
+            paths = fmpaths.as_path(['a.fa', 'b.fasta', 'c.fa'])
+            biofile.BiofileGroup(paths, filetype='fasta')
+
+
 # class TestMatchedPrefixGroup():
 #     def test_diff_prefixes_raise_err(self, diff_prefix, fwd_fastq,
 #                                      rev_fastq):

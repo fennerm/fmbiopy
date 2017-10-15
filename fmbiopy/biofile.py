@@ -34,6 +34,7 @@ FileGroups are designed to be initialized and then used without editing. Once
 a group has been initialized, it is not recommended to attempt to change the
 files it maps to.
 """
+import collections
 import os
 from pathlib import Path
 from pathlib import PurePath
@@ -41,22 +42,8 @@ from typing import List
 from typing import Sequence
 from typing import Type
 
+import fmbiopy.fmcheck as fmcheck
 import fmbiopy.fmpaths as fmpaths
-
-# -----------------------------------------------------------------------------
-# Functions
-# -----------------------------------------------------------------------------
-
-
-def type_to_class(typ: str) -> Type[object]:
-    """Convert a type variable to its corresponding Biofile object"""
-    if typ:
-        try:
-            cls = eval(typ.capitalize())
-        except NameError:
-            cls = Biofile
-        return cls
-    return None
 
 
 # -----------------------------------------------------------------------------
@@ -249,154 +236,141 @@ class Fasta(Biofile):
 
 
 # -----------------------------------------------------------------------------
+# Functions
+# -----------------------------------------------------------------------------
+
+
+def type_to_class(typ: str) -> Type[Biofile]:
+    """Convert a type variable to its corresponding Biofile object"""
+    if typ:
+        try:
+            cls = eval(typ.capitalize())
+        except NameError:
+            cls = Biofile
+        return cls
+    return None
+
+# -----------------------------------------------------------------------------
 # BiofileGroup Objects
 # -----------------------------------------------------------------------------
-#
-#
-# class BiofileGroup(collections.abc.Sized):
-#     """Superclass for storing and validating groups of bioinformatics files.
-#
-#     Classes of more specific filetypes inherit the majority of their attributes
-#     and validation methods from it.
-#
-#     Notes
-#     -----
-#     Input files to BiofileGroups are automatically sorted alphabetically.
-#
-#     Parameters
-#     ----------
-#     files :
-#         The list of files to be stored in the group.
-#     gzipped :
-#         If True, files should be gzipped and have the .gz extension. Detecting
-#         that files are gzipped is obviously trivial, this flag is just used to
-#         ensure that the output function knows the gzip state. If this flag is
-#         unset but the files are gzipped, this indicates that an unintended zip
-#         step has occured or vice versa.
-#
-#     Attributes
-#     ----------
-#     gzipped : bool
-#         Same as parameter
-#     names : List[str]
-#         The unique IDs of each file.
-#     paths : List[str]
-#         The paths of the files
-#     """
-#     input_type = ['ANY*']
-#     accepted_extensions = ['ANY']
-#
-#     def __init__(
-#             self,
-#             paths: Sequence[str] = None,
-#             gzipped: bool = False,
-#             possibly_empty: bool = False) -> None:
-#
-#         # Store paramaters
-#         self._paths = paths
-#         self.gzipped = gzipped
-#         self.possibly_empty = possibly_empty
-#         self.validated = False
-#
-#         self._prevalidate()
-#
-#         # These steps are done after prevalidation to prevent unexpected errors
-#         self._biofiles = self._initialize_biofiles()
-#         self.cls = type_to_class(self.type)
-#
-#     def validate(self) -> None:
-#         """Validation function to be used upon attempted access
-#
-#         It is only called upon the first access attempt
-#         """
-#         self._check_extensions()
-#         self._check_files_non_empty()
-#
-#         for biofile in self._biofiles:
-#             if not biofile.validated:
-#                 biofile.validate()
-#         self.validated = True
-#
-#     @property
-#     def paths(self) -> Sequence[str]:
-#         if not self.validated:
-#             self.validate()
-#         return self._paths
-#
-#     @property
-#     def biofiles(self) -> Sequence[Biofile]:
-#         if not self.validated:
-#             self.validate()
-#         return self._biofiles
-#
-#     def __getitem__(self, item) -> str:
-#         """Get a file from the group"""
-#
-#         if not self.validated:
-#             self.validate()
-#
-#         return self._paths[item]
-#
-#     def __eq__(self, other) -> bool:
-#         # edit such there is a hidden path and a property.
-#         """Test for BiofileGroup is equal to another"""
-#
-#         # Cannot be equal if lengths are different
-#         if len(self) != len(other):
-#             return False
-#
-#         # Test that all paths are the same
-#         for me, you in zip(self, other):  # type: ignore
-#             if me != you:
-#                 return False
-#
-#         return True
-#
-#     def _initialize_biofiles(self) -> bool:
-#         """Initalize a set of biofiles for the input file list"""
-#         for p in self._paths:
-#             self.cls(
-#                     p, gzipped=self.gzipped,
-#                     possibly_empty=self.possibly_empty)
-#         return True
-#
-#     def __len__(self) -> int:
-#         """Length of file list"""
-#         return len(self._paths)
-#
-#     def _check_paths_not_none(self) -> None:
-#         """Check paths not an empty list"""
-#         if not self._paths:
-#             raise ValueError('Empty paths in BiofileGroup')
-#
-#     def _check_paths_not_string(self) -> None:
-#         """Check that paths is not a single string"""
-#
-#         if isinstance(self._paths, str):
-#             raise TypeError("""
-#             Input to BiofileGroup is a string (expects list)""")
-#
-#     def _prevalidate(self) -> None:
-#         """Do some basic input validation upon initialization"""
-#
-#         self._check_paths_not_none()
-#         self._check_paths_not_string()
-#
-#     def _check_extensions(self) -> None:
-#         """Check that the file extensions match the accepted extensions
-#
-#         The superclass should not have accepted extensions, but subclasses will
-#         use this method for extension validation.
-#         """
-#         if self._accepted_extensions:
-#             incorrect_extensions = []
-#             for i, extension in enumerate(self._extensions):
-#                 # Extension check is not caps sensitive
-#                 if not extension.lower() in self._accepted_extensions:
-#                     incorrect_extensions.append(self.paths[i])
-#
-#             if len(incorrect_extensions) > 1:
-#                 raise FileExtensionError([self.paths[i]])
+
+
+class BiofileGroup(collections.abc.Sized):
+    """Superclass for storing and validating groups of bioinformatics files.
+
+    All parameters except files are passed to `Biofile` to initialize each
+    individual file.
+
+    Parameters
+    ----------
+    files
+        The list of files to be stored in the group.
+    filetype
+        The stored filetype
+
+    Attributes
+    ----------
+    gzipped : bool
+        Same as parameter
+    names : List[str]
+        The unique IDs of each file.
+    paths : List[str]
+        The paths of the files
+    cls : Type[Biofile]
+        The stored `Biofile` class
+    """
+    input_type: List[str] = ['ANY*']
+    accepted_extensions = ['ANY']
+
+    def __init__(
+            self,
+            paths: Sequence[Path],
+            filetype: str,
+            *args,
+            **kwargs,
+            ) -> None:
+
+        # Store paramaters
+        self._paths = paths
+        self.filetype = filetype
+        self.validated = False
+
+        self.cls = type_to_class(self.filetype)
+        self._biofiles = self._initialize_biofiles()
+        self._prevalidate()
+
+    def validate(self) -> None:
+        """Validation function to be used upon attempted access
+
+        It is only called upon the first access attempt
+        """
+        for biofile in self._biofiles:
+            if not biofile.validated:
+                biofile.validate()
+        self.validated = True
+
+    @property
+    def paths(self) -> Sequence[Path]:
+        if not self.validated:
+            self.validate()
+        return self._paths
+
+    @property
+    def biofiles(self) -> Sequence[Biofile]:
+        if not self.validated:
+            self.validate()
+        return self._biofiles
+
+    def __getitem__(self, item) -> str:
+        """Get a file from the group"""
+
+        if not self.validated:
+            self.validate()
+
+        return self._paths[item]
+
+    def __eq__(self, other) -> bool:
+        """Test for BiofileGroup is equal to another"""
+
+        # Cannot be equal if lengths are different
+        if len(self) != len(other):
+            return False
+
+        # Test that all paths are the same
+        for me, you in zip(self, other):  # type: ignore
+            if me != you:
+                return False
+
+        return True
+
+    def _initialize_biofiles(self, *args, **kwargs) -> List[Biofile]:
+        """Initalize a set of biofiles for the input file list"""
+        return [self.cls(p, *args, **kwargs) for p in self._paths]
+
+    def __len__(self) -> int:
+        """Length of file list"""
+        return len(self._paths)
+
+    def _check_paths_not_none(self) -> bool:
+        """Check paths not an empty list"""
+        if not self._paths:
+            raise ValueError('Empty paths in BiofileGroup')
+        return True
+
+    def _check_extensions_same(self) -> bool:
+        """Check that the stored file extensions are all the same"""
+        extensions = [f.extension for f in self._biofiles]
+        if not fmcheck.all_equal(extensions):
+            raise FileExtensionsNotSameError(self._paths)
+        return True
+
+    def _prevalidate(self) -> bool:
+        """Do some basic input validation upon initialization"""
+
+        self._check_paths_not_none()
+        self._check_extensions_same()
+        return True
+
 #
 #
 #
@@ -615,6 +589,12 @@ class BiofileGroupValidationError(Exception):
         """Construct the part of the error message which lists the file"""
         return '\n'.join(['Files:', '\t' + ', '.join(str(self.names))])
 
+
+class FileExtensionsNotSameError(BiofileGroupValidationError):
+    """Exception raised when files do not have the expected file extension"""
+
+    def _err_description(self) -> str:
+        return "File extensions are not all equal"
 
 # -----------------------------------------------------------------------------
 # MatchedPrefixGroup Exceptions
