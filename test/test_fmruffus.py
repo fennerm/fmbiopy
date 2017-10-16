@@ -13,7 +13,7 @@ import fmbiopy.fmruffus as fmruffus
 import fmbiopy.fmtest as fmtest
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def instance_of(example_file):
     """Return example RuffusTask instances"""
     def _make_test_instance(cls, size):
