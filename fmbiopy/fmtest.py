@@ -24,7 +24,7 @@ import fmbiopy.fmpaths as fmpaths
 def gen_tmp(
         empty: bool = True,
         suffix: str = '',
-        directory: str = 'sandbox') -> Path:
+        directory: Path = Path('sandbox')) -> Path:
     """Generate a named temporary file.
 
     Warning: These files need to be deleted manually if a non-temporary
@@ -83,10 +83,15 @@ def load_sandbox() -> Generator:
         shutil.rmtree(sandbox.name)
 
 
+@pytest.fixture()
+def sandbox():
+    """Path to the sandbox directory"""
+    return Path('sandbox')
+
+
 @pytest.fixture
 def example_file(
-        dat: Dict[str, Dict[str, List[str]]],
-        tmpdir: py.path.local)-> Callable[[str, str], Path]:
+        dat: Dict[str, Dict[str, List[str]]])-> Callable[[str, str], Path]:
     """Return an example file generating fixture function"""
 
     def _get_example_file(filetype: str, size: str)-> Path:
@@ -115,7 +120,7 @@ def example_file(
         elif filetype == 'gz':
             outfile = dat[size]['zipped_fwd_reads'][0]
         else:
-            return gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
+            return gen_tmp(empty=False, suffix='.foo')
         return Path(outfile)
 
     return _get_example_file

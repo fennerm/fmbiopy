@@ -5,8 +5,11 @@ Ruffus: http://www.ruffus.org.uk/
 
 import logging
 from pathlib import Path
+from typing import Any
+from typing import Callable
 from typing import List
 from typing import Sequence
+from typing import Type
 
 from ruffus.proxy_logger import make_shared_logger_and_proxy
 from ruffus.proxy_logger import setup_std_shared_logger
@@ -374,7 +377,7 @@ class PairedBowtie2Align(RuffusTask):
             'samtools', 'index', output_bam, '/dev/null', '2>&1']))
 
 
-class SymlinkInputs(RuffusTask):
+class Symlink(RuffusTask):
     """Create symlinks of the input arguments"""
     input_type = ['ANY']
     output_type = ['SAME']
@@ -383,3 +386,34 @@ class SymlinkInputs(RuffusTask):
         """Construct the bash command"""
         self._command = fmlist.flatten([
             'ln', '-s', self._input_files, self._output_files])
+
+
+"""Type variable for a function with same inputs and outputs as a RuffusTask"""
+TaskFunction = Callable[[Sequence[str], Sequence[str], Any], None]
+
+
+def apply(task: Type[RuffusTask])-> TaskFunction:
+    """Return function which applies a `RuffusTask` to multiple inputs
+
+    All extra parameters are passed to `task`
+
+    Parameters
+    ----------
+    task
+        A RuffusTask class
+
+    Returns
+    -------
+    A function of two arguments, 1. a sequence of input files, 2. a
+    sequence of output files, which maps `task` from input[i] -> output[i]
+    """
+    def apply_task(
+            input_files: Sequence[str],
+            output_files: Sequence[str],
+            *args,
+            **kwargs,
+            )-> None:
+        for inp, out in zip(input_files, output_files):
+            task([inp], [out], *args, **kwargs)
+
+    return apply_task

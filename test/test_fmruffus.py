@@ -25,9 +25,16 @@ def instance_of(example_file):
         # the first input as in ruffus
         output_example = []
         for typ in cls.output_type:
-            if cls.output_type == ['']:
+            if typ == '':
                 output_example.append(
                         input_example[0].with_suffix(typ))
+            elif typ == 'SAME':
+                # If output is same type create a new directory to place the
+                # output
+                parent_dir = input_example[0].parent
+                outdir = parent_dir / 'tmp'
+                outdir.mkdir(exist_ok=True)
+                output_example.append(outdir / input_example[0].name)
             else:
                 output_example.append(
                         input_example[0].with_suffix('.' + typ))
@@ -116,3 +123,13 @@ class TestAllTasks(object):
     def test_inplace_tasks_delete_their_inputs(self, task):
         if task._inplace:
             assert not fmpaths.any_exist(fmpaths.as_path(task._input_files))
+
+
+def test_apply_symlink_produces_expected_output(full_dir):
+    symlink_all = fmruffus.apply(fmruffus.Symlink)
+    inputs = full_dir.glob('*')
+    output_ids = ['tar.x', 'sar.x', 'lar.x']
+    outputs = [full_dir / out for out in output_ids]
+    symlink_all(fmpaths.as_str(inputs), fmpaths.as_str(outputs))
+    for path in outputs:
+        assert path.exists()
