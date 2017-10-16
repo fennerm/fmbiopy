@@ -1,50 +1,56 @@
 """Test suite for fmbiopy.fmclass.py"""
-import os
-from pathlib import Path
 import pytest
 
 import fmbiopy.fmclass as fmclass
-import fmbiopy.fmpaths as fmpaths
-from fmbiopy.fmtest import gen_tmp
-from fmbiopy.fmtest import load_sandbox
 
+@pytest.fixture(scope='class')
+def egclass(gen_tmp, testdir, sandbox):
+    # We have to give each classfile a unique directory to prevent interference
+    # from previous imports in the namespace
+    tmpfile = gen_tmp(empty=True, directory=sandbox, suffix='.py')
 
-@pytest.fixture(scope='module')
-def minimal_classfile(load_sandbox):
-    tmpfile = gen_tmp(empty=True, suffix='.py')
-
-    eg = "class Foo(object):\n   def __init__(self):\n \
-        super().__init__(self)\n\n"
-    eg += "class Bar(Foo):\n   def __init__(self):\n       pass\n\n"
-    eg += "class Car(Exception):\n def __init__(self):\
-            \n      super().__init__()\n\n"
+    eg = "class Foo(object):\n    def __init__(self):\n\
+            super().__init__(self)\n\n"
+    eg += "class Bar(Foo):\n    def __init__(self):\n        pass\n\n"
+    eg += "class Car(Exception):\n    def __init__(self):\n\
+            super().__init__()\n\n"
 
     with tmpfile.open('w') as f:
         f.write(eg)
-    class_file = Path('.'.join(['test', 'sandbox', tmpfile.name]))
-    class_name = class_file.with_suffix('').name
-    return class_name
+    module_name = tmpfile.with_suffix('').name
+    package_name = '.'.join([testdir.name, sandbox.name])
 
+    return (module_name, package_name)
+
+def classnames(classes):
+    return [fmclass.classname(cls) for cls in classes]
+
+@pytest.fixture(scope='class')
+def all_classes(egclass):
+    classes = fmclass.list_classes(module=egclass[0], package=egclass[1])
+    return classnames(classes)
+
+@pytest.fixture(scope='class')
+def no_foo(egclass):
+    classes = fmclass.list_classes(
+            module=egclass[0], package=egclass[1], exclude=['Foo'])
+    return classnames(classes)
+
+@pytest.fixture(scope='class')
+def foo_type(egclass):
+    classes = fmclass.list_classes(
+            module=egclass[0], package=egclass[1], of_type=['Foo'])
+    return classnames(classes)
 
 class TestListClasses(object):
-    def test_simple_case(self, minimal_classfile):
-        actual = fmclass.list_classes(minimal_classfile)
-        actual = [fmclass.classname(cls) for cls in actual]
+    def test_simple_case(self, all_classes):
         expected = ['Bar', 'Car', 'Foo']
-        assert actual == expected
+        assert all_classes == expected
 
-    def test_exclude(self, minimal_classfile):
-        actual = fmclass.list_classes(
-                minimal_classfile,
-                exclude='Foo')
-        actual = [fmclass.classname(cls) for cls in actual]
+    def test_exclude(self, no_foo):
         expected = ['Bar', 'Car']
-        assert actual == expected
+        assert no_foo == expected
 
-    def test_choose_type(self, minimal_classfile):
-        actual = fmclass.list_classes(
-                minimal_classfile,
-                of_type='Foo')
-        actual = [fmclass.classname(cls) for cls in actual]
+    def test_choose_type(self, foo_type):
         expected = ['Bar', 'Foo']
-        assert actual == expected
+        assert foo_type == expected

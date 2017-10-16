@@ -377,7 +377,7 @@ class PairedBowtie2Align(RuffusTask):
             'samtools', 'index', output_bam, '/dev/null', '2>&1']))
 
 
-class Symlink(RuffusTask):
+class SymlinkInputs(RuffusTask):
     """Create symlinks of the input arguments"""
     input_type = ['ANY']
     output_type = ['SAME']
@@ -407,7 +407,7 @@ def apply(task: Type[RuffusTask])-> TaskFunction:
     A function of two arguments, 1. a sequence of input files, 2. a
     sequence of output files, which maps `task` from input[i] -> output[i]
     """
-    def apply_task(
+    def _apply_task(
             input_files: Sequence[str],
             output_files: Sequence[str],
             *args,
@@ -416,4 +416,4 @@ def apply(task: Type[RuffusTask])-> TaskFunction:
         for inp, out in zip(input_files, output_files):
             task([inp], [out], *args, **kwargs)
 
-    return apply_task
+    return _apply_task

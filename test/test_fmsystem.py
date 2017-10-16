@@ -1,7 +1,6 @@
 import tempfile
 import pytest
 
-
 import fmbiopy.fmpaths as fmpaths
 import fmbiopy.fmsystem as fmsystem
 import fmbiopy.fmtest as fmtest
@@ -45,8 +44,8 @@ class TestRunCommand():
 
 
 class TestDelete():
-    def test_normal_usage(self):
-        tmpfiles = [fmtest.gen_tmp() for i in range(3)]
+    def test_normal_usage(self, gen_tmp):
+        tmpfiles = [gen_tmp() for i in range(3)]
         assert fmpaths.all_exist(tmpfiles)
         with fmsystem.delete(tmpfiles):
             pass

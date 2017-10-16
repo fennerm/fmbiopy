@@ -50,15 +50,15 @@ class TestRuffusLog(object):
         with pytest.raises(ValueError):
             fmruffus.RuffusLog("foo", Path("bar/bar.log"))
 
-    def test_normal_unbuffered_usage(self, tmpdir):
-        tmp = fmtest.gen_tmp(directory=tmpdir)
+    def test_normal_unbuffered_usage(self, gen_tmp, tmpdir):
+        tmp = gen_tmp(directory=tmpdir)
         ruflog = fmruffus.RuffusLog('foo', tmp, buffered=False)
         ruflog.write("Test")
         # Check filesize non zero
         assert Path(tmp).read_text()
 
-    def test_header(self, tmpdir):
-        tmp = fmtest.gen_tmp(directory=tmpdir)
+    def test_header(self, gen_tmp, tmpdir):
+        tmp = gen_tmp(directory=tmpdir)
         ruflog = fmruffus.RuffusLog('foo', tmp, buffered=False)
         head = "HEADER"
         ruflog.write_header(head)
@@ -67,8 +67,8 @@ class TestRuffusLog(object):
         assert '=' * 80 in lines[0]
         assert head in lines[1]
 
-    def test_normal_buffered_usage(self, tmpdir):
-        tmp = fmtest.gen_tmp(directory=tmpdir)
+    def test_normal_buffered_usage(self, gen_tmp, tmpdir):
+        tmp = gen_tmp(directory=tmpdir)
         ruflog = fmruffus.RuffusLog('foo', tmp, buffered=True)
         ruflog.write("bar")
         with open(tmp, 'r') as f:
@@ -82,7 +82,8 @@ class TestRuffusLog(object):
 
 @pytest.fixture(
         params=fmclass.list_classes(
-            'fmbiopy.fmruffus',
+            'fmruffus',
+            'fmbiopy',
             exclude=['RuffusLog', 'RuffusTask']))
 def task(request, instance_of):
     task_class = request.param
@@ -126,7 +127,7 @@ class TestAllTasks(object):
 
 
 def test_apply_symlink_produces_expected_output(full_dir):
-    symlink_all = fmruffus.apply(fmruffus.Symlink)
+    symlink_all = fmruffus.apply(fmruffus.SymlinkInputs)
     inputs = full_dir.glob('*')
     output_ids = ['tar.x', 'sar.x', 'lar.x']
     outputs = [full_dir / out for out in output_ids]

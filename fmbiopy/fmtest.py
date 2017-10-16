@@ -9,23 +9,18 @@ import tempfile
 from typing import Callable
 from typing import Dict
 from typing import Generator
-from typing import Iterator
 from typing import List
-from typing import Tuple
-from typing import Type
-from typing import TypeVar
+import uuid
 
 import py
 import pytest
 
 import fmbiopy.fmpaths as fmpaths
 
-
-def gen_tmp(
-        empty: bool = True,
-        suffix: str = '',
-        directory: Path = Path('sandbox')) -> Path:
+@pytest.fixture(scope='session')
+def gen_tmp(sandbox: Path)-> Callable[[bool, str, Path], Path]:
     """Generate a named temporary file.
+    imported = importlib.import_module(module, package)
 
     Warning: These files need to be deleted manually if a non-temporary
     directory is used.
@@ -44,21 +39,33 @@ def gen_tmp(
     -------
     The path to the created temporary file
     """
+    def _gen_tmp(
+            empty: bool = True,
+            suffix: str = '',
+            directory: Path = sandbox)-> Path:
 
-    tmpfile = Path(tempfile.NamedTemporaryFile(
-        delete=False, dir=directory, suffix=suffix).name)
+        tmpfile = Path(tempfile.NamedTemporaryFile(
+            delete=False, dir=str(directory), suffix=suffix).name)
 
-    if not empty:
-        with tmpfile.open('w') as f:
-            f.write('foo')
-    else:
-        with tmpfile.open('w') as f:
-            f.write('')
-    return tmpfile
+        if not empty:
+            with tmpfile.open('w') as f:
+                f.write('foo')
+        else:
+            with tmpfile.open('w') as f:
+                f.write('')
+        return tmpfile
+
+    return _gen_tmp
+
+
+@pytest.fixture(scope='session')
+def sandbox(testdir)-> Path:
+    """Path to the sandbox directory"""
+    return testdir / 'sandbox'
 
 
 @pytest.fixture(scope='session', autouse=True)
-def load_sandbox() -> Generator:
+def load_sandbox(sandbox, testdat) -> Generator:
     """Copy all test data files to the sandbox for the testing session
 
     Yields
@@ -73,24 +80,44 @@ def load_sandbox() -> Generator:
         This function is used by `shutil.copytree`"""
         return '.git'
 
-    sandbox = Path('sandbox')
     if sandbox.exists():
-        shutil.rmtree(sandbox.name)
+        shutil.rmtree(str(sandbox))
 
-    shutil.copytree('testdat', 'sandbox', ignore=_ignore_git)
+    shutil.copytree(str(testdat), str(sandbox), ignore=_ignore_git)
+    sandbox.joinpath('__init__.py').touch()
     yield sandbox
     if sandbox.exists():
-        shutil.rmtree(sandbox.name)
-
+        shutil.rmtree(str(sandbox))
 
 @pytest.fixture()
-def sandbox():
-    """Path to the sandbox directory"""
-    return Path('sandbox')
+def unique_dir(sandbox):
+    """Create a directory in sandbox with a unique name"""
+    path = sandbox.joinpath(uuid.uuid4().hex)
+    path.mkdir()
+    yield path
+    shutil.rmtree(str(path))
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
+def testdir()-> Path:
+    """Path to the test directory"""
+    possible = fmpaths.as_path(['test', 'tests', '.'])
+    for poss in possible:
+        if poss.exists():
+            return poss
+    raise OSError('Unsupported test directory structure')
+
+
+
+@pytest.fixture(scope='session')
+def testdat(testdir)-> Path:
+    """Path to the testdat directory"""
+    return testdir / 'testdat'
+
+
+@pytest.fixture(scope='session')
 def example_file(
+        gen_tmp: Callable[[bool, str, Path], Path],
         dat: Dict[str, Dict[str, List[str]]])-> Callable[[str, str], Path]:
     """Return an example file generating fixture function"""
 
@@ -128,7 +155,8 @@ def example_file(
 
 @pytest.fixture(autouse=True)
 def tmpdir(tmpdir: py.path.local)-> Path:
-    return Path(tmpdir)
+    """`pathlib.Path` version of `pytest` fixture"""
+    return Path(str(tmpdir))
 
 
 @pytest.fixture()
@@ -160,7 +188,7 @@ def full_dir(tmpdir: py.path.local)-> Path:
 
 
 @pytest.fixture(scope='session')
-def dat() -> Dict[str, Dict[str, List[Path]]]:
+def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
     """Create a dictionary of test data
 
     Assumes test directory is structured such that all test data is stored in
@@ -174,7 +202,7 @@ def dat() -> Dict[str, Dict[str, List[Path]]]:
     A two level nested dictionary
     """
     # List contents of top level directories
-    subdirs = fmpaths.listdirs(Path('sandbox'))
+    subdirs = fmpaths.listdirs(sandbox)
     dat = {}
     for d in subdirs:
         dat[d.name] = fmpaths.as_dict(d)

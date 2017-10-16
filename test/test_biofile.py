@@ -13,7 +13,7 @@ import fmbiopy.fmpaths as fmpaths
 InstanceMap = Callable[[Type[biofile.Biofile], str], biofile.Biofile]
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def instance_of(
         example_file: Callable[[str, str], Path]
         )-> InstanceMap:
@@ -28,9 +28,11 @@ def instance_of(
 
 
 @pytest.fixture(
+        scope='session',
         params=fmclass.list_classes(
-            'fmbiopy.biofile',
-            of_type='Biofile'))
+            'biofile',
+            package='fmbiopy',
+            of_type=['Biofile']))
 def biofiles(request):
     return request.param
 
