@@ -182,6 +182,7 @@ class RuffusTask(object):
                  log_results: bool = True,
                  param: Sequence[str] = [''],
                  run_on_init: bool = True) -> None:
+
         # Store parameters
         if isinstance(input_files, str):
             self._input_files: Sequence[str] = [input_files]
@@ -194,14 +195,37 @@ class RuffusTask(object):
         self._log_results = log_results
         self._param = param
 
-        # Init attributes
+        # Initialize attributes
+        self._init_attributes()
 
+        # Check inputs
+        self._check_inputs()
+
+        # Create output directories if necessary
+        self._mkdirs()
+
+        # Construct command
+        self._construct_command()
+
+        # Run command
+        if run_on_init:
+            self._run_command()
+
+    def _init_attributes(self):
+        """Initialize empty attributes"""
+        # Bash command as list
+        self._command: List = []
+
+        # Returns from command(s)
         self.exit_code: List[int] = []
         self.stdout: List[str] = []
         self.stderr: List[str] = []
 
-        # Bash command as list
-        self._command: List = []
+        # Extra output files which are not specified by the user.
+        self._extra_outputs: List[str] = self._add_extra_outputs()
+
+        # These attributes may or may not be set by subclasses:
+        # -----------------------------------------------------
 
         # If True, command run directly in shell
         if not hasattr(self, '_shell'):
@@ -217,22 +241,27 @@ class RuffusTask(object):
         if not hasattr(self, '_inplace'):
             self._inplace: bool = False
 
-        # Extra output files produced which are not specified by the user.
-        self._extra_outputs: List[str] = []
-        self._add_extra_outputs()
-        self._construct_command()
+    def _mkdirs(self)-> None:
+        """Create output directories if necessary"""
+        output_dirs = [Path(f).parent for f in self._output_files]
 
-        if run_on_init:
-            self._run_command()
+        for d in output_dirs:
+            d.mkdir(parents=True, exist_ok=True)
+
+    def _check_inputs(self)-> None:
+        """Check that input and output files are valid"""
+        for inp in self._input_files:
+            if inp in self._output_files:
+                raise OverwriteError(Path(inp))
 
 
     def _construct_command(self)-> None:
         """Subclasses construct their own tasks"""
         pass
 
-    def _add_extra_outputs(self) -> None:
+    def _add_extra_outputs(self) -> List[str]:
         """Add additional non-specified outputs to the output file list"""
-        pass
+        return None
 
     def _run_command(self)-> None:
         """Run a command set with `_construct_command`"""
@@ -345,14 +374,13 @@ class PairedBowtie2Align(RuffusTask):
         self._shell = True
         super().__init__(*args, **kwargs)
 
-    def _add_extra_outputs(self) -> None:
+    def _add_extra_outputs(self) -> List[str]:
         """Add the .bt2 and .bai files to the output file list"""
         prefix = Path(self._input_files[0]).stem
         bowtie2_indices = fmpaths.get_bowtie2_indices(prefix)
         bai_file = '.'.join([self._output_files[0], 'bai'])
 
-        self._extra_outputs = fmlist.flatten([
-                self._output_files, bowtie2_indices, bai_file])
+        return fmlist.flatten([self._output_files, bowtie2_indices, bai_file])
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
@@ -384,8 +412,10 @@ class SymlinkInputs(RuffusTask):
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
+        import pytest
+        pytest.set_trace()
         self._command = fmlist.flatten([
-            'ln', '-s', self._input_files, self._output_files])
+            'ln', '-sf', self._input_files, self._output_files])
 
 
 """Type variable for a function with same inputs and outputs as a RuffusTask"""
@@ -417,3 +447,18 @@ def apply(task: Type[RuffusTask])-> TaskFunction:
             task([inp], [out], *args, **kwargs)
 
     return _apply_task
+
+
+class OverwriteError(Exception):
+    """Raised when a task is asked to overwrite its input
+
+    Parameters
+    ----------
+    input_file
+        The file in question
+    """
+    def __init__(self, input_file: Path)-> None:
+        self.msg = ' '.join([
+                "Input and output filenames cannot be the same:",
+                str(input_file)])
+        super().__init__(self.msg)
