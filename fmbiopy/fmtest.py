@@ -63,6 +63,16 @@ def sandbox(testdir)-> Path:
     """Path to the sandbox directory"""
     return testdir / 'sandbox'
 
+@pytest.fixture(scope='session')
+def small(sandbox)-> Path:
+    """Path to the 'small' subdirectory of sandbox"""
+    return sandbox / 'small'
+
+@pytest.fixture(scope='session')
+def tiny(sandbox)-> Path:
+    """Path to the 'small' subdirectory of sandbox"""
+    return sandbox / 'tiny'
+
 
 @pytest.fixture(scope='session', autouse=True)
 def load_sandbox(sandbox, testdat) -> Generator:
