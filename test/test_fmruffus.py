@@ -84,7 +84,7 @@ class TestRuffusLog(object):
         params=fmclass.list_classes(
             'fmruffus',
             'fmbiopy',
-            exclude=['RuffusLog', 'RuffusTask']))
+            exclude=['RuffusLog', 'RuffusTask', 'OverwriteError']))
 def task(request, instance_of):
     task_class = request.param
     ruffus_task = instance_of(task_class, 'tiny')
