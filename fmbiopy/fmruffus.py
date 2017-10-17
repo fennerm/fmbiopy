@@ -211,6 +211,11 @@ class RuffusTask(object):
         if run_on_init:
             self._run_command()
 
+    def _add_command(self, subcommand: Sequence[str])-> None:
+        """Append a command to the command list"""
+        self._command.append(fmlist.flatten(subcommand))
+
+
     def _init_attributes(self):
         """Initialize empty attributes"""
         # Bash command as list
@@ -223,6 +228,11 @@ class RuffusTask(object):
 
         # Extra output files which are not specified by the user.
         self._extra_outputs: List[str] = self._add_extra_outputs()
+
+        # Output directory
+        self._outdirs: List[str] = [Path(f).parent for f in self._output_files]
+        # Input directory
+        self._indirs: List[str] = [Path(f).parent for f in self._input_files]
 
         # These attributes may or may not be set by subclasses:
         # -----------------------------------------------------
@@ -318,8 +328,7 @@ class SamtoolsIndexFasta(RuffusTask):
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
-        self._command = fmlist.flatten([
-            'samtools', 'faidx', self._input_files])
+        self._add_command(['samtools', 'faidx', self._input_files])
 
 
 class Gunzip(RuffusTask):
@@ -334,8 +343,7 @@ class Gunzip(RuffusTask):
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
-        self._command = fmlist.flatten([
-            'gunzip', '-c', self._param, self._input_files, '>',
+        self._add_command(['gunzip', '-c', self._param, self._input_files, '>',
             self._output_files])
 
     def _cleanup(self)-> None:
@@ -355,7 +363,7 @@ class Gzip(RuffusTask):
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
-        self._command = fmlist.flatten([
+        self._add_command([
             'gzip', '-c', self._param, self._input_files, '>',
             self._output_files])
 
@@ -391,18 +399,20 @@ class PairedBowtie2Align(RuffusTask):
 
         # Index fasta first
         bowtie2_index = Path(fasta).stem
-        self._command.append(fmlist.flatten([
-            'bowtie2-build', fasta, bowtie2_index, '>', '/dev/null', '2>&1']))
+        self._add_command([
+            'bowtie2-build', fasta, bowtie2_index, '>', '/dev/null', '2>&1'])
+        # Move the indices to the assembly directory
+        self._add_command(['mv', '*.bt2', self._indirs[0]])
 
         #  Run Bowtie2 and pipe the output to a sorted bam file
-        self._command.append(fmlist.flatten([
+        self._add_command([
             'bowtie2', '-1', fwd_fastq, '-2', rev_fastq, '-x', bowtie2_index,
             '|', 'samtools', 'view', '-bS', '-', '|', 'samtools', 'sort',
-            '-f', '-', output_bam]))
+            '-f', '-', output_bam])
 
         # Index the bam file
-        self._command.append(fmlist.flatten([
-            'samtools', 'index', output_bam, '/dev/null', '2>&1']))
+        self._add_command([
+            'samtools', 'index', output_bam, '/dev/null', '2>&1'])
 
 
 class SymlinkInputs(RuffusTask):
@@ -412,9 +422,7 @@ class SymlinkInputs(RuffusTask):
 
     def _construct_command(self) -> None:
         """Construct the bash command"""
-        import pytest
-        pytest.set_trace()
-        self._command = fmlist.flatten([
+        self._add_command([
             'ln', '-sf', self._input_files, self._output_files])
 
 
