@@ -1,5 +1,7 @@
 """ Classes and functions for use in Ruffus pipelines
 
+        cat library/*/*.fna > input-sequences.fna
+
 Ruffus: http://www.ruffus.org.uk/
 """
 
@@ -37,6 +39,7 @@ from fmbiopy.fmsystem import (
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
 
 
+
 class RuffusLog(object):
     """A logger/mutex pair used for logging in Ruffus pipelines
 
@@ -61,6 +64,8 @@ class RuffusLog(object):
     buffered
         If True, the `write` statements are appended to the buffer, but nothing
         is logged until the buffer is `flush`ed.
+    overwrite
+        If True, logfile will be overwritten if it already exists
 
     Attributes
     ----------
@@ -78,7 +83,8 @@ class RuffusLog(object):
             formatter: str = DEFAULT_LOG_FORMAT,
             delay: bool = True,
             level: int = DEBUG,
-            buffered: bool = True) -> None:
+            buffered: bool = True,
+            overwrite: bool = True) -> None:
 
         self.config = {'file_name': str(location),
                        'formatter': formatter,
@@ -91,6 +97,11 @@ class RuffusLog(object):
 
         if not location.parent.exists():
             raise FileNotFoundError('Parent directory of logfile doesnt exist')
+
+        # Overwrite logfile if it already exists
+        if overwrite:
+            if location.exists():
+                location.unlink()
 
         self.log, self.mutex = make_shared_logger_and_proxy(
                 setup_std_shared_logger, name, self.config)
@@ -315,6 +326,10 @@ class RuffusTask(object):
         for d in self._outdirs:
             d.mkdir(parents=True, exist_ok=True)
 
+    def _post_task(self)-> None:
+        """Commands to be run after `_run`"""
+        pass
+
     def _run(self)-> None:
         """Run a command set with `_build`"""
         try:
@@ -346,6 +361,8 @@ class RuffusTask(object):
 
             if self._inplace:
                 remove_all(self._input_paths, silent=True)
+
+            self._post_task()
 
         except Exception:
             self._cleanup()
@@ -420,11 +437,6 @@ class PairedBowtie2Align(RuffusTask):
         self._shell = True
         super().__init__(*args, **kwargs)
 
-        # Unpack parameters
-        self._assembly = self._input_paths[0]
-        self._fwd_reads = self._input_paths[1]
-        self._rev_reads = self._input_paths[2]
-        self._output_bam = self._output_paths[0]
 
     def _add_extra_outputs(self) -> List[Path]:
         """Add the .bt2 and .bai files to the output file list"""
@@ -463,17 +475,88 @@ class SymlinkInputs(RuffusTask):
     input_type = ['ANY']
     output_type = ['SAME']
 
-    def _build(self) -> None:
+    def _build(self)-> None:
         """Construct the bash command"""
         self._add_command([
             'ln', '-sf', self._input_files, self._output_files])
+
+
+class BuildCentrifugeDB(RuffusTask):
+    """Build a custom centrifuge database"""
+    def __init__(self, *args, **kwargs)-> None:
+        self._shell = True
+        super().__init__(*args, **kwargs)
+
+    def _add_extra_outputs(self)-> List[Path]:
+        """Add the library, taxonomy and SeqID2Taxmap files to extra outputs"""
+        # The map from seqid2taxid
+        self._seqid2taxid = self._outdirs[0].joinpath('seqid2taxid.map')
+
+        # The index files
+        centrifuge_idx = [
+                ''.join([self._output_files[0], '.', i, '.cf'])
+                for i in ['1', '2', '3']]
+
+        return flatten([self._seqid2taxid, centrifuge_idx])
+
+    def _build(self)-> None:
+        """Construct the bash command"""
+        self._taxonomy_dir = self._outdirs[0].joinpath('taxonomy')
+        self._library_dir = self._outdirs[0].joinpath('library')
+
+        # Download the complete NCBI taxonomy
+        self._add_command([
+            "centrifuge-download", "-o", str(self._taxonomy_dir), "taxonomy"])
+
+        # Download all complete Archaeal, Bacterial, Viral, Fungal, Protozoan
+        # and Plant genomes
+        self._add_command([
+            "centrifuge-download", "-o", str(self._library_dir), "-m", "-d",
+            "archaea,bacteria,viral,fungi,protozoa,plant", "refseq", ">",
+            str(self._seqid2taxid)])
+
+        # Download human reference sequence
+        self._add_command([
+            "centrifuge-download", "-o", str(self._library_dir), "-d",
+            "vertebrate_mammalian", "-a", "Chromosome", "-t", 9606, "-c",
+            "reference_genome", ">>", str(self._seqid2taxid)])
+
+        # Concatenate the downloaded sequences
+        self._concat_seqs = self._outdirs[0].joinpath("catseq.fna")
+        self._add_command([
+            "cat", str(self._library_dir / '*' / '*.fna'), ">",
+            str(self._concat_seqs)])
+
+        # Build the database
+        self._add_command([
+            "centrifuge-build", "--conversion-table", str(self._seqid2taxid),
+            "--taxonomy-tree", str(self._taxonomy_dir / 'nodes.dmp'), "--name-table",
+            str(self._taxonomy_dir / 'names.dmp'), str(self._concat_seqs),
+            self._output_files[0]])
+
+    def _post_task(self)-> None:
+        """Cleanup unnecessary large files"""
+
+        # Be as explicit as possible to avoid accidental deletions
+        self._concat_seqs.unlink()
+        remove_all(self._taxonomy_dir.glob('*.dmp'))
+        remove_all(self._library_dir.glob('*/*.fna'))
+
+        combined_contents = list(self._taxonomy_dir.glob('*')) + \
+                list(self._library_dir.glob('*'))
+
+        for f in combined_contents:
+            try:
+                f.rmdir()
+            except OSError:
+                pass
 
 
 """Type variable for a function with same inputs and outputs as a RuffusTask"""
 TaskFunction = Callable[[Sequence[str], Sequence[str], Any], None]
 
 
-def apply(task: Type[RuffusTask])-> TaskFunction:
+def apply_(task: Type[RuffusTask])-> TaskFunction:
     """Return function which applies a `RuffusTask` to multiple inputs
 
     All extra parameters are passed to `task`
@@ -498,3 +581,4 @@ def apply(task: Type[RuffusTask])-> TaskFunction:
             task([inp], [out], *args, **kwargs)
 
     return _apply_task
+

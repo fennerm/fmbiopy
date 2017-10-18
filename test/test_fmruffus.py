@@ -4,7 +4,11 @@ Ruffus: http://www.ruffus.org.uk/
 """
 
 from pathlib import Path
-import pytest
+from pytest import (
+        fixture,
+        mark,
+        raises,
+        )
 
 from fmbiopy.fmclass import list_classes
 from fmbiopy.fmlist import flatten
@@ -13,10 +17,14 @@ from fmbiopy.fmpaths import (
         as_paths,
         as_strs,
         )
-from fmbiopy.fmruffus import *
+from fmbiopy.fmruffus import (
+        apply_,
+        RuffusLog,
+        SymlinkInputs,
+        )
 
 
-@pytest.fixture(scope='module')
+@fixture(scope='module')
 def instance_of(example_file):
     """Return example RuffusTask instances"""
     def _make_test_instance(cls, size):
@@ -48,55 +56,88 @@ def instance_of(example_file):
     return _make_test_instance
 
 
+
 class TestRuffusLog(object):
-    def test_non_existant_path(self):
-        with pytest.raises(FileNotFoundError):
-            RuffusLog("foo", Path("bar/bar.log"))
+    @fixture()
+    def unbuffered_ruflog(self, nonexistant_path):
+        return RuffusLog(
+                name='foo',
+                location=nonexistant_path,
+                buffered=False,
+                overwrite=True)
 
-    def test_normal_unbuffered_usage(self, gen_tmp, tmpdir):
-        tmp = gen_tmp(directory=tmpdir)
-        ruflog = RuffusLog('foo', tmp, buffered=False)
+    def filename(self, ruflog):
+        return Path(ruflog.config['file_name'])
+
+    def test_possible_path_inputs(self, poss_paths):
+        if poss_paths[0] == 'nonexistant_parent':
+            with raises(FileNotFoundError):
+                RuffusLog('foo', poss_paths[1])
+        elif poss_paths[0] == 'tmpdir':
+            with raises(IsADirectoryError):
+                RuffusLog('foo', poss_paths[1])
+        else:
+            RuffusLog('foo', poss_paths[1])
+
+
+    @mark.parametrize('buffered', [True, False])
+    @mark.parametrize('overwrite', [True, False])
+    def test_optional_parameters(self, buffered, overwrite, nonexistant_path):
+        ruflog = RuffusLog(
+                name='foo',
+                location=nonexistant_path,
+                buffered=buffered,
+                overwrite=overwrite)
         ruflog.write("Test")
-        # Check filesize non zero
-        assert Path(tmp).read_text()
 
-    def test_header(self, gen_tmp, tmpdir):
-        tmp = gen_tmp(directory=tmpdir)
-        ruflog = RuffusLog('foo', tmp, buffered=False)
+        if buffered:
+            assert not nonexistant_path.exists()
+            ruflog.flush()
+            content = nonexistant_path.read_text()
+            assert content
+        else:
+            content = nonexistant_path.read_text()
+            assert content
+
+        ruflog2 = RuffusLog(
+                name='foo',
+                location=nonexistant_path,
+                buffered=buffered,
+                overwrite=overwrite)
+        if overwrite:
+            assert not nonexistant_path.exists()
+        else:
+            content = nonexistant_path.read_text()
+            assert content
+
+    @mark.parametrize('subheader', [True, False])
+    def test_header(self, subheader, unbuffered_ruflog):
         head = "HEADER"
-        ruflog.write_header(head)
-        with open(tmp, 'r') as f:
-            lines = [line for line in f][:2]
-        assert '=' * 80 in lines[0]
+        unbuffered_ruflog.write_header(head, subheader)
+        location = self.filename(unbuffered_ruflog)
+        with location.open('r') as f:
+            lines = [line for line in f][:3]
         assert head in lines[1]
-
-    def test_normal_buffered_usage(self, gen_tmp, tmpdir):
-        tmp = gen_tmp(directory=tmpdir)
-        ruflog = RuffusLog('foo', tmp, buffered=True)
-        ruflog.write("bar")
-        with open(tmp, 'r') as f:
-            lines = [line for line in f][:2]
-        assert not lines
-        ruflog.flush()
-        with open(tmp, 'r') as f:
-            lines = [line for line in f][:2]
-        assert lines
-
-
-@pytest.fixture(
-        params=list_classes(
-            'fmruffus',
-            'fmbiopy',
-            of_type=['RuffusTask'],
-            exclude=['RuffusLog', 'RuffusTask']))
-def task(request, instance_of):
-    task_class = request.param
-    ruffus_task = instance_of(task_class, 'tiny')
-    yield ruffus_task
-    ruffus_task._cleanup()
+        if subheader:
+            assert '-' * 80 in lines[0]
+            assert '-' * 80 in lines[2]
+        else:
+            assert '=' * 80 in lines[0]
+            assert '=' * 80 in lines[2]
 
 
 class TestAllTasks(object):
+    @fixture(
+            params=list_classes(
+                'fmruffus',
+                'fmbiopy',
+                of_type=['RuffusTask'],
+                exclude=['RuffusLog', 'RuffusTask', 'BuildCentrifugeDB']))
+    def task(self, request, instance_of):
+        task_class = request.param
+        ruffus_task = instance_of(task_class, 'tiny')
+        yield ruffus_task
+        ruffus_task._cleanup()
 
     def test_command_not_none(self, task):
         assert task._command is not None
@@ -126,7 +167,7 @@ class TestAllTasks(object):
 
 
 def test_apply_symlink_produces_expected_output(full_dir):
-    symlink_all = apply(SymlinkInputs)
+    symlink_all = apply_(SymlinkInputs)
     inputs = full_dir.glob('*')
     output_ids = ['tar.x', 'sar.x', 'lar.x']
     outputs = [full_dir / out for out in output_ids]
