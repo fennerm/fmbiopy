@@ -14,20 +14,118 @@ from typing import (
         Dict,
         Iterator,
         List,
+        NamedTuple,
+        Tuple,
         )
 from uuid import uuid4
 
 from py import path
 from pytest import fixture
+from _pytest.fixtures import SubRequest
 
 from fmbiopy.fmpaths import (
+        add_suffix,
         as_dict,
         as_paths,
         listdirs,
         )
+from fmbiopy.fmsystem import (
+        remove_all,
+        silent_remove,
+        )
+
+"""The type of the gen_tmp fixture"""
+GenTmpType = Callable[[bool, str, Path], Path]
 
 @fixture(scope='session')
-def gen_tmp(sandbox: Path)-> Callable[[bool, str, Path], Path]:
+def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
+    """Create a dictionary of test data
+
+    Assumes test directory is structured such that all test data is stored in
+    the test/sandbox directory. test/sandbox can contain any number of
+    directories which can each also contain any number of subdirectories. Each
+    of these subdirectories contains a few test data files of the same type or
+    use case. `dat` represents this structure as a dictionary of dictionaries.
+
+    Returns
+    -------
+    A two level nested dictionary
+    """
+    # List contents of top level directories
+    subdirs = listdirs(sandbox)
+    dat = {}
+    for d in subdirs:
+        dat[d.name] = as_dict(d)
+    return dat
+
+
+@fixture()
+def double_suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+    """Generate a path with a two part suffix"""
+    path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo.bar')
+    yield path
+    silent_remove(path)
+
+
+@fixture()
+def empty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+    """Generate an empty but existing path"""
+    path = gen_tmp(directory=tmpdir, empty=True)
+    yield path
+    silent_remove(path)
+
+
+@fixture(scope='session')
+def example_file(
+        gen_tmp: GenTmpType,
+        dat: Dict[str, Dict[str, List[str]]])-> Callable[[str, str], Path]:
+    """Return an example file generating fixture function"""
+
+    def _get_example_file(filetype: str, size: str)-> Path:
+        """Return an example file of the requested filetype and size
+
+        Parameters
+        ----------
+        filetype
+            Name of a type of bioinformatics file
+        size : {'tiny', 'small'}
+            The approximate size of the output file. Tiny files have ~10
+            entries, small files have ~1000-10000.
+        """
+        if filetype == 'fasta':
+            outfile = dat[size]['assemblies'][0]
+        elif filetype in ['fastq', 'fwd_fastq']:
+            outfile = dat[size]['fwd_reads'][0]
+        elif filetype == 'rev_fastq':
+            outfile = dat[size]['rev_reads'][0]
+        elif filetype == 'fai':
+            outfile = dat[size]['faindices'][0]
+        elif filetype == 'sam':
+            outfile = dat[size]['sam'][0]
+        elif filetype == 'bam':
+            outfile = dat[size]['bam'][0]
+        elif filetype == 'gz':
+            outfile = dat[size]['zipped_fwd_reads'][0]
+        else:
+            return gen_tmp(empty=False, suffix='.foo')
+        return Path(outfile)
+
+    return _get_example_file
+
+
+@fixture()
+def full_dir(tmpdir: Path)-> Iterator[Path]:
+    """Create a temporary directory with some misc. temporary files"""
+    paths = [tmpdir / name for name in ['a.x', 'b.y', 'b.x']]
+    for p in paths:
+        p.touch()
+    yield tmpdir
+    for p in paths:
+        p.unlink()
+
+
+@fixture(scope='session')
+def gen_tmp(sandbox: Path)-> GenTmpType:
     """Generate a named temporary file.
     imported = importlib.import_module(module, package)
 
@@ -67,22 +165,6 @@ def gen_tmp(sandbox: Path)-> Callable[[bool, str, Path], Path]:
     return _gen_tmp
 
 
-@fixture(scope='session')
-def sandbox(testdir: Path)-> Path:
-    """Path to the sandbox directory"""
-    return testdir / 'sandbox'
-
-@fixture(scope='session')
-def small(sandbox: Path)-> Path:
-    """Path to the 'small' subdirectory of sandbox"""
-    return sandbox / 'small'
-
-@fixture(scope='session')
-def tiny(sandbox: Path)-> Path:
-    """Path to the 'small' subdirectory of sandbox"""
-    return sandbox / 'tiny'
-
-
 @fixture(scope='session', autouse=True)
 def load_sandbox(sandbox: Path, testdat: Path) -> Iterator[Path]:
     """Copy all test data files to the sandbox for the testing session
@@ -108,78 +190,9 @@ def load_sandbox(sandbox: Path, testdat: Path) -> Iterator[Path]:
     if sandbox.exists():
         rmtree(str(sandbox))
 
-@fixture()
-def unique_dir(sandbox):
-    """Create a directory in sandbox with a unique name"""
-    path = sandbox.joinpath(uuid4().hex)
-    path.mkdir()
-    yield path
-    rmtree(str(path))
-
-
-@fixture(scope='session')
-def testdir()-> Path:
-    """Path to the test directory"""
-    possible = as_paths(['test', 'tests', '.'])
-    for poss in possible:
-        if poss.exists():
-            return poss
-    raise OSError('Unsupported test directory structure')
-
-
-
-@fixture(scope='session')
-def testdat(testdir)-> Path:
-    """Path to the testdat directory"""
-    return testdir / 'testdat'
-
-
-@fixture(scope='session')
-def example_file(
-        gen_tmp: Callable[[bool, str, Path], Path],
-        dat: Dict[str, Dict[str, List[str]]])-> Callable[[str, str], Path]:
-    """Return an example file generating fixture function"""
-
-    def _get_example_file(filetype: str, size: str)-> Path:
-        """Return an example file of the requested filetype and size
-
-        Parameters
-        ----------
-        filetype
-            Name of a type of bioinformatics file
-        size : {'tiny', 'small'}
-            The approximate size of the output file. Tiny files have ~10
-            entries, small files have ~1000-10000.
-        """
-        if filetype == 'fasta':
-            outfile = dat[size]['assemblies'][0]
-        elif filetype in ['fastq', 'fwd_fastq']:
-            outfile = dat[size]['fwd_reads'][0]
-        elif filetype == 'rev_fastq':
-            outfile = dat[size]['rev_reads'][0]
-        elif filetype == 'fai':
-            outfile = dat[size]['faindices'][0]
-        elif filetype == 'sam':
-            outfile = dat[size]['sam'][0]
-        elif filetype == 'bam':
-            outfile = dat[size]['bam'][0]
-        elif filetype == 'gz':
-            outfile = dat[size]['zipped_fwd_reads'][0]
-        else:
-            return gen_tmp(empty=False, suffix='.foo')
-        return Path(outfile)
-
-    return _get_example_file
-
-
-@fixture(autouse=True)
-def tmpdir(tmpdir: path.local)-> Path:
-    """`pathlib.Path` version of `pytest` fixture"""
-    return Path(str(tmpdir))
-
 
 @fixture()
-def nested_dir(tmpdir: Path)-> Path:
+def nested_dir(tmpdir: Path)-> Iterator[Path]:
     """Create a set of nested directories and files inside a temp directory
 
     Returns
@@ -194,35 +207,139 @@ def nested_dir(tmpdir: Path)-> Path:
         subdir_contents = [d / f for f in ['a.x', 'b.y']]
         for f in subdir_contents:
             f.open('a').close()
-    return Path(tmpdir)
+    yield tmpdir
+    for d in subdirs:
+        rmtree(d)
 
 
 @fixture()
-def full_dir(tmpdir: path.local)-> Path:
-    """Create a temporary directory with some misc. temporary files"""
-    paths = [tmpdir / name for name in ['a.x', 'b.y', 'b.x']]
-    for p in paths:
-        p.touch()
-    return tmpdir
+def nonempty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+    """Generate a nonempty path"""
+    path = gen_tmp(empty=False, directory=tmpdir)
+    yield path
+    silent_remove(path)
 
 
-@fixture(scope='session')
-def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
-    """Create a dictionary of test data
+@fixture()
+def nonexistant_parent(tmpdir: Path)-> Iterator[Path]:
+    """Generate a path for which the parent doesn't exist"""
+    path = tmpdir.joinpath(randstr()).joinpath(randstr())
+    yield path
+    silent_remove(path)
 
-    Assumes test directory is structured such that all test data is stored in
-    the test/sandbox directory. test/sandbox can contain any number of
-    directories which can each also contain any number of subdirectories. Each
-    of these subdirectories contains a few test data files of the same type or
-    use case. `dat` represents this structure as a dictionary of dictionaries.
+
+@fixture()
+def nonexistant_path(tmpdir: Path)-> Path:
+    """Generate a nonexistant path"""
+    path = tmpdir.joinpath(randstr())
+    yield path
+    silent_remove(path)
+
+
+@fixture(params=[
+    'empty_path', 'empty_path', 'nonexistant_path', 'nonempty_path',
+    'nonexistant_parent', 'double_suffixed_path', 'symlink', 'tmpdir'])
+def poss_paths(
+        request: SubRequest,
+        empty_path: Path,
+        nonexistant_path: Path,
+        nonexistant_parent: Path,
+        nonempty_path: Path,
+        suffixed_path: Path,
+        double_suffixed_path: Path,
+        symlink: Path,
+        tmpdir: Path,
+        )-> Tuple[str, Path]:
+    """Generate various kinds of possible valid `Path`s
 
     Returns
     -------
-    A two level nested dictionary
+    A tuple of the form (type, value) where type is the param of this fixture
     """
-    # List contents of top level directories
-    subdirs = listdirs(sandbox)
-    dat = {}
-    for d in subdirs:
-        dat[d.name] = as_dict(d)
-    return dat
+    return (request.param, eval(request.param))
+
+
+""" Type variable for `randpath`"""
+RandPathType = Callable[[], Path]
+
+
+@fixture()
+def randpath(tmpdir: Path)-> RandPathType:
+    """Return a randomly generated nonexistant path"""
+    def _gen_randpath()-> Path:
+        return tmpdir.joinpath(randstr())
+    return _gen_randpath
+
+def randstr()-> str:
+    """Generate a unique random string"""
+    return uuid4().hex
+
+
+@fixture(scope='session')
+def sandbox(testdir: Path)-> Path:
+    """Path to the sandbox directory"""
+    return testdir / 'sandbox'
+
+
+@fixture(scope='session')
+def small(sandbox: Path)-> Path:
+    """Path to the 'small' subdirectory of sandbox"""
+    return sandbox / 'small'
+
+
+@fixture()
+def symlink(
+        gen_tmp: GenTmpType,
+        randpath: RandPathType,
+        tmpdir: Path,
+        )-> Iterator[Path]:
+    target= gen_tmp(empty=False, directory=tmpdir)
+    path = randpath()
+    path.symlink_to(target)
+    yield path
+    remove_all([target, path], silent=True)
+
+
+@fixture()
+def suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+    """Generate a nonempty path with a suffix"""
+    path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
+    yield path
+    silent_remove(path)
+
+
+@fixture(scope='session')
+def testdat(testdir)-> Path:
+    """Path to the testdat directory"""
+    return testdir / 'testdat'
+
+
+@fixture(scope='session')
+def testdir()-> Path:
+    """Path to the test directory"""
+    possible = as_paths(['test', 'tests', '.'])
+    for poss in possible:
+        if poss.exists():
+            return poss
+    raise OSError('Unsupported test directory structure')
+
+
+@fixture(scope='session')
+def tiny(sandbox: Path)-> Path:
+    """Path to the 'small' subdirectory of sandbox"""
+    return sandbox / 'tiny'
+
+
+@fixture(autouse=True)
+def tmpdir(tmpdir: path.local)-> Path:
+    """`pathlib.Path` version of `pytest` fixture"""
+    return Path(str(tmpdir)).resolve()
+
+
+@fixture()
+def unique_dir(sandbox: Path)-> Iterator[Path]:
+    """Create a directory in sandbox with a unique name"""
+    path = sandbox.joinpath(randstr())
+    path.mkdir()
+    yield path
+    rmtree(str(path))
