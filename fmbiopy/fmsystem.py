@@ -3,32 +3,35 @@
 Moving/creating files, running commands etc.
 """
 
-import collections
+from collections import Iterable as Iterable_
 from contextlib import contextmanager
-import errno
-import logging
-import os
+from errno import ENOENT
+from logging import getLogger
+from os import chdir
 from pathlib import Path
-import subprocess
-from typing import Any
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Sequence
-from typing import Tuple
+from subprocess import (
+        Popen,
+        PIPE,
+        )
+from typing import (
+        Any,
+        Callable,
+        Dict,
+        Generator,
+        Iterable,
+        Sequence,
+        Tuple,
+        )
 
-import fmbiopy.fmpaths as fmpaths
-
-class IncorrectCommandFormatError(Exception):
-    """Raised when a command argument cannot be parsed"""
+from fmbiopy.fmlist import exclude_blank
+from fmbiopy.fmpaths import as_strs
 
 
 def run_command(
-        command: Sequence,
+        command: Sequence[str],
         logger_id: str = '',
-        log_stdout: bool = True,
-        log_stderr: bool = True,
-        mutex_log: 'fmruffus.RuffusLog' = None,  # type: ignore
+        log: Tuple[bool, bool] = (True, True),
+        mutex_logger: 'fmbiopy.fmruffus.RuffusLog' = None,  # type: ignore
         shell: bool = False) -> Tuple[int, str, str]:
     """Run a bash command with logging support
 
@@ -39,9 +42,10 @@ def run_command(
     logger_id
         Name to use for logging handler (ignored if mutex_log given).
         By default, root logger is used.
-    log_stdout, log_stderr
-        Should standard out and standard error be logged?
-    mutex_log
+    log
+        If log[0] is True, stdout will be logged. If log[1] is True, stderr
+        will be logged
+    mutex_logger
         If running in parallel, a RuffusLog instance can be passed to log
         output with a mutex lock.
     shell
@@ -53,55 +57,37 @@ def run_command(
     A triple of the form (return code, standard out, standard error)
     """
 
+    command = exclude_blank(command)
+
     if shell:
         # If run in shell, command needs to be a string, not a list
-        if not isinstance(command, str):
-            command = list(filter(None, command))
-            command = ' '.join(command)
+        command = ' '.join(command)
 
-        process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,  # UTF-8 encoding specification
-                shell=shell)
+    process = Popen(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,  # UTF-8 encoding specification
+            shell=shell)
+
+    output = process.communicate()
+
+    # Select a logging function
+    if mutex_logger:
+        write = mutex_logger.write
     else:
-        # If not run in shell, command needs to be a list
-        if isinstance(command, str):
-            command = command.split()
+        write = getLogger(logger_id).info
 
-        # Remove empty list items
-        command = list(filter(None, command))
+    # Write log
+    for out, l in zip(output, log):
+        if out and l:
+            write(out)
 
-        # Run the command
-        process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,  # UTF-8 encoding specification
-                shell=shell)
-
-    stdout, stderr = process.communicate()
-
-    # Log results
-    if stdout or stderr:
-        if mutex_log:
-            if log_stdout and stdout:
-                mutex_log.write(stdout)
-            if log_stderr and stderr:
-                mutex_log.write(stderr)
-        else:
-            logger = logging.getLogger(logger_id)
-            if log_stdout and stdout:
-                logger.info(stdout)
-            if log_stderr and stderr:
-                logger.info(stderr)
-
-    return (int(process.returncode), stdout, stderr)
+    return (int(process.returncode), output[0], output[1])
 
 
 @contextmanager
-def working_directory(directory: Path) -> Generator:
+def working_directory(directory: Path) -> Generator[Path, None, None]:
     """Change working directory context safely.
 
     Usage
@@ -112,28 +98,29 @@ def working_directory(directory: Path) -> Generator:
 
     owd = Path.cwd()
     try:
-        os.chdir(directory.name)
+        chdir(directory.name)
         yield directory
     finally:
-        os.chdir(owd.name)
+        chdir(owd.name)
 
 
-def remove_all(names: Sequence[Path], silent: bool = False)-> None:
+def remove_all(names: Iterable[Path], silent: bool = False)-> None:
     """Remove all files given as either a string or list"""
     if silent:
-        remove_func = silent_remove
+        remove_func: Callable[[Path], Any] = silent_remove
     else:
-        remove_func = Path.unlink   # type: ignore
+        remove_func = Path.unlink
 
-    if isinstance(names, collections.Iterable):
+    if isinstance(names, Iterable_):
         for name in names:
-            remove_func(name)  # type: ignore
+            if name:
+                remove_func(name)  # type: ignore
     else:
         remove_func(names)  # type: ignore
 
 
 @contextmanager
-def delete(paths: Sequence[Path]) -> Generator:
+def delete(paths: Iterable[Path]) -> Generator[None, None, None]:
     """Context manager for deletion of temporary files.
 
     Context used for making sure that files are deleted even if an attempted
@@ -156,12 +143,12 @@ def delete(paths: Sequence[Path]) -> Generator:
 
 def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
     """Run a command without logging results """
-    return run_command(command, log_stdout=False, log_stderr=False)
+    return run_command(command, log=(False, False))
 
 
-def concat(filenames: Sequence[Path], outpath: Path) -> bool:
+def concat(filenames: Iterable[Path], outpath: Path)-> bool:
     """Concatenate a list of files """
-    command = ' '.join(['cat', *fmpaths.as_str(filenames), '>', outpath.name])
+    command = ' '.join(['cat', *as_strs(filenames), '>', outpath.name])
     err_code = run_silently(command)[0]
     if err_code != 0:
         raise OSError("File concatenation failed")
@@ -170,16 +157,12 @@ def concat(filenames: Sequence[Path], outpath: Path) -> bool:
 
 def silent_remove(filename: Path) -> None:
     """Try to remove a file, ignore exception if doesn't exist """
-    try:
-        filename.unlink()
-    except OSError as err:
-        if err.errno != errno.ENOENT:
-            raise
-
-
-def dict_to_list(dictionary: Dict) -> List:
-    """Convert a dictionary to a flat list """
-    return [e for l in dictionary for e in l]
+    if filename is not None:
+        try:
+            filename.unlink()
+        except OSError as err:
+            if err.errno != ENOENT:
+                raise
 
 
 def parse_param_dict(param: Dict[str, str]) -> str:

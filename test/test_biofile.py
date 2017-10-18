@@ -1,25 +1,34 @@
 """Test fmbiopy.biofile"""
 
 from pathlib import Path
-import pytest
-from typing import Callable
-from typing import Type
+from typing import (
+        Callable,
+        Type,
+        )
 
-import fmbiopy.biofile as biofile
-import fmbiopy.fmclass as fmclass
-import fmbiopy.fmpaths as fmpaths
+from pytest import (
+        fixture,
+        raises,
+        )
+
+from fmbiopy.biofile import *
+from fmbiopy.fmclass import list_classes
+from fmbiopy.fmpaths import (
+        add_suffix,
+        as_paths,
+        )
 
 
-InstanceMap = Callable[[Type[biofile.Biofile], str], biofile.Biofile]
+InstanceMap = Callable[[Type[Biofile], str], Biofile]
 
 
-@pytest.fixture(scope='module')
+@fixture(scope='module')
 def instance_of(
         example_file: Callable[[str, str], Path]
         )-> InstanceMap:
     def _make_test_instance(
-            cls: Type[biofile.Biofile],
-            size: str)-> biofile.Biofile:
+            cls: Type[Biofile],
+            size: str)-> Biofile:
 
         input_example = example_file(cls.input_type, size)
 
@@ -27,9 +36,9 @@ def instance_of(
     return _make_test_instance
 
 
-@pytest.fixture(
+@fixture(
         scope='module',
-        params=fmclass.list_classes(
+        params=list_classes(
             'biofile',
             package='fmbiopy',
             of_type=['Biofile']))
@@ -37,26 +46,17 @@ def biofiles(request):
     return request.param
 
 
-@pytest.fixture(scope='module')
+@fixture(scope='module')
 def inst_biofiles(instance_of, biofiles):
     """Return instances of all Biofile types"""
     return instance_of(biofiles, 'tiny')
 
 
-# @pytest.fixture(
-#         params=fmclass.list_classes(
-#             'fmbiopy.biofile',
-#             of_type='Biofile'))
-# def groups(request, instance_of):
-#     biofile_class = request.param
-#     return instance_of(biofile_class)
-
-
 def test_type_to_class():
-    assert biofile.type_to_class('fastq') == biofile.Fastq
-    assert biofile.type_to_class('fasta') == biofile.Fasta
-    assert biofile.type_to_class('foo') == biofile.Biofile
-    assert not biofile.type_to_class(None)
+    assert type_to_class('fastq') == Fastq
+    assert type_to_class('fasta') == Fasta
+    assert type_to_class('foo') == Biofile
+    assert not type_to_class(None)
 
 
 class TestBiofile(object):
@@ -78,64 +78,64 @@ class TestBiofile(object):
         assert hasattr(inst_biofiles, 'gzipped')
 
     def test_empty_input_raises_value_err(self, biofiles):
-        with pytest.raises(TypeError):
+        with raises(TypeError):
             biofiles(Path(''))
 
     def test_undeclared_gzip_raises_gzip_error(self, dat):
-        with pytest.raises(biofile.GzipStatusError):
-            biofile.Biofile(dat['tiny']['zipped_fwd_reads'][0]).validate()
+        with raises(GzipStatusError):
+            Biofile(dat['tiny']['zipped_fwd_reads'][0]).validate()
 
     def test_list_input_raises_type_error(self, example_file, biofiles):
-        with pytest.raises(AttributeError):
+        with raises(AttributeError):
             biofiles([example_file(biofiles.input_type, 'tiny')])
 
     def test_if_files_dont_exist_raise_err(self):
-        with pytest.raises(FileNotFoundError):
-            biofile.Biofile(Path('i_dont_exist.fa')).validate()
+        with raises(FileNotFoundError):
+            Biofile(Path('i_dont_exist.fa')).validate()
 
     def test_empty_files_raises_err(self, dat):
-        bf = biofile.Biofile(dat['tiny']['empty_reads'][0])
-        with pytest.raises(biofile.EmptyFileError):
+        bf = Biofile(dat['tiny']['empty_reads'][0])
+        with raises(EmptyFileError):
             bf.validate()
 
     def test_possibly_empty_prevents_error(self, dat):
-        bf = biofile.Biofile(dat['tiny']['empty_reads'][0], possibly_empty=True)
+        bf = Biofile(dat['tiny']['empty_reads'][0], possibly_empty=True)
         assert bf.validate()
 
     def test_incorrect_extension_raises_extension_err(self, biofiles, dat):
         read_path = dat['tiny']['fwd_reads'][0]
-        incorrect_suffix = fmpaths.add_suffix(read_path, '.foobar')
+        incorrect_suffix = add_suffix(read_path, '.foobar')
 
         if biofiles.accepted_extensions != ['ANY']:
-            with pytest.raises(biofile.FileExtensionError):
+            with raises(FileExtensionError):
                 biofiles(incorrect_suffix)
 
 
-@pytest.fixture()
+@fixture()
 def diff_prefix(dat):
-    return biofile.BiofileGroup(dat['tiny']['diff_prefix'], 'fasta')
+    return BiofileGroup(dat['tiny']['diff_prefix'], 'fasta')
 
 
-@pytest.fixture()
+@fixture()
 def fwd_reads(dat):
-    return biofile.BiofileGroup(dat['tiny']['fwd_reads'], 'fastq')
+    return BiofileGroup(dat['tiny']['fwd_reads'], 'fastq')
 
 
-@pytest.fixture()
+@fixture()
 def rev_reads(dat):
-    return biofile.BiofileGroup(dat['tiny']['rev_reads'], 'fastq')
+    return BiofileGroup(dat['tiny']['rev_reads'], 'fastq')
 
 
-@pytest.fixture()
+@fixture()
 def assemblies(dat):
-    return biofile.BiofileGroup(dat['tiny']['assemblies'], 'fasta')
+    return BiofileGroup(dat['tiny']['assemblies'], 'fasta')
 
 
 class TestBiofileGroup(object):
 
     def test_empty_input_raises_value_err(self):
-        with pytest.raises(ValueError):
-            biofile.BiofileGroup([], filetype='fasta')
+        with raises(ValueError):
+            BiofileGroup([], filetype='fasta')
 
     def test_access_returns_path(self, dat, assemblies):
         fasta_paths = dat['tiny']['assemblies']
@@ -149,8 +149,8 @@ class TestBiofileGroup(object):
         assert actual == expect
 
     def test_single_path_input_raises_type_err(self):
-        with pytest.raises(TypeError):
-            biofile.BiofileGroup(Path('foo.fa'), filetype='fasta')
+        with raises(TypeError):
+            BiofileGroup(Path('foo.fa'), filetype='fasta')
 
     def test_biofilegroups_can_be_zipped(self, assemblies, fwd_reads):
         max_index = max(len(assemblies), len(fwd_reads))
@@ -159,20 +159,20 @@ class TestBiofileGroup(object):
             assert reads == fwd_reads[i]
 
     def test_length_nonexist_doesnt_raise_error(self):
-        paths = fmpaths.as_path(['foo.fa', 'bar.fa'])
-        len(biofile.BiofileGroup(paths, filetype='fasta'))
+        paths = as_paths(['foo.fa', 'bar.fa'])
+        len(BiofileGroup(paths, filetype='fasta'))
 
     def test_equality_operator(self, assemblies, diff_prefix):
         assert assemblies != diff_prefix
 
     def test_different_extensions_raises_value_err(self):
-        with pytest.raises(biofile.FileExtensionsNotSameError):
-            paths = fmpaths.as_path(['a.fa', 'b.fasta', 'c.fa'])
-            biofile.BiofileGroup(paths, filetype='fasta')
+        with raises(FileExtensionsNotSameError):
+            paths = as_paths(['a.fa', 'b.fasta', 'c.fa'])
+            BiofileGroup(paths, filetype='fasta')
 
     def test_optional_param_are_passed_to_biofile(self, dat):
-        with pytest.raises(biofile.GzipStatusError):
-            biofile.BiofileGroup(
+        with raises(GzipStatusError):
+            BiofileGroup(
                     dat['tiny']['fwd_reads'],
                     filetype='fastq',
                     gzipped=True)
@@ -180,12 +180,12 @@ class TestBiofileGroup(object):
 
 class TestMatchedPrefixGroup():
     def test_diff_prefixes_raise_err(self, diff_prefix, fwd_reads, rev_reads):
-        with pytest.raises(biofile.PrefixMatchError):
-            biofile.MatchedPrefixGroup([diff_prefix, fwd_reads, rev_reads])
+        with raises(PrefixMatchError):
+            MatchedPrefixGroup([diff_prefix, fwd_reads, rev_reads])
 
     def test_same_filename_raise_value_error(self, fwd_reads):
-        with pytest.raises(biofile.DuplicateFilegroupError):
-            biofile.MatchedPrefixGroup([fwd_reads, fwd_reads])
+        with raises(DuplicateFilegroupError):
+            MatchedPrefixGroup([fwd_reads, fwd_reads])
 
 
 # class TestBowtie2Index():

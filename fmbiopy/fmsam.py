@@ -1,9 +1,12 @@
 """Functions for manipulating Sam and Bam files"""
 
-import os
+from pathlib import Path
+
+from fmbiopy.fmpaths import is_empty
+from fmbiopy.fmsystem import run_command
 
 
-def sam_to_bam(sam: str, bam: str) -> None:
+def sam_to_bam(sam: Path, bam: Path)-> None:
     """Convert a .sam file to a sorted, indexed .bam file
 
     Parameters
@@ -15,16 +18,18 @@ def sam_to_bam(sam: str, bam: str) -> None:
     """
 
     # Convert to bam and sort
-    sam_to_bam_command = ('samtools view -bS ' + sam +
-                          ' | samtools sort -o ' + bam + ' -')
-    os.system(sam_to_bam_command)
+    sam_to_bam_command = [
+            'samtools', 'view', '-bS', str(sam), '|', 'samtools', 'sort', '-o',
+            str(bam), '-']
+
+    run_command(sam_to_bam_command, shell=True)
 
     # Samtools index
-    index_sam_command = ('samtools index ' + bam)
-    os.system(index_sam_command)
+    index_sam_command = ['samtools', 'index', str(bam)]
+    run_command(index_sam_command, shell=True)
 
     # Delete the sam file
-    if os.path.exists(bam):
-        os.remove(sam)
+    if bam.exists() and not is_empty(bam):
+        sam.unlink()
     else:
         raise OSError('sam_to_bam system command failed')

@@ -4,20 +4,29 @@ Pytest functions must be imported explicitely.
 """
 
 from pathlib import Path
-import shutil
-import tempfile
-from typing import Callable
-from typing import Dict
-from typing import Generator
-from typing import List
-import uuid
+from shutil import (
+        copytree,
+        rmtree,
+        )
+from tempfile import NamedTemporaryFile
+from typing import (
+        Callable,
+        Dict,
+        Iterator,
+        List,
+        )
+from uuid import uuid4
 
-import py
-import pytest
+from py import path
+from pytest import fixture
 
-import fmbiopy.fmpaths as fmpaths
+from fmbiopy.fmpaths import (
+        as_dict,
+        as_paths,
+        listdirs,
+        )
 
-@pytest.fixture(scope='session')
+@fixture(scope='session')
 def gen_tmp(sandbox: Path)-> Callable[[bool, str, Path], Path]:
     """Generate a named temporary file.
     imported = importlib.import_module(module, package)
@@ -44,7 +53,7 @@ def gen_tmp(sandbox: Path)-> Callable[[bool, str, Path], Path]:
             suffix: str = '',
             directory: Path = sandbox)-> Path:
 
-        tmpfile = Path(tempfile.NamedTemporaryFile(
+        tmpfile = Path(NamedTemporaryFile(
             delete=False, dir=str(directory), suffix=suffix).name)
 
         if not empty:
@@ -58,24 +67,24 @@ def gen_tmp(sandbox: Path)-> Callable[[bool, str, Path], Path]:
     return _gen_tmp
 
 
-@pytest.fixture(scope='session')
-def sandbox(testdir)-> Path:
+@fixture(scope='session')
+def sandbox(testdir: Path)-> Path:
     """Path to the sandbox directory"""
     return testdir / 'sandbox'
 
-@pytest.fixture(scope='session')
-def small(sandbox)-> Path:
+@fixture(scope='session')
+def small(sandbox: Path)-> Path:
     """Path to the 'small' subdirectory of sandbox"""
     return sandbox / 'small'
 
-@pytest.fixture(scope='session')
-def tiny(sandbox)-> Path:
+@fixture(scope='session')
+def tiny(sandbox: Path)-> Path:
     """Path to the 'small' subdirectory of sandbox"""
     return sandbox / 'tiny'
 
 
-@pytest.fixture(scope='session', autouse=True)
-def load_sandbox(sandbox, testdat) -> Generator:
+@fixture(scope='session', autouse=True)
+def load_sandbox(sandbox: Path, testdat: Path) -> Iterator[Path]:
     """Copy all test data files to the sandbox for the testing session
 
     Yields
@@ -87,31 +96,31 @@ def load_sandbox(sandbox, testdat) -> Generator:
     def _ignore_git(*args) -> str:  # pylint: disable=W0613
         """Copying the git directory is unnecessary so we ignore it
 
-        This function is used by `shutil.copytree`"""
+        This closure is used by `shutil.copytree`"""
         return '.git'
 
     if sandbox.exists():
-        shutil.rmtree(str(sandbox))
+        rmtree(str(sandbox))
 
-    shutil.copytree(str(testdat), str(sandbox), ignore=_ignore_git)
+    copytree(str(testdat), str(sandbox), ignore=_ignore_git)
     sandbox.joinpath('__init__.py').touch()
     yield sandbox
     if sandbox.exists():
-        shutil.rmtree(str(sandbox))
+        rmtree(str(sandbox))
 
-@pytest.fixture()
+@fixture()
 def unique_dir(sandbox):
     """Create a directory in sandbox with a unique name"""
-    path = sandbox.joinpath(uuid.uuid4().hex)
+    path = sandbox.joinpath(uuid4().hex)
     path.mkdir()
     yield path
-    shutil.rmtree(str(path))
+    rmtree(str(path))
 
 
-@pytest.fixture(scope='session')
+@fixture(scope='session')
 def testdir()-> Path:
     """Path to the test directory"""
-    possible = fmpaths.as_path(['test', 'tests', '.'])
+    possible = as_paths(['test', 'tests', '.'])
     for poss in possible:
         if poss.exists():
             return poss
@@ -119,13 +128,13 @@ def testdir()-> Path:
 
 
 
-@pytest.fixture(scope='session')
+@fixture(scope='session')
 def testdat(testdir)-> Path:
     """Path to the testdat directory"""
     return testdir / 'testdat'
 
 
-@pytest.fixture(scope='session')
+@fixture(scope='session')
 def example_file(
         gen_tmp: Callable[[bool, str, Path], Path],
         dat: Dict[str, Dict[str, List[str]]])-> Callable[[str, str], Path]:
@@ -163,13 +172,13 @@ def example_file(
     return _get_example_file
 
 
-@pytest.fixture(autouse=True)
-def tmpdir(tmpdir: py.path.local)-> Path:
+@fixture(autouse=True)
+def tmpdir(tmpdir: path.local)-> Path:
     """`pathlib.Path` version of `pytest` fixture"""
     return Path(str(tmpdir))
 
 
-@pytest.fixture()
+@fixture()
 def nested_dir(tmpdir: Path)-> Path:
     """Create a set of nested directories and files inside a temp directory
 
@@ -188,16 +197,16 @@ def nested_dir(tmpdir: Path)-> Path:
     return Path(tmpdir)
 
 
-@pytest.fixture()
-def full_dir(tmpdir: py.path.local)-> Path:
+@fixture()
+def full_dir(tmpdir: path.local)-> Path:
     """Create a temporary directory with some misc. temporary files"""
     paths = [tmpdir / name for name in ['a.x', 'b.y', 'b.x']]
-    for path in paths:
-        path.touch()
+    for p in paths:
+        p.touch()
     return tmpdir
 
 
-@pytest.fixture(scope='session')
+@fixture(scope='session')
 def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
     """Create a dictionary of test data
 
@@ -212,8 +221,8 @@ def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
     A two level nested dictionary
     """
     # List contents of top level directories
-    subdirs = fmpaths.listdirs(sandbox)
+    subdirs = listdirs(sandbox)
     dat = {}
     for d in subdirs:
-        dat[d.name] = fmpaths.as_dict(d)
+        dat[d.name] = as_dict(d)
     return dat

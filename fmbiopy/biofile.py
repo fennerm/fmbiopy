@@ -34,16 +34,23 @@ FileGroups are designed to be initialized and then used without editing. Once
 a group has been initialized, it is not recommended to attempt to change the
 files it maps to.
 """
-import collections
-import os
-from pathlib import Path
-from pathlib import PurePath
-from typing import List
-from typing import Sequence
-from typing import Type
+from collections.abc import Sized
+from os import path
+from pathlib import (
+        Path,
+        PurePath,
+        )
+from typing import (
+        List,
+        Sequence,
+        Type,
+        )
 
-import fmbiopy.fmcheck as fmcheck
-import fmbiopy.fmpaths as fmpaths
+from fmbiopy.fmcheck import all_equal
+from fmbiopy.fmpaths import (
+        as_strs,
+        prefix,
+        )
 
 # -----------------------------------------------------------------------------
 # Biofile Objects
@@ -163,7 +170,7 @@ class Biofile():
     def _check_file_not_empty(self) -> bool:
         """Check that the file has contents"""
         if not self.possibly_empty:
-            if os.path.getsize(self._path) < 3:
+            if path.getsize(self._path) < 3:
                 raise EmptyFileError(self._path)
         return True
 
@@ -254,7 +261,7 @@ def type_to_class(typ: str) -> Type[Biofile]:
 # -----------------------------------------------------------------------------
 
 
-class BiofileGroup(collections.abc.Sized):
+class BiofileGroup(Sized):
     """Superclass for storing and validating groups of bioinformatics files.
 
     All parameters except files are passed to `Biofile` to initialize each
@@ -361,7 +368,7 @@ class BiofileGroup(collections.abc.Sized):
     def _check_extensions_same(self) -> bool:
         """Check that the stored file extensions are all the same"""
         extensions = [f.extension for f in self._biofiles]
-        if not fmcheck.all_equal(extensions):
+        if not all_equal(extensions):
             raise FileExtensionsNotSameError(self._paths)
         return True
 
@@ -456,7 +463,7 @@ class MatchedPrefixGroup(object):
         if not self.validated:
             for group in self.groups:
                 group.validate()
-        self.validated=True
+        self.validated = True
         return True
 
     def __check_files_not_same(self) -> None:
@@ -468,7 +475,7 @@ class MatchedPrefixGroup(object):
 
     def __check_lengths_match(self) -> None:
         group_lengths = [len(g) for g in self.groups]
-        if not fmcheck.all_equal(group_lengths):
+        if not all_equal(group_lengths):
             raise GroupLengthError(self.groups)
 
     def __check_same_file_prefix(self) -> None:
@@ -476,8 +483,8 @@ class MatchedPrefixGroup(object):
         group_paths = [group._paths for group in self.groups]
         prefixes = []
         for paths in group_paths:
-            prefixes.append([fmpaths.prefix(path) for path in paths])
-        if not fmcheck.all_equal(prefixes):
+            prefixes.append([prefix(path) for path in paths])
+        if not all_equal(prefixes):
             raise PrefixMatchError(self.groups)
 
     def __len__(self) -> int:
@@ -633,7 +640,7 @@ class MatchedPrefixGroupValidationError(BiofileGroupValidationError):
         formatted_filenames = 'Groups:\n'
 
         for group in self.groups:
-            filename_str = ', '.join(fmpaths.as_str(group._paths))
+            filename_str = ', '.join(as_strs(group._paths))
             formatted_filenames += ''.join(['[', filename_str, ']\n'])
         return formatted_filenames
 

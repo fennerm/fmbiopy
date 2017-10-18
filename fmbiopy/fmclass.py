@@ -1,12 +1,21 @@
 """Function and classes involved in manipulating and inspecting objects"""
 
-import importlib
-import inspect
-from typing import List
-from typing import Type
+from importlib import import_module
+from inspect import (
+        getmembers,
+        getmro,
+        isclass,
+        )
+
+from typing import (
+        Any,
+        List,
+        Tuple,
+        Type,
+        )
 
 
-def classname(cls: Type[object]) -> str:
+def classname(cls: Type) -> str:
     """Return the name of a class"""
     return cls.__name__
 
@@ -15,7 +24,7 @@ def list_classes(
         module: str,
         package: str = None,
         exclude: List[str] = None,
-        of_type: List[str] = None) -> List[str]:
+        of_type: List[str] = None) -> List[Any]:
     """List all classes in a python module
 
     Parameters
@@ -34,28 +43,30 @@ def list_classes(
     A list of classes in `module_name`
 
     """
-    importlib.import_module(package)
-    imported = importlib.import_module(''.join(['.', module]), package)
-    classes = []
+    import_module(package)
+    imported = import_module(''.join(['.', module]), package)
+    classes: List[Type] = []
 
     # List all classes
-    for _, obj in inspect.getmembers(imported):
-        if inspect.isclass(obj):
-            if obj.__module__ == imported.__name__:
-                if of_type:
+    for _, obj in getmembers(imported):
+        if isclass(obj):
+            if of_type:
+                if obj.__module__ == imported.__name__:
                     # List object's class and class inheritance
-                    class_inheritance = inspect.getmro(obj)
+                    class_inheritance: Tuple[Type, ...] = getmro(obj)
+
                     # Get class inheritance names
-                    inheritance_names = [classname(cls)
-                                         for cls in class_inheritance]
+                    inheritance_names: List[str] = [
+                            classname(cls) for cls in class_inheritance]
+
                     for typ in of_type:
                         if typ in inheritance_names:
                             classes.append(obj)
-                else:
-                    classes.append(obj)
+            else:
+                classes.append(obj)
 
     # Exclude some
     if exclude:
-        classes = [cls for cls in classes if cls.__name__ not in exclude]
+        classes = [cls for cls in classes if classname(cls) not in exclude]
 
-    return sorted(classes, key=classname)  # type: ignore
+    return sorted(classes, key=classname)

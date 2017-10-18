@@ -1,10 +1,15 @@
 """ Path manipulation utilities """
 
-from pathlib import Path
-from pathlib import PurePath
-from typing import Dict
-from typing import List
-from typing import Sequence
+from pathlib import (
+        Path,
+        PurePath,
+        )
+from typing import (
+        Dict,
+        Iterable,
+        List,
+        Sequence,
+        )
 
 
 def absglob(directory: Path, pattern: str)-> List[Path]:
@@ -14,35 +19,44 @@ def absglob(directory: Path, pattern: str)-> List[Path]:
     return absolute
 
 
-def add_suffix(path: PurePath, suffix: str)-> PurePath:
+def add_suffix(path: PurePath, suffix: str)-> Path:
     """Append a suffix to a path"""
-    return PurePath(path.name + suffix)
+    return Path(path.name + suffix)
 
 
-def all_exist(paths: Sequence[Path]) -> bool:
+def all_exist(paths: Iterable[Path]) -> bool:
     """Return True if all paths in list exist """
     return all(apply_exists(paths))
 
 
-def all_filesize_nonzero(paths: Sequence[Path]) -> bool:
-    """Return True if all paths in list exist, and are non-empty"""
-    check_all_exist(paths)
-    return all(filesize_nonzero(paths))
-
-
-def any_dont_exist(paths: Sequence[Path]) -> bool:
+def any_dont_exist(paths: Iterable[Path]) -> bool:
     """Return True if any path in list does not exist """
     return not all(apply_exists(paths))
 
 
-def any_exist(paths: Sequence[Path]) -> bool:
+def any_exist(paths: Iterable[Path]) -> bool:
     """Return True if any path in list exists """
     return any(apply_exists(paths))
 
 
-def apply_exists(paths: Sequence[Path]) -> List[bool]:
+def all_empty(paths: Iterable[Path]) -> bool:
+    """Return True if all paths in list exist, and are non-empty"""
+    check_all_exist(paths)
+    return all(apply_is_empty(paths))
+
+
+def apply_exists(paths: Iterable[Path]) -> List[bool]:
     """Apply os.path.exists to a list of paths"""
     return [p.exists() for p in paths]
+
+
+def apply_is_empty(paths: Iterable[Path]) -> List[bool]:
+    """Check whether each file in list has a nonzero file size.
+
+    Returns
+    -------
+    A list of bools"""
+    return [is_empty(p) for p in paths]
 
 
 def as_dict(directory: Path) -> Dict[str, List[Path]]:
@@ -65,34 +79,41 @@ def as_dict(directory: Path) -> Dict[str, List[Path]]:
     return output
 
 
-def as_path(strs: Sequence[str])-> List[Path]:
-    """Convert a list of `str` to `pathlib.Path`"""
-    return [Path(string) for string in strs]
+def as_paths(
+        strs: Iterable[str],
+        absolute: bool = True,
+        strict: bool = False,
+        )-> List[Path]:
+    """Convert a list of `str` to `pathlib.Path`
+
+    Parameters
+    ----------
+    absolute
+        If True, an absolute path is returned
+    strict
+        Passed to `pathlib.Path.resolve()`. Does nothing if `absolute` is
+        False.
+    """
+    paths = [Path(string) for string in strs]
+    if absolute:
+        paths = [path.resolve(strict) for path in paths]
+    return paths
 
 
-def as_str(paths: Sequence[PurePath])-> List[str]:
+def as_strs(paths: Iterable[PurePath])-> List[str]:
     """Convert a list of `pathlib.Path` to string"""
     return [str(path) for path in paths]
 
 
-def check_all_exist(paths: Sequence[Path]) -> None:
+def check_all_exist(paths: Iterable[Path]) -> None:
     """Raise OSError if any paths in list do not exist """
     if not all_exist(paths):
-        raise OSError("Not all paths exist: \n" + ' '.join(as_str(paths)))
-
-
-def filesize_nonzero(paths: Sequence[Path]) -> Sequence[bool]:
-    """Check whether each file in list has a nonzero file size.
-
-    Returns
-    -------
-    A list of bools"""
-    return [p.stat().st_size > 0 for p in paths]
+        raise OSError("Not all paths exist: \n" + ' '.join(as_strs(paths)))
 
 
 def find(
         directory: Path,
-        extensions: Sequence[str] = None,
+        extensions: Iterable[str] = None,
         substring: str = None)-> List[Path]:
     """List all files with a given file extension and/or substring
 
@@ -127,12 +148,17 @@ def find(
     return sorted(out)
 
 
-def get_bowtie2_indices(prefix: str)-> List[PurePath]:
+def get_bowtie2_indices(prefix: str)-> List[Path]:
     """Given the bowtie2 index prefix, return the bowtie2 indices"""
     bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
                        '.rev.2.bt2']
-    paths = [PurePath(prefix + suffix) for suffix in bowtie_suffixes]
+    paths = [Path(prefix + suffix) for suffix in bowtie_suffixes]
     return paths
+
+
+def is_empty(path: Path)-> bool:
+    """Return True if `path` is empty"""
+    return path.stat().st_size < 1
 
 
 def listdirs(directory: Path) -> List[Path]:

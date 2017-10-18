@@ -9,7 +9,7 @@ class TestRunCommand():
 
     def test_trivial_success(self):
         with tempfile.NamedTemporaryFile(mode='wt') as temp:
-            command = "wc -m " + temp.name
+            command = ['wc', '-m', temp.name]
             temp.write('xyz')
             temp.flush()
             succ = fmsystem.run_command(command)
@@ -19,7 +19,7 @@ class TestRunCommand():
 
     def test_trivial_mixed_success(self):
         with tempfile.NamedTemporaryFile(mode='wt') as temp:
-            command = "wc -m / " + temp.name
+            command = ['wc', '-m', '/', temp.name]
             temp.write('xyz')
             temp.flush()
             succ_and_fail = fmsystem.run_command(command)
@@ -29,14 +29,14 @@ class TestRunCommand():
             assert succ_and_fail[2] == 'wc: /: Is a directory\n'
 
     def test_trivial_failure(self):
-        command = "wc -m /"
+        command = ['wc', '-m', '/']
         fail = fmsystem.run_command(command)
         assert fail[0] == 1
         assert fail[1] == '0 /\n'
         assert fail[2] == 'wc: /: Is a directory\n'
 
     def test_shell_true_doesnt_fail(self):
-        command = "echo foo | grep foo"
+        command = ['echo', 'foo', '|', 'grep', 'foo']
         process = fmsystem.run_command(command, shell=True)
         assert process[0] == 0
         assert process[1] == "foo\n"

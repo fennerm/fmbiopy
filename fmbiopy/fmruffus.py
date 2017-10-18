@@ -3,20 +3,35 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 
-import logging
+from logging import DEBUG
 from pathlib import Path
-from typing import Any
-from typing import Callable
-from typing import List
-from typing import Sequence
-from typing import Type
+from typing import (
+        Any,
+        Callable,
+        List,
+        Sequence,
+        Tuple,
+        Type,
+        )
 
-from ruffus.proxy_logger import make_shared_logger_and_proxy
-from ruffus.proxy_logger import setup_std_shared_logger
+from ruffus.proxy_logger import (
+        make_shared_logger_and_proxy,
+        setup_std_shared_logger,
+        )
 
-import fmbiopy.fmlist as fmlist
-import fmbiopy.fmpaths as fmpaths
-import fmbiopy.fmsystem as fmsystem
+from fmbiopy.fmlist import (
+        exclude_blank,
+        flatten,
+        )
+from fmbiopy.fmpaths import (
+        add_suffix,
+        as_paths,
+        get_bowtie2_indices,
+        )
+from fmbiopy.fmsystem import (
+        remove_all,
+        run_command,
+        )
 
 # Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
@@ -62,7 +77,7 @@ class RuffusLog(object):
             location: Path,
             formatter: str = DEFAULT_LOG_FORMAT,
             delay: bool = True,
-            level: int = logging.DEBUG,
+            level: int = DEBUG,
             buffered: bool = True) -> None:
 
         self.config = {'file_name': str(location),
@@ -72,15 +87,20 @@ class RuffusLog(object):
                        'buffered': buffered}
 
         if self.config['buffered']:
-            self._buffer = ''
+            self._buffer: str = ''
 
         if not location.parent.exists():
-            raise ValueError('Parent directory of logfile doesnt exist')
+            raise FileNotFoundError('Parent directory of logfile doesnt exist')
 
         self.log, self.mutex = make_shared_logger_and_proxy(
                 setup_std_shared_logger, name, self.config)
 
-    def write(self, msg: str) -> None:
+    def flush(self)-> None:
+        """Write the buffer to the logfile and clear it"""
+        self.log.info(self._buffer)
+        self._clear_buffer()
+
+    def write(self, msg: str)-> None:
         """Log a message with mutex lock
 
         Parameters
@@ -91,25 +111,11 @@ class RuffusLog(object):
         """
         with self.mutex:
             if self.config['buffered']:
-                self._buffer += '\n' + msg
+                self._new_msg(msg)
             else:
                 self.log.info(msg)
 
-    def _divider(self, sub: bool):
-        """Write a text divider to logfile
-
-        Parameters
-        ----------
-        sub
-            If True, the divider is made up of dashes. Else, the divider is
-            made up of equal signs
-        """
-        if sub:
-            self.write('-' * 80)
-        else:
-            self.write('=' * 80)
-
-    def write_header(self, msg: str, sub=False) -> None:
+    def write_header(self, msg: str, subheader: bool = False)-> None:
         """Write a header to the logfile
 
         Parameters
@@ -119,17 +125,33 @@ class RuffusLog(object):
         sub, optional
             If True, write a subheader, instead of a header
         """
-        self._divider(sub=sub)
-        self.write(msg=msg)
-        self._divider(sub=sub)
+        self._write_divider(subheader)
+        self.write(msg)
+        self._write_divider(subheader)
 
-    def flush(self):
-        """Write the buffer to the logfile and clear it"""
-        self.log.info(self._buffer)
+    def _clear_buffer(self)-> None:
         self._buffer = ''
 
+    def _new_msg(self, msg: str)-> None:
+        """Add a new message to the buffer"""
+        self._buffer += ''.join(['\n', msg])
 
-# The `RuffusLog` shared across all `RuffusTasks`"""
+    def _write_divider(self, subheader: bool)-> None:
+        """Write a text divider to logfile
+
+        Parameters
+        ----------
+        subheader
+            If True, the divider is made up of dashes. Else, the divider is
+            made up of equal signs
+        """
+        if subheader:
+            self.write('-' * 80)
+        else:
+            self.write('=' * 80)
+
+
+"""The `RuffusLog` shared across all `RuffusTasks`"""
 ROOT_LOGGER = RuffusLog("", Path("pipeline.log"))
 
 
@@ -146,52 +168,47 @@ class RuffusTask(object):
         One or more input file names
     output_files
         One or more output file names
-    log_results : Optional
-        If True, stdout and stderr are logged to the pipeline's logfile
+    log_results: optional
+        If True, OS stdout and stderr are logged to the pipeline's logfile
     param : Optional
         A list of bash parameters e.g ['--foo', 'bar', '-x', '1']
 
     Other Parameters
     ----------------
-    run_on_init : Optional
-        If True, the associated bash command is run upon initialization. If
-        False, the command is constructed but not run.
+    debug : Optional
+        If True, run in debugging mode
 
     Attributes
     ----------
-    exit_code : int
-        The exit code returned by the task's bash process
-    stdout : str
-        The standard output produced by the task
-    stderr : str
-        The standard error produced by the task
-    input_typ str
+    input_type: str
         (Class attribute) Expected input file extension. If None then any file
         type is acceptable input.
     output_type : str
         (Class attribute) Expected output file extension. If '' then the
         extension of the input is stripped in the output.
+    exit_code: int
+        The exit code returned by the task's bash process
+    stdout: str
+        The standard output produced by the task
+    stderr: str
+        The standard error produced by the task
     """
-    input_type: List[str] = ['']
-    output_type: List[str] = ['']
+    input_type: List[str] = None
+    output_type: List[str] = None
     _logger = ROOT_LOGGER
 
     def __init__(self,
                  input_files: Sequence[str],
-                 output_files: List[str],
+                 output_files: Sequence[str],
                  log_results: bool = True,
-                 param: Sequence[str] = [''],
+                 param: Sequence[str] = None,
                  run_on_init: bool = True) -> None:
 
         # Store parameters
-        if isinstance(input_files, str):
-            self._input_files: Sequence[str] = [input_files]
-        else:
-            self._input_files = input_files
-        if isinstance(output_files, str):
-            self._output_files: List[str] = [output_files]
-        else:
-            self._output_files = output_files
+        self._input_files: Sequence[str] = self._ensure_list(input_files)
+        self._input_paths: List[Path] = as_paths(self._input_files)
+        self._output_files: Sequence[str] = self._ensure_list(output_files)
+        self._output_paths: List[Path] = as_paths(self._output_files)
         self._log_results = log_results
         self._param = param
 
@@ -205,16 +222,58 @@ class RuffusTask(object):
         self._mkdirs()
 
         # Construct command
-        self._construct_command()
+        self._build()
 
         # Run command
         if run_on_init:
-            self._run_command()
+            self._run()
 
-    def _add_command(self, subcommand: Sequence[str])-> None:
+    def _add_command(self, subcommand: Sequence)-> None:
         """Append a command to the command list"""
-        self._command.append(fmlist.flatten(subcommand))
+        self._command.append(exclude_blank(flatten(subcommand)))
 
+    def _add_extra_outputs(self)-> List[Path]:
+        """Add additional non-specified outputs to the output file list
+
+        Should be overwritten by subclasses which produce outputs other than
+        those defined in output_files parameter
+
+        Returns
+        -------
+        A list of the extra outputs
+        """
+        return None
+
+    def _build(self)-> None:
+        """Subclasses construct their own tasks"""
+        pass
+
+    def _check_inputs(self)-> None:
+        """Check that input and output files are valid"""
+        for inp in self._input_paths:
+            if inp in self._output_paths:
+                raise FileExistsError('Attempted to overwrite input file(s)')
+
+    def _cleanup(self)-> None:
+        """Cleanup"""
+        remove_all(self._output_paths, silent=True)
+        remove_all(self._extra_outputs, silent=True)
+
+    def _ensure_list(self, x: Sequence[str])-> Sequence[str]:
+        """If list, return list. If str, return str"""
+        if isinstance(x, str):
+            return [x]
+        return x
+
+    def _get_stems(self, paths: List[Path])-> List[str]:
+        """Get the filename stems (everything but the extension)"""
+        stems = []
+        for path in paths:
+            if path.suffix == '.gz':
+                stems.append(Path(path.stem).stem)
+            else:
+                stems.append(path.stem)
+        return stems
 
     def _init_attributes(self):
         """Initialize empty attributes"""
@@ -226,13 +285,18 @@ class RuffusTask(object):
         self.stdout: List[str] = []
         self.stderr: List[str] = []
 
-        # Extra output files which are not specified by the user.
-        self._extra_outputs: List[str] = self._add_extra_outputs()
-
         # Output directory
-        self._outdirs: List[str] = [Path(f).parent for f in self._output_files]
+        self._outdirs: List[Path] = [f.parent for f in self._output_paths]
+
         # Input directory
-        self._indirs: List[str] = [Path(f).parent for f in self._input_files]
+        self._indirs: List[Path] = [f.parent for f in self._input_paths]
+
+        # Input and output file stems
+        self._input_stems = self._get_stems(self._input_paths)
+        self._output_stems = self._get_stems(self._output_paths)
+
+        # Extra output files which are not specified by the user.
+        self._extra_outputs: List[Path] = self._add_extra_outputs()
 
         # These attributes may or may not be set by subclasses:
         # -----------------------------------------------------
@@ -241,11 +305,6 @@ class RuffusTask(object):
         if not hasattr(self, '_shell'):
             self._shell: bool = False
 
-        # If True, the command is a list of subcommands, which should be run
-        # successively. This is essentially a mini-pipeline.
-        if not hasattr(self, '_multi_stage'):
-            self._multi_stage: bool = False
-
         # If True, the input files are deleted once the output files are
         # produced.
         if not hasattr(self, '_inplace'):
@@ -253,71 +312,50 @@ class RuffusTask(object):
 
     def _mkdirs(self)-> None:
         """Create output directories if necessary"""
-        output_dirs = [Path(f).parent for f in self._output_files]
-
-        for d in output_dirs:
+        for d in self._outdirs:
             d.mkdir(parents=True, exist_ok=True)
 
-    def _check_inputs(self)-> None:
-        """Check that input and output files are valid"""
-        for inp in self._input_files:
-            if inp in self._output_files:
-                raise OverwriteError(Path(inp))
-
-
-    def _construct_command(self)-> None:
-        """Subclasses construct their own tasks"""
-        pass
-
-    def _add_extra_outputs(self) -> List[str]:
-        """Add additional non-specified outputs to the output file list"""
-        return None
-
-    def _run_command(self)-> None:
-        """Run a command set with `_construct_command`"""
+    def _run(self)-> None:
+        """Run a command set with `_build`"""
         try:
             if self._log_results:
-                header = 'Task: ' + self.__class__.__name__ + '\n'
-                header += 'Input_files: ' + ', '.join(self._input_files) + '\n'
-                header += 'Output_files: ' + ', '.join(self._output_files)
+                header = ''.join([
+                    'Task: ', self.__class__.__name__, '\n', 'Input_files: ',
+                    ', '.join(self._input_files), '\n', 'Output_files: ',
+                    ', '.join(self._output_files)])
                 self._logger.write_header(header)
-            if not self._multi_stage:
-                # Convert to list of lists so we can loop through anyway
-                self._command = [self._command]
 
             for subcommand in self._command:
 
                 if self._log_results:
                     self._logger.write_header(
                             ' '.join(['Running:'] + subcommand),
-                            sub=True)
+                            subheader=True)
 
-                (exit_code, stdout, stderr) = (
-                    fmsystem.run_command(
-                        command=subcommand,
-                        log_stdout=True,
-                        log_stderr=True,
-                        mutex_log=self._logger,
-                        shell=self._shell))
-                self.exit_code.append(exit_code)
-                self.stdout.append(stdout)
-                self.stderr.append(stderr)
+                results = (
+                        run_command(
+                            subcommand,
+                            log=(True, True),
+                            mutex_logger=self._logger,
+                            shell=self._shell))
+
+                self._store_results(results)
 
             # Write the task's log
             self._logger.flush()
 
             if self._inplace:
-                paths = fmpaths.as_path(self._input_files)
-                fmsystem.remove_all(paths, silent=True)
+                remove_all(self._input_paths, silent=True)
 
         except Exception:
             self._cleanup()
             raise
 
-    def _cleanup(self)-> None:
-        fmsystem.remove_all(
-                fmpaths.as_path(self._output_files + self._extra_outputs),
-                silent=True)
+    def _store_results(self, results: Tuple[int, str, str])-> None:
+        """Update attributes with the results of `fmsystem.run_command`"""
+        self.exit_code.append(results[0])
+        self.stdout.append(results[1])
+        self.stderr.append(results[2])
 
 
 class SamtoolsIndexFasta(RuffusTask):
@@ -326,7 +364,7 @@ class SamtoolsIndexFasta(RuffusTask):
     input_type = ['fasta']
     output_type = ['fasta.fai']
 
-    def _construct_command(self) -> None:
+    def _build(self) -> None:
         """Construct the bash command"""
         self._add_command(['samtools', 'faidx', self._input_files])
 
@@ -337,11 +375,12 @@ class Gunzip(RuffusTask):
     output_type = ['']
 
     def __init__(self, *args, **kwargs)-> None:
+        """Initialize"""
         self._shell = True
         self._inplace = True
         super().__init__(*args, **kwargs)
 
-    def _construct_command(self) -> None:
+    def _build(self)-> None:
         """Construct the bash command"""
         self._add_command(['gunzip', '-c', self._param, self._input_files, '>',
             self._output_files])
@@ -361,7 +400,7 @@ class Gzip(RuffusTask):
         self._inplace = True
         super().__init__(*args, **kwargs)
 
-    def _construct_command(self) -> None:
+    def _build(self)-> None:
         """Construct the bash command"""
         self._add_command([
             'gzip', '-c', self._param, self._input_files, '>',
@@ -378,19 +417,22 @@ class PairedBowtie2Align(RuffusTask):
     output_type = ['bam']
 
     def __init__(self, *args, **kwargs)-> None:
-        self._multi_stage = True
         self._shell = True
         super().__init__(*args, **kwargs)
 
-    def _add_extra_outputs(self) -> List[str]:
+        # Unpack parameters
+        self._assembly = self._input_paths[0]
+        self._fwd_reads = self._input_paths[1]
+        self._rev_reads = self._input_paths[2]
+        self._output_bam = self._output_paths[0]
+
+    def _add_extra_outputs(self) -> List[Path]:
         """Add the .bt2 and .bai files to the output file list"""
-        prefix = Path(self._input_files[0]).stem
-        bowtie2_indices = fmpaths.get_bowtie2_indices(prefix)
-        bai_file = '.'.join([self._output_files[0], 'bai'])
+        bowtie2_indices = get_bowtie2_indices(self._input_stems[0])
+        bai_file: Path = add_suffix(self._output_paths[0], '.bai')
+        return flatten([bowtie2_indices, bai_file])
 
-        return fmlist.flatten([self._output_files, bowtie2_indices, bai_file])
-
-    def _construct_command(self) -> None:
+    def _build(self) -> None:
         """Construct the bash command"""
         fasta = self._input_files[0]
         fwd_fastq = self._input_files[1]
@@ -398,11 +440,12 @@ class PairedBowtie2Align(RuffusTask):
         output_bam = self._output_files[0]
 
         # Index fasta first
-        bowtie2_index = Path(fasta).stem
+        bowtie2_index = self._input_stems[0]
         self._add_command([
             'bowtie2-build', fasta, bowtie2_index, '>', '/dev/null', '2>&1'])
+
         # Move the indices to the assembly directory
-        self._add_command(['mv', '*.bt2', self._indirs[0]])
+        self._add_command(['mv', '*.bt2', str(self._indirs[0])])
 
         #  Run Bowtie2 and pipe the output to a sorted bam file
         self._add_command([
@@ -420,7 +463,7 @@ class SymlinkInputs(RuffusTask):
     input_type = ['ANY']
     output_type = ['SAME']
 
-    def _construct_command(self) -> None:
+    def _build(self) -> None:
         """Construct the bash command"""
         self._add_command([
             'ln', '-sf', self._input_files, self._output_files])
@@ -455,18 +498,3 @@ def apply(task: Type[RuffusTask])-> TaskFunction:
             task([inp], [out], *args, **kwargs)
 
     return _apply_task
-
-
-class OverwriteError(Exception):
-    """Raised when a task is asked to overwrite its input
-
-    Parameters
-    ----------
-    input_file
-        The file in question
-    """
-    def __init__(self, input_file: Path)-> None:
-        self.msg = ' '.join([
-                "Input and output filenames cannot be the same:",
-                str(input_file)])
-        super().__init__(self.msg)
