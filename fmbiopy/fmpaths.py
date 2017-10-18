@@ -21,7 +21,7 @@ def absglob(directory: Path, pattern: str)-> List[Path]:
 
 def add_suffix(path: PurePath, suffix: str)-> Path:
     """Append a suffix to a path"""
-    return Path(path.name + suffix)
+    return Path(str(path) + suffix)
 
 
 def all_exist(paths: Iterable[Path]) -> bool:
@@ -82,7 +82,6 @@ def as_dict(directory: Path) -> Dict[str, List[Path]]:
 def as_paths(
         strs: Iterable[str],
         absolute: bool = True,
-        strict: bool = False,
         )-> List[Path]:
     """Convert a list of `str` to `pathlib.Path`
 
@@ -96,7 +95,7 @@ def as_paths(
     """
     paths = [Path(string) for string in strs]
     if absolute:
-        paths = [path.resolve(strict) for path in paths]
+        paths = [path.absolute() for path in paths]
     return paths
 
 
