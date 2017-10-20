@@ -2,7 +2,7 @@
 
 Ruffus: http://www.ruffus.org.uk/
 """
-
+from collections import namedtuple
 from pathlib import Path
 from pytest import (
         fixture,
@@ -19,46 +19,17 @@ from fmbiopy.fmpaths import (
         )
 from fmbiopy.fmruffus import (
         apply_,
+        ParameterError,
         RuffusLog,
         SymlinkInputs,
         )
 
 
-@fixture(scope='module')
-def instance_of(example_file):
-    """Return example RuffusTask instances"""
-    def _make_test_instance(cls, size):
-
-        input_example = [example_file(t, size) for t in cls.input_type]
-        input_example = flatten(input_example)
-
-        # If we have multiple inputs, the output suffix is added to
-        # the first input as in ruffus
-        output_example = []
-        for typ in cls.output_type:
-            if typ == '':
-                output_example.append(
-                        input_example[0].with_suffix(typ))
-            elif typ == 'SAME':
-                # If output is same type create a new directory to place the
-                # output
-                parent_dir = input_example[0].parent
-                outdir = parent_dir / 'tmp'
-                outdir.mkdir(exist_ok=True)
-                output_example.append(outdir / input_example[0].name)
-            else:
-                output_example.append(
-                        input_example[0].with_suffix('.' + typ))
-
-        return cls(
-                as_strs(input_example),
-                as_strs(output_example))
-    return _make_test_instance
 
 
 
 class TestRuffusLog(object):
-    @fixture()
+    @fixture
     def unbuffered_ruflog(self, nonexistant_path):
         return RuffusLog(
                 name='foo',
@@ -127,43 +98,76 @@ class TestRuffusLog(object):
 
 
 class TestAllTasks(object):
+    @fixture(scope='module')
+    def get_example_files(self, example_file):
+        """Return example RuffusTask instances"""
+        def _make_test_instance(cls, size):
+
+            input_example = [example_file(t, size) for t in cls.input_type]
+            input_example = flatten(input_example)
+
+            # If we have multiple inputs, the output suffix is added to
+            # the first input as in ruffus
+            output_example = []
+            for typ in cls.output_type:
+                if typ == '':
+                    output_example.append(
+                            input_example[0].with_suffix(typ))
+                elif typ == 'SAME':
+                    # If output is same type create a new directory to place the
+                    # output
+                    parent_dir = input_example[0].parent
+                    outdir = parent_dir / 'tmp'
+                    outdir.mkdir(exist_ok=True)
+                    output_example.append(outdir / input_example[0].name)
+                else:
+                    output_example.append(
+                            input_example[0].with_suffix('.' + typ))
+
+            return (as_strs(input_example), as_strs(output_example))
+        return _make_test_instance
+
     @fixture(
             params=list_classes(
                 'fmruffus',
                 'fmbiopy',
-                of_type=['RuffusTask'],
-                exclude=['RuffusLog', 'RuffusTask', 'BuildCentrifugeDB']))
-    def task(self, request, instance_of):
-        task_class = request.param
-        ruffus_task = instance_of(task_class, 'tiny')
-        yield ruffus_task
-        ruffus_task._cleanup()
+                of_type=['RuffusTransform'],
+                exclude=[
+                    'RuffusLog', 'RuffusTask', 'RuffusTransform',
+                    'BuildCentrifugeDB']))
+    def task(self, request, get_example_files):
+        cls = request.param
+        inp, out = get_example_files(cls, 'tiny')
+        instance = cls()
+        instance.run(inp, out)
+        task_info = namedtuple('task_info', 'cls instance inp out')
+        yield task_info(cls, instance, inp, out)
+        instance.cleanup()
 
-    def test_command_not_none(self, task):
-        assert task._command is not None
+    def test_param_are_added_to_command_or_exception_raised(self, task):
+        try:
+            param=['--nonexistant', 'foo']
+            param_instance = task.cls(param=param)
+            param_instance.run(task.inp, task.out)
+            for subcommand in param_instance._command:
+                if set(param).issubset(subcommand):
+                    return
+            assert False
 
-    def test_command_is_listlike(self, task):
-        assert not isinstance(task._command, str)
-        assert task._command[0]
-
-    def test_command_has_no_spaces(self, task):
-        for word in task._command:
-            assert ' ' not in word
+        except ParameterError:
+            pass
 
     def test_run_command_produces_expected_output(self, task):
-        if isinstance(task._output_files, str):
-            assert Path(task._output_files).exists()
-        else:
-            for path in task._output_files:
-                assert Path(path).exists()
+        for path in task.instance._output_paths:
+            assert path.exists()
 
     def test_run_command_produces_zero_exit_code(self, task):
-        for code in task.exit_code:
+        for code in task.instance.exit_code:
             assert code == 0
 
     def test_inplace_tasks_delete_their_inputs(self, task):
-        if task._inplace:
-            assert not any_exist(as_paths(task._input_files))
+        if task.instance._inplace:
+            assert not any_exist(as_paths(task.instance.input_files))
 
 
 def test_apply_symlink_produces_expected_output(full_dir):
