@@ -9,10 +9,21 @@ from typing import Sequence
 
 from fmbiopy.fmtype import T
 
+def ensure_list(x: Any)-> List:
+    """If not a sequence, convert to one"""
+    if isinstance(x, str):
+        return [x]
 
-def exclude_blank(sequence: Iterable[T])-> List[T]:
+    try:
+        x[0]
+    except TypeError:
+        return [x]
+
+    return x
+
+def exclude_blank(seq: Iterable[T])-> List[T]:
     """Remove empty and None items from an iterable"""
-    return list(filter(bool, sequence))
+    return list(filter(bool, seq))
 
 
 def flatten(sequence: Iterable)-> List[Any]:
