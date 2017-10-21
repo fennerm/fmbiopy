@@ -41,6 +41,16 @@ from fmbiopy.fmsystem import (
 # Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
 
+# Binaries
+SAMTOOLS = "samtools"
+BOWTIE2 = "bowtie2"
+CENTRIFUGE_DOWNLOAD = "centrifuge-download"
+CENTRIFUGE_BUILD = "centrifuge-build"
+CENTRIFUGE = "centrifuge"
+BOWTIE2_BUILD = "bowtie2-build"
+
+
+
 
 class RuffusLog(object):
     """A logger/mutex pair used for logging in Ruffus pipelines
@@ -470,7 +480,7 @@ class SamtoolsIndexFasta(RuffusTransform):
 
     def _build(self) -> None:
         """Construct the bash command"""
-        self._add_command(['samtools', 'faidx', self.input_files, self.param])
+        self._add_command([SAMTOOLS, 'faidx', self.input_files, self.param])
 
 
 class Gunzip(RuffusTransform):
@@ -479,8 +489,7 @@ class Gunzip(RuffusTransform):
     output_type = ['']
 
     def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
-        self._inplace = True
+        super().__init__(*args, **kwargs) self._inplace = True
         self._shell = True
 
     def cleanup(self)-> None:
@@ -494,7 +503,7 @@ class Gunzip(RuffusTransform):
 
 
 class Gzip(RuffusTransform):
-    """Compress a file with g zip"""
+    """Compress a file with gzip"""
     input_type = ['ANY']
     output_type = ['gz']
 
@@ -539,20 +548,20 @@ class PairedBowtie2Align(RuffusTransform):
         # Index fasta first
         bowtie2_index = self._input_stems[0]
         self._add_command([
-            'bowtie2-build', fasta, bowtie2_index, '>', '/dev/null', '2>&1'])
+            BOWTIE2_BUILD, fasta, bowtie2_index, '>', '/dev/null', '2>&1'])
 
         # Move the indices to the assembly directory
         self._add_command(['mv', '*.bt2', str(self._indirs[0])])
 
         #  Run Bowtie2 and pipe the output to a sorted bam file
         self._add_command([
-            'bowtie2', *self.param, '-1', fwd_fastq, '-2', rev_fastq, '-x',
-            bowtie2_index, '|', 'samtools', 'view', '-bS', '-', '|',
-            'samtools', 'sort', '-f', '-', output_bam])
+            BOWTIE2, *self.param, '-1', fwd_fastq, '-2', rev_fastq, '-x',
+            bowtie2_index, '|', SAMTOOLS, 'view', '-bS', '-', '|',
+            SAMTOOLS, 'sort', '-f', '-', output_bam])
 
         # Index the bam file
         self._add_command([
-            'samtools', 'index', output_bam, '/dev/null', '2>&1'])
+            SAMTOOLS, 'index', output_bam, '/dev/null', '2>&1'])
 
 
 class SymlinkInputs(RuffusTransform):
@@ -606,18 +615,18 @@ class BuildCentrifugeDB(RuffusTask):
 
         # Download the complete NCBI taxonomy
         self._add_command([
-            "centrifuge-download", "-o", str(self._taxonomy_dir), "taxonomy"])
+            CENTRIFUGE_DOWNLOAD, "-o", str(self._taxonomy_dir), "taxonomy"])
 
         # Download all complete Archaeal, Bacterial, Viral, Fungal, Protozoan
         # and Plant genomes
         self._add_command([
-            "centrifuge-download", "-o", str(self._library_dir), "-m", "-d",
+            CENTRIFUGE_DOWNLOAD, "-o", str(self._library_dir), "-m", "-d",
             "archaea,bacteria,viral,fungi,protozoa,plant", "refseq", ">",
             str(self._seqid2taxid)])
 
         # Download human reference sequence
         self._add_command([
-            "centrifuge-download", "-o", str(self._library_dir), "-d",
+            CENTRIFUGE_DOWNLOAD, "-o", str(self._library_dir), "-d",
             "vertebrate_mammalian", "-a", "Chromosome", "-t", 9606, "-c",
             "reference_genome", ">>", str(self._seqid2taxid)])
 
@@ -629,7 +638,7 @@ class BuildCentrifugeDB(RuffusTask):
 
         # Build the database
         self._add_command([
-            "centrifuge-build", "--conversion-table", str(self._seqid2taxid),
+            CENTRIFUGE_BUILD, "--conversion-table", str(self._seqid2taxid),
             "--taxonomy-tree", str(self._taxonomy_dir / 'nodes.dmp'), "--name-table",
             str(self._taxonomy_dir / 'names.dmp'), str(self._concat_seqs),
             self.output_files[0]])
@@ -661,17 +670,45 @@ class Centrifuge(RuffusTransform):
         """Build the command line arguments"""
         assembly = self.input_files[0]
         centrifuge_idx = self.input_files[1]
-        self._add_command(['centrifuge', '-k', '1', '-f', '-x',
+        self._add_command([CENTRIFUGE, '-k', '1', '-f', '-x',
             centrifuge_idx, '-U', assembly, '--report-file',
             self.output_files[0], self.param])
 
 
+# class ConvertCentrifugeToHits(RuffusTransform):
+#     """Convert a centrifuge output file to a hits file"""
+#     input_type = ['centrifuge_output']
+#     output_type = ['hits']
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self._parameterized = False
+#
+#     def _build(self)-> None:
+#         """Build the command line arguments"""
+#         self._add_command(['centrifuge_output_to_hits.R']
 
-"""Type variable for a function with same inputs and outputs as a RuffusTransform"""
-TaskFunction = Callable[[Sequence[str], Sequence[str], Any], None]
 
 
-def apply_(task: Type[RuffusTransform])-> TaskFunction:
+
+#  class BlobtoolsCreate(RuffusTransform):
+#      """Run centrifuge"""
+#      input_type = ['fasta', 'hits', 'fastq', 'fastq']
+#      output_type = ['tsv']
+#
+#      def _build(self)-> None:
+#          """Build the command line arguments"""
+#          assembly = self.input_files[0]
+#          centrifuge_idx = self.input_files[1]
+#          self._add_command(['centrifuge', '-k', '1', '-f', '-x',
+#              centrifuge_idx, '-U', assembly, '--report-file',
+#              self.output_files[0], self.param])
+
+
+"""Type variable for RuffusTransform-like function"""
+TransformFunction = Callable[[Sequence[str], Sequence[str], Any], None]
+
+def apply_(task: Type[RuffusTransform])-> TransformFunction:
     """Return function which applies a `RuffusTransform` to multiple inputs
 
     All extra parameters are passed to `task`
@@ -698,4 +735,5 @@ def apply_(task: Type[RuffusTransform])-> TaskFunction:
     return _apply_task
 
 class ParameterError(ValueError):
+    """Thrown when unparameterized task is given parameters"""
     pass
