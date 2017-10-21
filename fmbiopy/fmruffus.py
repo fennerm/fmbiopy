@@ -164,7 +164,7 @@ class RuffusLog(object):
             self.write('=' * 80)
 
 
-"""The `RuffusLog` shared across all `RuffusTransforms`"""
+"""The `RuffusLog` shared across all `RuffusTransform`s"""
 ROOT_LOGGER = RuffusLog("", Path("pipeline.log"))
 
 class RuffusTask(ABC):
@@ -246,6 +246,9 @@ class RuffusTask(ABC):
 
         # The header to be written to the logfile at the start of the task
         self._task_header: str = ''
+
+        # If True, the task takes parameters
+        self._parameterized = True
 
     def cleanup(self)-> None:
         """Cleanup"""
@@ -442,6 +445,9 @@ class RuffusTransform(RuffusTask, ABC):
             if inp in self._output_paths:
                 raise FileExistsError('Attempted to overwrite input file(s)')
 
+        if self.param and not self._parameterized:
+            raise ParameterError('Cannot add parameters to this task')
+
     def _define_input_attributes(self, input_files)-> None:
         self.input_files: Sequence[str] = ensure_list(input_files)
         self._input_paths: List[Path] = as_paths(self.input_files)
@@ -562,6 +568,8 @@ class SymlinkInputs(RuffusTransform):
 
 class BuildCentrifugeDB(RuffusTask):
     """Build a custom centrifuge database"""
+    output_type = ['cf']
+
     def __init__(self, *args, **kwargs)-> None:
         # Location of the seqid2taxid mapping file
         super().__init__(*args, **kwargs)
@@ -578,6 +586,7 @@ class BuildCentrifugeDB(RuffusTask):
         # Location of the library directory
         self._library_dir: Path = None
         self._shell = True
+        self._parameterized = False
 
     def _add_extra_outputs(self)-> List[Path]:
         """Add the library, taxonomy and SeqID2Taxmap files to extra outputs"""
@@ -641,6 +650,21 @@ class BuildCentrifugeDB(RuffusTask):
                 f.rmdir()
             except OSError:
                 pass
+
+
+class Centrifuge(RuffusTransform):
+    """Run centrifuge"""
+    input_type = ['fasta', 'cf']
+    output_type = ['tsv']
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        assembly = self.input_files[0]
+        centrifuge_idx = self.input_files[1]
+        self._add_command(['centrifuge', '-k', '1', '-f', '-x',
+            centrifuge_idx, '-U', assembly, '--report-file',
+            self.output_files[0], self.param])
+
 
 
 """Type variable for a function with same inputs and outputs as a RuffusTransform"""
