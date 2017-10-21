@@ -181,3 +181,9 @@ def resolve(path: str, *args, **kwargs)-> str:
     Additional parameters are passed to `Path.resolve()`
     """
     return str(Path(path).resolve(*args, **kwargs))
+
+def root(path: Path)-> Path:
+    """Return the root name of a path (with directory included)"""
+    while '.' in path.name:
+        path = path.parent / path.stem
+    return path
