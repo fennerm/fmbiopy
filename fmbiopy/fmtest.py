@@ -2,7 +2,7 @@
 
 Pytest functions must be imported explicitely.
 """
-
+from os import chdir
 from pathlib import Path
 from shutil import (
         copytree,
@@ -24,10 +24,10 @@ from pytest import fixture
 from _pytest.fixtures import SubRequest
 
 from fmbiopy.fmpaths import (
-        add_suffix,
         as_dict,
         as_paths,
         listdirs,
+        root,
         )
 from fmbiopy.fmsystem import (
         remove_all,
@@ -36,6 +36,12 @@ from fmbiopy.fmsystem import (
 
 """The type of the gen_tmp fixture"""
 GenTmpType = Callable[[bool, str, Path], Path]
+
+@fixture
+def cd(tmpdir, startdir)-> Iterator[None]:
+    chdir(str(tmpdir))
+    yield
+    chdir(str(startdir))
 
 @fixture(scope='session')
 def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
@@ -59,7 +65,8 @@ def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
     return dat
 
 
-@fixture()
+
+@fixture
 def double_suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
     """Generate a path with a two part suffix"""
     path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo.bar')
@@ -67,7 +74,7 @@ def double_suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
     silent_remove(path)
 
 
-@fixture()
+@fixture
 def empty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
     """Generate an empty but existing path"""
     path = gen_tmp(directory=tmpdir, empty=True)
@@ -106,6 +113,8 @@ def example_file(
             outfile = dat[size]['bam'][0]
         elif filetype == 'gz':
             outfile = dat[size]['zipped_fwd_reads'][0]
+        elif filetype == 'cf':
+            outfile = root(dat[size]['centrifuge_idx'][0])
         else:
             return gen_tmp(empty=False, suffix='.foo')
         return Path(outfile)
@@ -287,7 +296,19 @@ def small(sandbox: Path)-> Path:
     return sandbox / 'small'
 
 
-@fixture()
+@fixture(scope='session')
+def startdir()-> Path:
+    return Path.cwd().absolute()
+
+@fixture
+def suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+    """Generate a nonempty path with a suffix"""
+    path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
+    yield path
+    silent_remove(path)
+
+
+@fixture
 def symlink(
         gen_tmp: GenTmpType,
         randpath: RandPathType,
@@ -298,14 +319,6 @@ def symlink(
     path.symlink_to(target)
     yield path
     remove_all([target, path], silent=True)
-
-
-@fixture()
-def suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
-    """Generate a nonempty path with a suffix"""
-    path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
-    yield path
-    silent_remove(path)
 
 
 @fixture(scope='session')
