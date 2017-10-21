@@ -135,7 +135,7 @@ class TestAllTasks(object):
                 exclude=[
                     'RuffusLog', 'RuffusTask', 'RuffusTransform',
                     'BuildCentrifugeDB']))
-    def task(self, request, get_example_files):
+    def task(self, request, cd, get_example_files):
         cls = request.param
         inp, out = get_example_files(cls, 'tiny')
         instance = cls()
@@ -157,20 +157,20 @@ class TestAllTasks(object):
         except ParameterError:
             pass
 
-    def test_run_command_produces_expected_output(self, task):
+    def test_run_command_produces_expected_output(self, cd, task):
         for path in task.instance._output_paths:
             assert path.exists()
 
-    def test_run_command_produces_zero_exit_code(self, task):
+    def test_run_command_produces_zero_exit_code(self, cd, task):
         for code in task.instance.exit_code:
             assert code == 0
 
-    def test_inplace_tasks_delete_their_inputs(self, task):
+    def test_inplace_tasks_delete_their_inputs(self, cd, task):
         if task.instance._inplace:
             assert not any_exist(as_paths(task.instance.input_files))
 
 
-def test_apply_symlink_produces_expected_output(full_dir):
+def test_apply_symlink_produces_expected_output(cd, full_dir):
     symlink_all = apply_(SymlinkInputs)
     inputs = full_dir.glob('*')
     output_ids = ['tar.x', 'sar.x', 'lar.x']
