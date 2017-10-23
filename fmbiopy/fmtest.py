@@ -14,7 +14,6 @@ from typing import (
         Dict,
         Iterator,
         List,
-        NamedTuple,
         Tuple,
         )
 from uuid import uuid4
@@ -31,7 +30,9 @@ from fmbiopy.fmpaths import (
         )
 from fmbiopy.fmsystem import (
         remove_all,
+        run_command,
         silent_remove,
+        working_directory,
         )
 
 """The type of the gen_tmp fixture"""
@@ -39,6 +40,7 @@ GenTmpType = Callable[[bool, str, Path], Path]
 
 @fixture
 def cd(tmpdir, startdir)-> Iterator[None]:
+    """Change directory before running test"""
     chdir(str(tmpdir))
     yield
     chdir(str(startdir))
@@ -175,7 +177,14 @@ def gen_tmp(sandbox: Path)-> GenTmpType:
 
 
 @fixture(scope='session', autouse=True)
-def load_sandbox(sandbox: Path, testdat: Path) -> Iterator[Path]:
+def update_testdat(testdat: Path)-> None:
+    """Make sure that testdat is up to date"""
+    with working_directory(testdat):
+        run_command(['git', 'pull'])
+
+
+@fixture(scope='session', autouse=True)
+def load_sandbox(update_testdat: None, sandbox: Path, testdat: Path) -> Iterator[Path]:
     """Copy all test data files to the sandbox for the testing session
 
     Yields

@@ -98,10 +98,10 @@ def working_directory(directory: Path) -> Generator[Path, None, None]:
 
     owd = Path.cwd()
     try:
-        chdir(directory.name)
+        chdir(str(directory))
         yield directory
     finally:
-        chdir(owd.name)
+        chdir(str(owd))
 
 
 def remove_all(names: Iterable[Path], silent: bool = False)-> None:
