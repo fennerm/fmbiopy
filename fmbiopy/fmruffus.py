@@ -480,7 +480,11 @@ class SamtoolsIndexFasta(RuffusTransform):
 
     def _build(self) -> None:
         """Construct the bash command"""
+        # Index the file
         self._add_command([SAMTOOLS, 'faidx', self.input_files, self.param])
+        # Move the index to the correct directory
+        index_file = add_suffix(self._input_paths[0], '.fai')
+        self._add_command(['mv', str(index_file), self.output_files[0]])
 
 
 class Gunzip(RuffusTransform):
@@ -489,7 +493,8 @@ class Gunzip(RuffusTransform):
     output_type = ['']
 
     def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs) self._inplace = True
+        super().__init__(*args, **kwargs)
+        self._inplace = True
         self._shell = True
 
     def cleanup(self)-> None:
@@ -552,12 +557,13 @@ class PairedBowtie2Align(RuffusTransform):
 
         # Move the indices to the assembly directory
         self._add_command(['mv', '*.bt2', str(self._indirs[0])])
+        bowtie2_index = str(self._indirs[0] / bowtie2_index)
 
         #  Run Bowtie2 and pipe the output to a sorted bam file
         self._add_command([
-            BOWTIE2, *self.param, '-1', fwd_fastq, '-2', rev_fastq, '-x',
-            bowtie2_index, '|', SAMTOOLS, 'view', '-bS', '-', '|',
-            SAMTOOLS, 'sort', '-f', '-', output_bam])
+            BOWTIE2, '-1', fwd_fastq, '-2', rev_fastq, '-x',
+            bowtie2_index, *self.param, '|', SAMTOOLS, 'view', '-bS', '-', '|',
+            SAMTOOLS, 'sort', '-o', output_bam, '-'])
 
         # Index the bam file
         self._add_command([

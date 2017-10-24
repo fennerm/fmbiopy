@@ -9,10 +9,12 @@ from pytest import (
         mark,
         raises,
         )
+from uuid import uuid4
 
 from fmbiopy.fmclass import list_classes
 from fmbiopy.fmlist import flatten
 from fmbiopy.fmpaths import (
+        add_suffix,
         any_exist,
         as_paths,
         as_strs,
@@ -23,10 +25,6 @@ from fmbiopy.fmruffus import (
         RuffusLog,
         SymlinkInputs,
         )
-
-
-
-
 
 class TestRuffusLog(object):
     @fixture
@@ -99,7 +97,7 @@ class TestRuffusLog(object):
 
 class TestAllTasks(object):
     @fixture(scope='module')
-    def get_example_files(self, example_file):
+    def get_example_files(self, example_file, sandbox):
         """Return example RuffusTask instances"""
         def _make_test_instance(cls, size):
 
@@ -110,19 +108,15 @@ class TestAllTasks(object):
             # the first input as in ruffus
             output_example = []
             for typ in cls.output_type:
+                input_stem = sandbox / input_example[0].stem
                 if typ == '':
-                    output_example.append(
-                            input_example[0].with_suffix(typ))
+                    output_example.append(input_stem)
                 elif typ == 'SAME':
-                    # If output is same type create a new directory to place the
-                    # output
-                    parent_dir = input_example[0].parent
-                    outdir = parent_dir / 'tmp'
-                    outdir.mkdir(exist_ok=True)
-                    output_example.append(outdir / input_example[0].name)
+                    tempdir = sandbox / uuid4().hex
+                    output_example.append(tempdir / input_example[0].name)
                 else:
-                    output_example.append(
-                            input_example[0].with_suffix('.' + typ))
+                    suffix = '.' + typ
+                    output_example.append(add_suffix(input_stem, suffix))
 
             return (as_strs(input_example), as_strs(output_example))
         return _make_test_instance
