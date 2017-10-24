@@ -18,6 +18,7 @@ from typing import (
         )
 from uuid import uuid4
 
+from furl import furl
 from py import path
 from pytest import fixture
 from _pytest.fixtures import SubRequest
@@ -176,11 +177,6 @@ def gen_tmp(sandbox: Path)-> GenTmpType:
     return _gen_tmp
 
 
-@fixture(scope='session', autouse=True)
-def update_testdat(testdat: Path)-> None:
-    """Make sure that testdat is up to date"""
-    with working_directory(testdat):
-        run_command(['git', 'pull'])
 
 
 @fixture(scope='session', autouse=True)
@@ -335,6 +331,11 @@ def testdat(testdir)-> Path:
     """Path to the testdat directory"""
     return testdir / 'testdat'
 
+@fixture(scope='session')
+def testdat_repo()-> furl:
+    """The URL of the testdat github repo"""
+    return furl('https://github.com/fennerm/testdat')
+
 
 @fixture(scope='session')
 def testdir()-> Path:
@@ -365,3 +366,14 @@ def unique_dir(sandbox: Path)-> Iterator[Path]:
     path.mkdir()
     yield path
     rmtree(str(path))
+
+
+@fixture(scope='session', autouse=True)
+def update_testdat(testdat: Path, testdat_repo: furl)-> None:
+    """Make sure that testdat is up to date"""
+
+    if not testdat.exists():
+        run_command('git', 'clone', testdat_repo.furl)
+
+    with working_directory(testdat):
+        run_command(['git', 'pull'])
