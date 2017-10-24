@@ -1,12 +1,16 @@
 """Utility functions for carrying out list manipulation"""
 
 from collections import Iterable as Iterable_
-from typing import Any
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Sequence
+from typing import (
+        Any,
+        Callable,
+        Iterable,
+        Iterator,
+        List,
+        Sequence,
+        )
 
+from fmbiopy.fmerr import EmptyListError
 from fmbiopy.fmtype import T
 
 def ensure_list(x: Any)-> List:
@@ -20,6 +24,7 @@ def ensure_list(x: Any)-> List:
         return [x]
 
     return x
+
 
 def exclude_blank(seq: Iterable[T])-> List[T]:
     """Remove empty and None items from an iterable"""
@@ -52,6 +57,15 @@ def interleave(list1: Sequence[T], list2: Sequence[T]) -> List[T]:
     if len(list1) != len(list2):
         raise ValueError('Lists are not the same length')
     return [val for pair in zip(list1, list2) for val in pair]
+
+
+def not_empty(func: Callable)-> Callable[[Any], None]:
+    """Function decorator for functions which require nonempty list input"""
+    def wrapper(*args, **kwargs)-> None:
+        if not args[0]:
+            raise EmptyListError
+        return func(*args, **kwargs)
+    return wrapper
 
 
 def split_list(x: Sequence[T], at: T) -> List[List[T]]:

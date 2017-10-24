@@ -14,7 +14,6 @@ from fmbiopy.fmsystem import *
 class TestRunCommand():
 
     def test_trivial_success(self, tmpdir, gen_tmp):
-        pytest.set_trace()
         tmpfile = gen_tmp(directory=tmpdir)
         with tmpfile.open(mode='wt') as temp:
             command = ['wc', '-m', str(tmpfile)]

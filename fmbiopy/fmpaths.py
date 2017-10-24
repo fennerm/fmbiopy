@@ -8,8 +8,9 @@ from typing import (
         Dict,
         Iterable,
         List,
-        Sequence,
         )
+
+from fmbiopy.fmlist import not_empty
 
 
 def absglob(directory: Path, pattern: str)-> List[Path]:
@@ -24,30 +25,35 @@ def add_suffix(path: PurePath, suffix: str)-> Path:
     return Path(str(path) + suffix)
 
 
+@not_empty
+def all_absolute(paths: Iterable[Path])-> bool:
+    """Return True if all paths in `paths` are absolute"""
+    return all([p.is_absolute() for p in paths])
+
+
+@not_empty
 def all_exist(paths: Iterable[Path]) -> bool:
     """Return True if all paths in list exist """
     return all(apply_exists(paths))
 
 
+@not_empty
 def any_dont_exist(paths: Iterable[Path]) -> bool:
     """Return True if any path in list does not exist """
     return not all(apply_exists(paths))
 
 
+@not_empty
 def any_exist(paths: Iterable[Path]) -> bool:
     """Return True if any path in list exists """
     return any(apply_exists(paths))
 
 
+@not_empty
 def all_empty(paths: Iterable[Path]) -> bool:
     """Return True if all paths in list exist, and are non-empty"""
     check_all_exist(paths)
     return all(apply_is_empty(paths))
-
-
-def apply_exists(paths: Iterable[Path]) -> List[bool]:
-    """Apply os.path.exists to a list of paths"""
-    return [p.exists() for p in paths]
 
 
 def apply_is_empty(paths: Iterable[Path]) -> List[bool]:
@@ -57,6 +63,11 @@ def apply_is_empty(paths: Iterable[Path]) -> List[bool]:
     -------
     A list of bools"""
     return [is_empty(p) for p in paths]
+
+
+def apply_exists(paths: Iterable[Path]) -> List[bool]:
+    """Apply os.path.exists to a list of paths"""
+    return [p.exists() for p in paths]
 
 
 def as_dict(directory: Path) -> Dict[str, List[Path]]:
@@ -104,10 +115,16 @@ def as_strs(paths: Iterable[PurePath])-> List[str]:
     return [str(path) for path in paths]
 
 
-def check_all_exist(paths: Iterable[Path]) -> None:
+def check_all_exist(paths: Iterable[Path])-> None:
     """Raise OSError if any paths in list do not exist """
     if not all_exist(paths):
-        raise OSError("Not all paths exist: \n" + ' '.join(as_strs(paths)))
+        raise FileNotFoundError("Not all paths exist: \n" + ' '.join(as_strs(paths)))
+
+
+def create_all(paths: Iterable[Path])-> None:
+    """Given a list of nonexistant paths, create them"""
+    for path in paths:
+        path.touch(exist_ok = False)
 
 
 def find(
@@ -174,13 +191,6 @@ def prefix(path: PurePath)-> str:
     """Get the part of a string before the first dot"""
     return path.name.split('.')[0]
 
-
-def resolve(path: str, *args, **kwargs)-> str:
-    """Return the absolute path of a string path
-
-    Additional parameters are passed to `Path.resolve()`
-    """
-    return str(Path(path).resolve(*args, **kwargs))
 
 def root(path: Path)-> Path:
     """Return the root name of a path (with directory included)"""
