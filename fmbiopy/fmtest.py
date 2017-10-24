@@ -480,11 +480,12 @@ def unique_dir(sandbox: Path)-> Iterator[Path]:
 
 
 @fixture(scope='session', autouse=True)
-def update_testdat(testdat: Path, testdat_repo: furl)-> None:
+def update_testdat(testdir: Path, testdat: Path, testdat_repo: furl)-> None:
     """Make sure that testdat is up to date"""
 
     if not testdat.exists():
-        run_command('git', 'clone', testdat_repo.furl)
-
-    with working_directory(testdat):
-        run_command(['git', 'pull'])
+        with working_directory(testdir):
+            run_command(['git', 'clone', testdat_repo.url])
+    else:
+        with working_directory(testdat):
+            run_command(['git', 'pull'])
