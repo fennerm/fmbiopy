@@ -213,7 +213,7 @@ class Fasta(Biofile):
     """Biofile for class holding .fasta files."""
 
     input_type = 'fasta'
-    accepted_extensions = ['.fasta', '.fa', '.fasta.gz', '.fa.gz']
+    accepted_extensions = ['.fasta', '.fa', 'mfa', 'fna']
 
 
 # class Sam(Biofile):
