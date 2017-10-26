@@ -357,7 +357,7 @@ RandPathType = Callable[[], Path]
 
 
 @fixture
-def randpath(randstr: str, tmpdir: Path)-> RandPathType:
+def randpath(randstr: Callable[[], str], tmpdir: Path)-> RandPathType:
     """Return a randomly generated nonexistant path"""
     def _gen_randpath()-> Path:
         return tmpdir.joinpath(randstr())
