@@ -17,6 +17,7 @@ from typing import (
         Type,
         )
 
+from ruffus.ruffus_utility import formatter
 from ruffus.proxy_logger import (
         make_shared_logger_and_proxy,
         setup_std_shared_logger,
@@ -48,8 +49,6 @@ CENTRIFUGE_DOWNLOAD = "centrifuge-download"
 CENTRIFUGE_BUILD = "centrifuge-build"
 CENTRIFUGE = "centrifuge"
 BOWTIE2_BUILD = "bowtie2-build"
-
-
 
 
 class RuffusLog(object):
@@ -681,20 +680,20 @@ class Centrifuge(RuffusTransform):
             self.output_files[0], self.param])
 
 
-# class ConvertCentrifugeToHits(RuffusTransform):
-#     """Convert a centrifuge output file to a hits file"""
-#     input_type = ['centrifuge_output']
-#     output_type = ['hits']
-#
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self._parameterized = False
-#
-#     def _build(self)-> None:
-#         """Build the command line arguments"""
-#         self._add_command(['centrifuge_output_to_hits.R']
+class ConvertCentrifugeToHits(RuffusTransform):
+    """Convert a centrifuge output file to a hits file"""
+    input_type = ['centrifuge_output']
+    output_type = ['tsv']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._parameterized = False
 
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        self._add_command([
+            'centrifuge_to_hits.py', self.input_files[0],
+            self.output_files[0]])
 
 
 #  class BlobtoolsCreate(RuffusTransform):
@@ -709,6 +708,11 @@ class Centrifuge(RuffusTransform):
 #          self._add_command(['centrifuge', '-k', '1', '-f', '-x',
 #              centrifuge_idx, '-U', assembly, '--report-file',
 #              self.output_files[0], self.param])
+
+
+# -----------------------------------------------------------------------------
+# Functions
+# -----------------------------------------------------------------------------
 
 
 """Type variable for RuffusTransform-like function"""
@@ -740,6 +744,44 @@ def apply_(task: Type[RuffusTransform])-> TransformFunction:
 
     return _apply_task
 
+
+# def format_(suffixes: List[List[str]])-> formatter:
+#     """Create a ruffus formatter which splits input files into three parts
+#
+#     Example
+#     -------
+#     format_(['fasta', 'fa'], ['fastq', 'fq'])
+#         -> formatter(
+#                 ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>fasta|fa|),
+#                 ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>fastq|fq|))
+#
+#     Parameters
+#     ----------
+#     suffixes
+#         List of lists of accepted suffixes.
+#
+#     Returns
+#     -------
+#     A ruffus formatter
+#     """
+#     regexes = []
+#     base_regex = ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>"
+#     for suffix_list in suffixes:
+#         # We reverse sort so that 'fq.gz' is matched before 'fq'. Without the
+#         # sort, only the first part of two part suffixes would be matched
+#         suffix_list = sorted(suffix_list, reverse=True)
+#         suff_str = '|'.join(suffix_list)
+#         regexes.append(''.join([base_regex, suff_str, ')']))
+#
+#     input_formatter = formatter(*regexes)
+#     return input_formatter
+
+# -----------------------------------------------------------------------------
+# Exceptions
+# -----------------------------------------------------------------------------
+
+
 class ParameterError(ValueError):
     """Thrown when unparameterized task is given parameters"""
     pass
+

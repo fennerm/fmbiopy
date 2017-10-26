@@ -19,12 +19,8 @@ from fmbiopy.fmpaths import (
         as_paths,
         as_strs,
         )
-from fmbiopy.fmruffus import (
-        apply_,
-        ParameterError,
-        RuffusLog,
-        SymlinkInputs,
-        )
+from fmbiopy.fmruffus import *
+
 
 class TestRuffusLog(object):
     @fixture
@@ -172,3 +168,14 @@ def test_apply_symlink_produces_expected_output(cd, full_dir):
     symlink_all(as_strs(inputs), as_strs(outputs))
     for path in outputs:
         assert path.exists()
+
+
+# def test_format_():
+#     suffixes = [['fastq', 'fq', 'fastq.gz', 'fq.gz'], ['fa', 'fa']]
+#     formatter = format_([suffixes])
+#     base_regex = ".*/(?P<PREFIX>[^\.]*).*(?P<SUFFIX>"
+#     actual_regex = formatter.args
+#     expected_regex = [
+#             ''.join([base_regex, 'fq.gz|fq|fastq.gz|fastq)']),
+#             ''.join([base_regex, 'fasta|fa)'])]
+#     assert actual_regex == expected_regex
