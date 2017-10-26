@@ -250,12 +250,13 @@ def mixed_absolute_relative_paths(
 
 
 @fixture()
-def nested_dir(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+def nested_dir(tmpdir: Path)-> Iterator[Path]:
     """Create a set of nested directories and files inside a temp directory
 
-    Returns
-    -------
-    Path of the temporary directory.
+    Yields
+    ------
+    Path
+        Path of the temporary directory.
     """
 
     subdir_names = ['foo', 'bar', 'car']
@@ -376,6 +377,7 @@ def randstr()-> Callable[[], str]:
 def randsuffix(randstr)-> Callable[[], str]:
     """Generate a unique random suffix"""
     def get_rand_suffix()-> str:
+        """test"""
         return '.' + randstr()
     return get_rand_suffix
 
@@ -411,6 +413,7 @@ def small(sandbox: Path)-> Path:
 
 @fixture(scope='session')
 def startdir()-> Path:
+    """The directory from which testing was initialized"""
     return Path.cwd().absolute()
 
 @fixture
@@ -427,7 +430,8 @@ def symlink(
         randpath: RandPathType,
         tmpdir: Path,
         )-> Iterator[Path]:
-    target= gen_tmp(empty=False, directory=tmpdir)
+    """Produce a symlink"""
+    target = gen_tmp(empty=False, directory=tmpdir)
     path = randpath()
     path.symlink_to(target)
     yield path

@@ -32,7 +32,7 @@ def all_absolute(paths: Iterable[Path])-> bool:
 
 
 @not_empty
-def all_exist(paths: Iterable[Path]) -> bool:
+def all_exist(paths: Iterable[Path])-> bool:
     """Return True if all paths in list exist """
     return all(apply_exists(paths))
 
@@ -61,11 +61,12 @@ def apply_is_empty(paths: Iterable[Path]) -> List[bool]:
 
     Returns
     -------
-    A list of bools"""
+    List[bool]
+        True if empty for each path"""
     return [is_empty(p) for p in paths]
 
 
-def apply_exists(paths: Iterable[Path]) -> List[bool]:
+def apply_exists(paths: Iterable[Path])-> List[bool]:
     """Apply os.path.exists to a list of paths"""
     return [p.exists() for p in paths]
 
@@ -80,8 +81,9 @@ def as_dict(directory: Path) -> Dict[str, List[Path]]:
 
     Returns
     -------
-    Output dictionary is of the form Dict[x, y] where x is a subdirectory of
-    `direc` and and y is the contents of x as a list.
+    Dict[str, List[Path]]
+        Output dictionary is of the form Dict[x, y] where x is a subdirectory
+        of `direc` and and y is the contents of x as a list.
     """
     subdirs = listdirs(directory)
     output = {}
@@ -103,6 +105,11 @@ def as_paths(
     strict
         Passed to `pathlib.Path.resolve()`. Does nothing if `absolute` is
         False.
+
+    Returns
+    -------
+    List[Path]
+        The list as paths
     """
     paths = [Path(string) for string in strs]
     if absolute:
@@ -118,13 +125,14 @@ def as_strs(paths: Iterable[PurePath])-> List[str]:
 def check_all_exist(paths: Iterable[Path])-> None:
     """Raise OSError if any paths in list do not exist """
     if not all_exist(paths):
-        raise FileNotFoundError("Not all paths exist: \n" + ' '.join(as_strs(paths)))
+        raise FileNotFoundError(
+                "Not all paths exist: \n" + ' '.join(as_strs(paths)))
 
 
 def create_all(paths: Iterable[Path])-> None:
     """Given a list of nonexistant paths, create them"""
     for path in paths:
-        path.touch(exist_ok = False)
+        path.touch(exist_ok=False)
 
 
 def find(
@@ -144,7 +152,8 @@ def find(
 
     Returns
     -------
-    List of files with the given extensions and substrings"""
+    List[Path]
+        List of files with the given extensions and substrings"""
     # Filter by file extension
     hits: List[Path] = []
     if extensions is not None:

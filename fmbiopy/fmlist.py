@@ -59,13 +59,13 @@ def interleave(list1: Sequence[T], list2: Sequence[T]) -> List[T]:
     return [val for pair in zip(list1, list2) for val in pair]
 
 
-def not_empty(func: Callable)-> Callable[[Any], None]:
+def not_empty(func: Callable)-> Callable:
     """Function decorator for functions which require nonempty list input"""
-    def wrapper(*args, **kwargs)-> None:
+    def _wrapper(*args, **kwargs):
         if not args[0]:
             raise EmptyListError
         return func(*args, **kwargs)
-    return wrapper
+    return _wrapper
 
 
 def split_list(x: Sequence[T], at: T) -> List[List[T]]:

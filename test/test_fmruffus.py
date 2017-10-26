@@ -180,3 +180,4 @@ def test_format_():
             ''.join([base_regex, 'fq.gz|fq|fastq.gz|fastq)']),
             ''.join([base_regex, 'fasta|fa)']))
     assert actual_regex == expected_regex
+

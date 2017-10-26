@@ -54,7 +54,8 @@ def run_command(
 
     Returns
     -------
-    A triple of the form (return code, standard out, standard error)
+    Tuple[int, str, str]
+        A tuple of the form (return code, standard out, standard error)
     """
 
     command = exclude_blank(command)
@@ -170,12 +171,13 @@ def parse_param_dict(param: Dict[str, str]) -> str:
 
     Parameters
     ----------
-    param:
+    param
         A dictionary with argument flags (-x, --long etc.) as the keys and
         BASH parameter values as the values
 
     Returns
     -------
+    str
         A Bash command substring containing the parameters
     """
     if param:

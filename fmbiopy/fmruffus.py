@@ -7,6 +7,7 @@ from abc import (
         abstractmethod,
         )
 from logging import DEBUG
+from multiprocessing.managers import AcquirerProxy  #type: ignore
 from pathlib import Path
 from typing import (
         Any,
@@ -19,6 +20,7 @@ from typing import (
 
 from ruffus.ruffus_utility import formatter
 from ruffus.proxy_logger import (
+        LoggerProxy,
         make_shared_logger_and_proxy,
         setup_std_shared_logger,
         )
@@ -54,37 +56,19 @@ BOWTIE2_BUILD = "bowtie2-build"
 class RuffusLog(object):
     """A logger/mutex pair used for logging in Ruffus pipelines
 
-    Usage
-    -----
-        ruflog = RuffusLog("foo", "bar.log")
-        with ruflog.mutex:
+    Examples
+    --------
+    >>>>ruflog = RuffusLog("foo", "bar.log")
+    >>>>with ruflog.mutex:
             ruflog.log.info("Logged message")
-
-    Parameters
-    ----------
-    name
-        The ID of the logger
-    location
-        The path to where the logfile should be stored
-    formatter
-        Specifies logging format
-    delay
-        If True, file opening deferred until first log action
-    level
-        Logging level, see logging module docs
-    buffered
-        If True, the `write` statements are appended to the buffer, but nothing
-        is logged until the buffer is `flush`ed.
-    overwrite
-        If True, logfile will be overwritten if it already exists
 
     Attributes
     ----------
     config: Dict[str, str, bool, int]
         Arguments passed to logger setup
-    log: proxy_logger.LoggerProxy
+    log: LoggerProxy
         The logging proxy instance
-    mutex: multiprocessing.managers.AcquirerProxy
+    mutex: AcquirerProxy
         The mutex lock used for synchronous access to logfile
     """
     def __init__(
@@ -96,6 +80,32 @@ class RuffusLog(object):
             level: int = DEBUG,
             buffered: bool = True,
             overwrite: bool = True) -> None:
+        """Initialization
+
+        Parameters
+        ----------
+        name
+            The ID of the logger
+        location
+            The path to where the logfile should be stored
+        formatter
+            Specifies logging format
+        delay
+            If True, file opening deferred until first log action
+        level
+            Logging level, see logging module docs
+        buffered
+            If True, the `write` statements are appended to the buffer, but nothing
+            is logged until the buffer is `flush`ed.
+        overwrite
+            If True, logfile will be overwritten if it already exists
+
+        Raises
+        ------
+        FileNotFoundError
+            Parent directory of logfile location doesn't exist
+        """
+
 
         self.config = {'file_name': str(location),
                        'formatter': formatter,
@@ -114,8 +124,10 @@ class RuffusLog(object):
             if location.exists():
                 location.unlink()
 
-        self.log, self.mutex = make_shared_logger_and_proxy(
-                setup_std_shared_logger, name, self.config)
+        logprox: Tuple[LoggerProxy, AcquirerProxy] = \
+                make_shared_logger_and_proxy(
+                        setup_std_shared_logger, name, self.config)
+        self.log, self.mutex = logprox
 
     def flush(self)-> None:
         """Write the buffer to the logfile and clear it"""
@@ -176,6 +188,7 @@ class RuffusLog(object):
 """The `RuffusLog` shared across all `RuffusTransform`s"""
 ROOT_LOGGER = RuffusLog("", Path("pipeline.log"))
 
+
 class RuffusTask(ABC):
     """Abtract class representing a `ruffus` function with output but no input
 
@@ -190,28 +203,18 @@ class RuffusTask(ABC):
     (`_add_extra_outputs`) and steps to be run after the main command
     (`_post_command`).
 
-    Parameters
-    ----------
-    log_results: optional
-        If True, OS stdout and stderr are logged to the pipeline's logfile
-    param: optional
-        A list of bash parameters e.g ['--foo', 'bar', '-x', '1']
-    shell: optional
-        If True, command should be run in shell rather than through python
-    inplace: optional
-        If True, input files are deleted once output files are produced
 
     Attributes
     ----------
-    output_type : str
-        (Class attribute) Expected output file extension. If '' then the
+    output_type : List[str]
+        (Class attribute) Expected output file extensions. If '' then the
         extension of the input is stripped in the output.
-    exit_code: int
-        The exit code returned by the task's bash process
-    stdout: str
-        The standard output produced by the task
-    stderr: str
-        The standard error produced by the task
+    exit_code : List[int]
+        The exit codes returned by the task's bash process
+    stdout : List[str]
+        The standard outputs produced by the task
+    stderr : List[str]
+        The standard errors produced by the task
     """
 
     _logger = ROOT_LOGGER
@@ -221,10 +224,20 @@ class RuffusTask(ABC):
             self,
             param: List[str] = [],
             log_results: bool = True)-> None:
+        """Initialization
+
+        Parameters
+        ----------
+        log_results: optional
+            If True, OS stdout and stderr are logged to the pipeline's logfile
+        param: optional
+            A list of bash parameters e.g ['--foo', 'bar', '-x', '1']
+        """
+
 
         # Store parameters
         self._log_results = log_results
-        self.param = param
+        self.param: List[str] = param
 
         # If True, command will be run in shell
         self._shell = False
@@ -730,8 +743,9 @@ def apply_(task: Type[RuffusTransform])-> TransformFunction:
 
     Returns
     -------
-    A function of two arguments, 1. a sequence of input files, 2. a
-    sequence of output files, which maps `task` from input[i] -> output[i]
+    Callable[[Sequence[str], Sequence[str], Any], None]
+        A function of two arguments, 1. a sequence of input files, 2. a
+        sequence of output files, which maps `task` from input[i] -> output[i]
     """
     def _apply_task(
             input_files: Sequence[str],
@@ -762,7 +776,8 @@ def format_(suffixes: List[List[str]])-> formatter:
 
     Returns
     -------
-    A ruffus formatter
+    formatter
+        A ruffus formatter with PREFIX, MID, and SUFFIX.
     """
     regexes = []
     base_regex = ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>"
@@ -784,4 +799,3 @@ def format_(suffixes: List[List[str]])-> formatter:
 class ParameterError(ValueError):
     """Thrown when unparameterized task is given parameters"""
     pass
-
