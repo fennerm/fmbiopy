@@ -745,36 +745,36 @@ def apply_(task: Type[RuffusTransform])-> TransformFunction:
     return _apply_task
 
 
-# def format_(suffixes: List[List[str]])-> formatter:
-#     """Create a ruffus formatter which splits input files into three parts
-#
-#     Example
-#     -------
-#     format_(['fasta', 'fa'], ['fastq', 'fq'])
-#         -> formatter(
-#                 ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>fasta|fa|),
-#                 ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>fastq|fq|))
-#
-#     Parameters
-#     ----------
-#     suffixes
-#         List of lists of accepted suffixes.
-#
-#     Returns
-#     -------
-#     A ruffus formatter
-#     """
-#     regexes = []
-#     base_regex = ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>"
-#     for suffix_list in suffixes:
-#         # We reverse sort so that 'fq.gz' is matched before 'fq'. Without the
-#         # sort, only the first part of two part suffixes would be matched
-#         suffix_list = sorted(suffix_list, reverse=True)
-#         suff_str = '|'.join(suffix_list)
-#         regexes.append(''.join([base_regex, suff_str, ')']))
-#
-#     input_formatter = formatter(*regexes)
-#     return input_formatter
+def format_(suffixes: List[List[str]])-> formatter:
+    """Create a ruffus formatter which splits input files into three parts
+
+    Example
+    -------
+    format_(['fasta', 'fa'], ['fastq', 'fq'])
+        -> formatter(
+                ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>fasta|fa|),
+                ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>fastq|fq|))
+
+    Parameters
+    ----------
+    suffixes
+        List of lists of accepted suffixes.
+
+    Returns
+    -------
+    A ruffus formatter
+    """
+    regexes = []
+    base_regex = ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>"
+    for suffix_list in suffixes:
+        # We reverse sort so that 'fq.gz' is matched before 'fq'. Without the
+        # sort, only the first part of two part suffixes would be matched
+        suffix_list = sorted(suffix_list, reverse=True)
+        suff_str = '|'.join(suffix_list)
+        regexes.append(''.join([base_regex, suff_str, ')']))
+
+    input_formatter = formatter(*regexes)
+    return input_formatter
 
 # -----------------------------------------------------------------------------
 # Exceptions

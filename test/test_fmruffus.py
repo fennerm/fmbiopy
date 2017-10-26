@@ -170,12 +170,13 @@ def test_apply_symlink_produces_expected_output(cd, full_dir):
         assert path.exists()
 
 
-# def test_format_():
-#     suffixes = [['fastq', 'fq', 'fastq.gz', 'fq.gz'], ['fa', 'fa']]
-#     formatter = format_([suffixes])
-#     base_regex = ".*/(?P<PREFIX>[^\.]*).*(?P<SUFFIX>"
-#     actual_regex = formatter.args
-#     expected_regex = [
-#             ''.join([base_regex, 'fq.gz|fq|fastq.gz|fastq)']),
-#             ''.join([base_regex, 'fasta|fa)'])]
-#     assert actual_regex == expected_regex
+def test_format_():
+    suffixes = [['fastq', 'fq', 'fastq.gz', 'fq.gz'], ['fa', 'fasta']]
+    formatter = format_(suffixes)
+    base_regex = ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>"
+
+    actual_regex = formatter.args
+    expected_regex = (
+            ''.join([base_regex, 'fq.gz|fq|fastq.gz|fastq)']),
+            ''.join([base_regex, 'fasta|fa)']))
+    assert actual_regex == expected_regex
