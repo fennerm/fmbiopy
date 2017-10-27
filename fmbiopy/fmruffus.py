@@ -41,10 +41,10 @@ from fmbiopy.fmsystem import (
         )
 
 
-# Default logging format"""
+"""Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
 
-# Binaries
+"""Binaries"""
 SAMTOOLS = "samtools"
 BOWTIE2 = "bowtie2"
 CENTRIFUGE_DOWNLOAD = "centrifuge-download"
@@ -52,15 +52,17 @@ CENTRIFUGE_BUILD = "centrifuge-build"
 CENTRIFUGE = "centrifuge"
 BOWTIE2_BUILD = "bowtie2-build"
 
+"""Default output directory"""
+OUTPUT_DIR: Path = Path.cwd() / 'pipe'
 
-class RuffusLog(object):
+class RuffusLogger(object):
     """A logger/mutex pair used for logging in Ruffus pipelines
 
     Examples
     --------
-    >>>>ruflog = RuffusLog("foo", "bar.log")
+    >>>>ruflog = RuffusLogger("foo", "bar.log")
     >>>>with ruflog.mutex:
-            ruflog.log.info("Logged message")
+            ruflog.log.info("RuffusLoggerged message")
 
     Attributes
     ----------
@@ -95,8 +97,8 @@ class RuffusLog(object):
         level
             Logging level, see logging module docs
         buffered
-            If True, the `write` statements are appended to the buffer, but nothing
-            is logged until the buffer is `flush`ed.
+            If True, the `write` statements are appended to the buffer, but
+            nothing is logged until the buffer is `flush`ed.
         overwrite
             If True, logfile will be overwritten if it already exists
 
@@ -135,7 +137,7 @@ class RuffusLog(object):
         self._clear_buffer()
 
     def write(self, msg: str)-> None:
-        """Log a message with mutex lock
+        """RuffusLogger a message with mutex lock
 
         Parameters
         ----------
@@ -185,8 +187,65 @@ class RuffusLog(object):
             self.write('=' * 80)
 
 
-"""The `RuffusLog` shared across all `RuffusTransform`s"""
-ROOT_LOGGER = RuffusLog("", Path("pipeline.log"))
+"""The `RuffusLogger` shared across all `Transform`s"""
+ROOT_LOGGER = RuffusLogger('', Path("pipeline.log"))
+
+
+# """Valid input type for Pipeline.schedule"""
+# RuffusTaskInput = Union[RuffusRuffusTask, Sequence[str], Sequence[Sequence[str]]]
+#
+#
+# class Pipeline(object):
+#     """A bioinformatics pipeline
+#
+#     Attributes
+#     ----------
+#     logger : RuffusLogger
+#         Object which handles writing to the pipeline logfile.
+#     name : str
+#         Name of the pipeline
+#     """
+#     def __init__(self, name: str)-> None:
+#         logfile_location: Path = OUTPUT_DIR / ''.join([name, '.log'])
+#         self.logger: RuffusLogger = RuffusLogger('', logfile_location)
+#         self.name: str = name
+#         self._pipeline: RuffusPipeline = RuffusPipeline(name=name)
+#         self._idx: int = 1
+#
+#     def schedule(
+#             self,
+#             task: Type[RuffusTask],
+#             input_files: RuffusTaskInput,
+#             input_suffixes: List[str],
+#             output_suffixes: Iterable[str],
+#             param: List[str],
+#             )-> RuffusRuffusTask:
+#         inst: RuffusTask = RuffusTask(param)
+#
+#         formatter = format_input(input_suffixes)
+#
+#         output_dir = OUTPUT_DIR / ''.join([classname(task) + self._idx])
+#         output_format = []
+#         for i, suffix in enumerate(output_suffixes):
+#             output_format.append(str(
+#                 output_dir / ''.join(['{PREFIX[', str(i), ']},', suffix])))
+#
+#         if 'Transform' in parent_names(task):
+#             self._pipeline.transform(
+#                     task_func = inst.run,
+#                     filter = output_format(input_suffixes),
+#                     input = input_files,
+#                     output = output_format)
+#
+#         elif 'RuffusTask' in parent_names(task):
+#             self._pipeline.originate(
+#                     task_func = inst.run,
+#                     output = )
+#
+#         self._idx += 1
+#
+#     def run(self, *args, **kwargs):
+#         pass
 
 
 class RuffusTask(ABC):
@@ -195,7 +254,7 @@ class RuffusTask(ABC):
     The running and task logging of the command is handled here. Extra
     initialization and command construction are handled by subclasses.
     `RuffusFunctions` which inherit from `RuffusTask` will produce data which
-    will be input to `RuffusTransform`s. In practice, these functions will be used
+    will be input to `Transform`s. In practice, these functions will be used
     for `RuffusFunction`s called during `ruffus.Pipeline.originate` tasks.
 
     Subclasses are expected to define their own method for constructing their
@@ -309,7 +368,7 @@ class RuffusTask(ABC):
         return None
 
     def _add_taskname_to_header(self)-> None:
-        self._add_to_header('Task', self.__class__.__name__)
+        self._add_to_header('RuffusTask', self.__class__.__name__)
 
     def _addoutput_files_to_header(self)-> None:
         self._add_to_header('Output', self.output_files)
@@ -402,12 +461,12 @@ class RuffusTask(ABC):
         self.stderr.append(results[2])
 
 
-class RuffusTransform(RuffusTask, ABC):
+class Transform(RuffusTask, ABC):
     """A superclass representing a `ruffus` function with output and input
 
-    `RuffusFunctions` which inherit from `RuffusTransform` will produce data which
-    will be input to further `RuffusTransform`s. The vast majority of functions used
-    in `ruffus` pipelines fall under the domain of `RuffusTransform`s.
+    `RuffusFunctions` which inherit from `Transform` will produce data which
+    will be input to further `Transform`s. The vast majority of functions used
+    in `ruffus` pipelines fall under the domain of `Transform`s.
 
     Subclasses are expected to define their own method for constructing their
     command (`_build`). They may also define extra outputs
@@ -478,13 +537,13 @@ class RuffusTransform(RuffusTask, ABC):
 
     def _log_task_header(self)-> None:
         """Write the task header to the logfile"""
-        self._add_to_header('Task', self.__class__.__name__)
+        self._add_to_header('RuffusTask', self.__class__.__name__)
         self._addinput_files_to_header()
         self._addoutput_files_to_header()
         self._logger.write_header(self._task_header)
 
 
-class SamtoolsIndexFasta(RuffusTransform):
+class SamtoolsIndexFasta(Transform):
     """Index a .fasta file using samtools faidx"""
 
     input_type = ['fasta']
@@ -499,7 +558,7 @@ class SamtoolsIndexFasta(RuffusTransform):
         self._add_command(['mv', str(index_file), self.output_files[0]])
 
 
-class Gunzip(RuffusTransform):
+class Gunzip(Transform):
     """Unzip a file with gunzip"""
     input_type = ['gz']
     output_type = ['']
@@ -519,7 +578,7 @@ class Gunzip(RuffusTransform):
             self.output_files])
 
 
-class Gzip(RuffusTransform):
+class Gzip(Transform):
     """Compress a file with gzip"""
     input_type = ['ANY']
     output_type = ['gz']
@@ -540,7 +599,7 @@ class Gzip(RuffusTransform):
             self.output_files])
 
 
-class PairedBowtie2Align(RuffusTransform):
+class PairedBowtie2Align(Transform):
     """Align a pair of fastq files to a fasta file using bowtie2"""
     input_type = ['fasta', 'fwd_fastq', 'rev_fastq']
     output_type = ['bam']
@@ -582,7 +641,7 @@ class PairedBowtie2Align(RuffusTransform):
             SAMTOOLS, 'index', output_bam, '/dev/null', '2>&1'])
 
 
-class SymlinkInputs(RuffusTransform):
+class SymlinkInputs(Transform):
     """Create symlinks of the input arguments"""
     input_type = ['ANY']
     output_type = ['SAME']
@@ -679,7 +738,7 @@ class BuildCentrifugeDB(RuffusTask):
                 pass
 
 
-class Centrifuge(RuffusTransform):
+class Centrifuge(Transform):
     """Run centrifuge"""
     input_type = ['fasta', 'cf']
     output_type = ['tsv']
@@ -693,7 +752,7 @@ class Centrifuge(RuffusTransform):
             self.output_files[0], self.param])
 
 
-class ConvertCentrifugeToHits(RuffusTransform):
+class ConvertCentrifugeToHits(Transform):
     """Convert a centrifuge output file to a hits file"""
     input_type = ['centrifuge_output']
     output_type = ['tsv']
@@ -709,7 +768,7 @@ class ConvertCentrifugeToHits(RuffusTransform):
             self.output_files[0]])
 
 
-#  class BlobtoolsCreate(RuffusTransform):
+#  class BlobtoolsCreate(Transform):
 #      """Run centrifuge"""
 #      input_type = ['fasta', 'hits', 'fastq', 'fastq']
 #      output_type = ['tsv']
@@ -728,18 +787,18 @@ class ConvertCentrifugeToHits(RuffusTransform):
 # -----------------------------------------------------------------------------
 
 
-"""Type variable for RuffusTransform-like function"""
+"""Type variable for Transform-like function"""
 TransformFunction = Callable[[Sequence[str], Sequence[str], Any], None]
 
-def apply_(task: Type[RuffusTransform])-> TransformFunction:
-    """Return function which applies a `RuffusTransform` to multiple inputs
+def apply_(task: Type[Transform])-> TransformFunction:
+    """Return function which applies a `Transform` to multiple inputs
 
     All extra parameters are passed to `task`
 
     Parameters
     ----------
     task
-        A RuffusTransform class
+        A Transform class
 
     Returns
     -------
@@ -759,8 +818,38 @@ def apply_(task: Type[RuffusTransform])-> TransformFunction:
     return _apply_task
 
 
-def format_(suffixes: List[List[str]])-> formatter:
+def output_format(suffixes: List[str], dirname: str = '')-> List[str]:
+    """Produce `ruffus` output format strings
+
+    The format specifies that one output file should be placed in `dirname` for
+    each suffix in `suffixes`. The return is intended to be passed as the
+    output argument to `ruffus.Pipeline.RuffusTask`.
+
+    Parameters
+    ----------
+    suffixes
+        List of suffixes to append to the output files.
+    dirname
+        The output directory basename
+
+    Returns
+    -------
+    List[str]
+        A list of format strings
+    """
+    output_format: List[str] = []
+    for suffix in suffixes:
+        output_format.append(str(
+            OUTPUT_DIR / dirname / ''.join(['{PREFIX[0]}', suffix])))
+
+    return output_format
+
+
+def format_input(suffixes: List[str])-> formatter:
     """Create a ruffus formatter which splits input files into three parts
+
+    The return is intended to be passed as the filter argument to
+    `ruffus.Pipeline.RuffusTask`.
 
     Example
     -------
@@ -780,16 +869,17 @@ def format_(suffixes: List[List[str]])-> formatter:
         A ruffus formatter with PREFIX, MID, and SUFFIX.
     """
     regexes = []
-    base_regex = ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>"
-    for suffix_list in suffixes:
-        # We reverse sort so that 'fq.gz' is matched before 'fq'. Without the
-        # sort, only the first part of two part suffixes would be matched
-        suffix_list = sorted(suffix_list, reverse=True)
-        suff_str = '|'.join(suffix_list)
-        regexes.append(''.join([base_regex, suff_str, ')']))
+    regexes.append(r".*/(?P<PREFIX>[^.]*).*") # Capture Prefix
+
+    # We reverse sort so that 'fq.gz' is matched before 'fq'. Without the
+    # sort, only the first part of two part suffixes would be matched
+    suffixes = sorted(suffixes, reverse=True)
+    suff_str = '|'.join(suffixes)
+    regexes.append(''.join([r'.*/.*', suff_str]))
 
     input_formatter = formatter(*regexes)
     return input_formatter
+
 
 # -----------------------------------------------------------------------------
 # Exceptions

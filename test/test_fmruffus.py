@@ -3,6 +3,8 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 from collections import namedtuple
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from pytest import (
         fixture,
@@ -22,10 +24,10 @@ from fmbiopy.fmpaths import (
 from fmbiopy.fmruffus import *
 
 
-class TestRuffusLog(object):
+class TestRuffusLogger(object):
     @fixture
     def unbuffered_ruflog(self, nonexistant_path):
-        return RuffusLog(
+        return RuffusLogger(
                 name='foo',
                 location=nonexistant_path,
                 buffered=False,
@@ -37,18 +39,18 @@ class TestRuffusLog(object):
     def test_possible_path_inputs(self, poss_paths):
         if poss_paths[0] == 'nonexistant_parent':
             with raises(FileNotFoundError):
-                RuffusLog('foo', poss_paths[1])
+                RuffusLogger('foo', poss_paths[1])
         elif poss_paths[0] == 'tmpdir':
             with raises(IsADirectoryError):
-                RuffusLog('foo', poss_paths[1])
+                RuffusLogger('foo', poss_paths[1])
         else:
-            RuffusLog('foo', poss_paths[1])
+            RuffusLogger('foo', poss_paths[1])
 
 
     @mark.parametrize('buffered', [True, False])
     @mark.parametrize('overwrite', [True, False])
     def test_optional_parameters(self, buffered, overwrite, nonexistant_path):
-        ruflog = RuffusLog(
+        ruflog = RuffusLogger(
                 name='foo',
                 location=nonexistant_path,
                 buffered=buffered,
@@ -64,7 +66,7 @@ class TestRuffusLog(object):
             content = nonexistant_path.read_text()
             assert content
 
-        ruflog2 = RuffusLog(
+        ruflog2 = RuffusLogger(
                 name='foo',
                 location=nonexistant_path,
                 buffered=buffered,
@@ -91,7 +93,7 @@ class TestRuffusLog(object):
             assert '=' * 80 in lines[2]
 
 
-class TestAllTasks(object):
+class TestAllRuffusTasks(object):
     @fixture(scope='module')
     def get_example_files(self, example_file, sandbox):
         """Return example RuffusTask instances"""
@@ -123,7 +125,7 @@ class TestAllTasks(object):
                 'fmbiopy',
                 of_type=['RuffusTransform'],
                 exclude=[
-                    'RuffusLog', 'RuffusTask', 'RuffusTransform',
+                    'RuffusLogger', 'RuffusTask', 'RuffusTransform',
                     'BuildCentrifugeDB']))
     def task(self, request, cd, get_example_files):
         cls = request.param
@@ -169,15 +171,45 @@ def test_apply_symlink_produces_expected_output(cd, full_dir):
     for path in outputs:
         assert path.exists()
 
+@fixture()
+def input_suffixes(request):
+    suffixes = ['fastq', 'fq', 'fastq.gz', 'fq.gz']
+    return suffixes
 
-def test_format_():
-    suffixes = [['fastq', 'fq', 'fastq.gz', 'fq.gz'], ['fa', 'fasta']]
-    formatter = format_(suffixes)
-    base_regex = ".*/(?P<PREFIX>[^\.]*)\.(?P<MID>.*)\.?(?P<SUFFIX>"
+
+def test_format_input_normal_usage(input_suffixes):
+    formatter = format_input(input_suffixes)
 
     actual_regex = formatter.args
     expected_regex = (
-            ''.join([base_regex, 'fq.gz|fq|fastq.gz|fastq)']),
-            ''.join([base_regex, 'fasta|fa)']))
+            r".*/(?P<PREFIX>[^.]*).*",
+            r".*/.*fq.gz|fq|fastq.gz|fastq")
     assert actual_regex == expected_regex
 
+@fixture
+def output_suffixes():
+    suffixes = ['.fasta', '.fq']
+    return suffixes
+
+
+def test_output_format(output_suffixes):
+    actual = output_format(output_suffixes, 'foo')
+    output_dir = OUTPUT_DIR / 'foo'
+    expected = [
+            str(output_dir / '{PREFIX[0]}.fasta'),
+            str(output_dir / '{PREFIX[0]}.fq')]
+    assert actual == expected
+
+
+# class TestPipeline(object):
+#     @fixture
+#     def pipe(self, randstr):
+#         return Pipeline(randstr())
+#
+#     def test_schedule(self, absolute_exist_paths, pipe):
+#         assert not pipe.pipeline
+#         pipe.schedule(RuffusTask, input=absolute_exist_paths, output=['fasta'])
+#         assert len(pipe.pipeline) == 1
+#
+#     def test_run(self, pipe):
+#         pass
