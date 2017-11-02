@@ -596,7 +596,7 @@ class Gzip(RuffusTransform):
 
 class PairedBowtie2Align(RuffusTransform):
     """Align a pair of fastq files to a fasta file using bowtie2"""
-    input_type = ['fasta', 'fwd_fastq', 'rev_fastq']
+    input_type = ['fasta', 'fwd_fastq', 'rev_fastq', 'fastq']
     output_type = ['bam']
     _shell = True
 
@@ -611,6 +611,11 @@ class PairedBowtie2Align(RuffusTransform):
         fasta = self.input_files[0]
         fwd_fastq = self.input_files[1]
         rev_fastq = self.input_files[2]
+        if len(self.input_files) > 3:
+            unpaired_flag = ['-U', self.input_files[3]]
+        else:
+            unpaired_flag = ['']
+
         output_bam = self.output_files[0]
 
         # Index fasta first
@@ -624,7 +629,7 @@ class PairedBowtie2Align(RuffusTransform):
 
         #  Run Bowtie2 and pipe the output to a sorted bam file
         self._add_command([
-            BOWTIE2, '-1', fwd_fastq, '-2', rev_fastq, '-x',
+            BOWTIE2, '-1', fwd_fastq, '-2', rev_fastq, unpaired_flag, '-x',
             bowtie2_index, *self.param, '|', SAMTOOLS, 'view', '-bS', '-', '|',
             SAMTOOLS, 'sort', '-o', output_bam, '-'])
 
