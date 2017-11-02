@@ -51,7 +51,8 @@ CENTRIFUGE_DOWNLOAD = "centrifuge-download"
 CENTRIFUGE_BUILD = "centrifuge-build"
 CENTRIFUGE = "centrifuge"
 BOWTIE2_BUILD = "bowtie2-build"
-BBDUK= "bbduk.sh"
+BBDUK = "bbduk.sh"
+BBMERGE = "bbmerge.sh"
 
 """Default output directory"""
 OUTPUT_DIR: Path = Path.cwd() / 'pipe'
@@ -777,7 +778,7 @@ class BBDukTrimAdaptors(RuffusTransform):
     def _build(self)-> None:
         """Build the command line arguments"""
         self._add_command([
-            'bbduk.sh', ''.join(['in=', self.input_files[0]]),
+            BBDUK, ''.join(['in=', self.input_files[0]]),
             ''.join(['in2=', self.input_files[1]]),
             ''.join(['out=', self.output_files[0]]),
             ''.join(['out2=', self.output_files[1]]),
@@ -786,17 +787,34 @@ class BBDukTrimAdaptors(RuffusTransform):
 
 
 class BBDukQualityTrim(RuffusTransform):
-    """Trim adaptor sequences with BBDuk"""
+    """Quality trim reads with BBDuk"""
     input_type = ['fwd_fastq', 'rev_fastq']
     output_type = ['fwd_fastq', 'rev_fastq']
 
     def _build(self)-> None:
         """Build the command line arguments"""
         self._add_command([
-            'bbduk.sh', ''.join(['in=', self.input_files[0]]),
+            BBDUK, ''.join(['in=', self.input_files[0]]),
             ''.join(['in2=', self.input_files[1]]),
             ''.join(['out=', self.output_files[0]]),
             ''.join(['out2=', self.output_files[1]]),
+            self.param])
+
+
+class BBMerge(RuffusTransform):
+    """Merge reads with BBMerge"""
+    input_type = ['fwd_fastq', 'rev_fastq']
+    output_type = ['fastq', 'fwd_fastq', 'rev_fastq', 'txt']
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        self._add_command([
+            BBMERGE, ''.join(['in1=', self.input_files[0]]),
+            ''.join(['in2=', self.input_files[1]]),
+            ''.join(['outm=', self.output_files[0]]),
+            ''.join(['outu1=', self.output_files[1]]),
+            ''.join(['outu2=', self.output_files[2]]),
+            ''.join(['ihist=', self.output_files[3]]),
             self.param])
 
 
