@@ -18,7 +18,6 @@ from typing import (
         )
 from uuid import uuid4
 
-from furl import furl
 from py import path
 from pytest import fixture
 from _pytest.fixtures import SubRequest
@@ -444,9 +443,9 @@ def testdat(testdir)-> Path:
     return testdir / 'testdat'
 
 @fixture(scope='session')
-def testdat_repo()-> furl:
-    """The URL of the testdat github repo"""
-    return furl('https://github.com/fennerm/testdat')
+def testdat_repo()-> str:
+    """The SSH address of the testdat github repo"""
+    return 'git@github.com:fennerm/testdat'
 
 
 @fixture(scope='session')
@@ -484,12 +483,12 @@ def unique_dir(sandbox: Path)-> Iterator[Path]:
 
 
 @fixture(scope='session', autouse=True)
-def update_testdat(testdir: Path, testdat: Path, testdat_repo: furl)-> None:
+def update_testdat(testdir: Path, testdat: Path, testdat_repo: str)-> None:
     """Make sure that testdat is up to date"""
 
     if not testdat.exists():
         with working_directory(testdir):
-            run_command(['git', 'clone', testdat_repo.url])
+            run_command(['git', 'clone', testdat_repo])
     else:
         with working_directory(testdat):
             run_command(['git', 'pull'])
