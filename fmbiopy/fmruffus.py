@@ -187,7 +187,7 @@ class RuffusLogger(object):
             self.write('=' * 80)
 
 
-"""The `RuffusLogger` shared across all `Transform`s"""
+"""The `RuffusLogger` shared across all `RuffusTransform`s"""
 ROOT_LOGGER = RuffusLogger('', Path("pipeline.log"))
 
 
@@ -230,7 +230,7 @@ ROOT_LOGGER = RuffusLogger('', Path("pipeline.log"))
 #             output_format.append(str(
 #                 output_dir / ''.join(['{PREFIX[', str(i), ']},', suffix])))
 #
-#         if 'Transform' in parent_names(task):
+#         if 'RuffusTransform' in parent_names(task):
 #             self._pipeline.transform(
 #                     task_func = inst.run,
 #                     filter = output_format(input_suffixes),
@@ -254,7 +254,7 @@ class RuffusTask(ABC):
     The running and task logging of the command is handled here. Extra
     initialization and command construction are handled by subclasses.
     `RuffusFunctions` which inherit from `RuffusTask` will produce data which
-    will be input to `Transform`s. In practice, these functions will be used
+    will be input to `RuffusTransform`s. In practice, these functions will be used
     for `RuffusFunction`s called during `ruffus.Pipeline.originate` tasks.
 
     Subclasses are expected to define their own method for constructing their
@@ -461,12 +461,12 @@ class RuffusTask(ABC):
         self.stderr.append(results[2])
 
 
-class Transform(RuffusTask, ABC):
+class RuffusTransform(RuffusTask, ABC):
     """A superclass representing a `ruffus` function with output and input
 
-    `RuffusFunctions` which inherit from `Transform` will produce data which
-    will be input to further `Transform`s. The vast majority of functions used
-    in `ruffus` pipelines fall under the domain of `Transform`s.
+    `RuffusFunctions` which inherit from `RuffusTransform` will produce data which
+    will be input to further `RuffusTransform`s. The vast majority of functions used
+    in `ruffus` pipelines fall under the domain of `RuffusTransform`s.
 
     Subclasses are expected to define their own method for constructing their
     command (`_build`). They may also define extra outputs
@@ -543,7 +543,7 @@ class Transform(RuffusTask, ABC):
         self._logger.write_header(self._task_header)
 
 
-class SamtoolsIndexFasta(Transform):
+class SamtoolsIndexFasta(RuffusTransform):
     """Index a .fasta file using samtools faidx"""
 
     input_type = ['fasta']
@@ -558,7 +558,7 @@ class SamtoolsIndexFasta(Transform):
         self._add_command(['mv', str(index_file), self.output_files[0]])
 
 
-class Gunzip(Transform):
+class Gunzip(RuffusTransform):
     """Unzip a file with gunzip"""
     input_type = ['gz']
     output_type = ['']
@@ -578,7 +578,7 @@ class Gunzip(Transform):
             self.output_files])
 
 
-class Gzip(Transform):
+class Gzip(RuffusTransform):
     """Compress a file with gzip"""
     input_type = ['ANY']
     output_type = ['gz']
@@ -599,7 +599,7 @@ class Gzip(Transform):
             self.output_files])
 
 
-class PairedBowtie2Align(Transform):
+class PairedBowtie2Align(RuffusTransform):
     """Align a pair of fastq files to a fasta file using bowtie2"""
     input_type = ['fasta', 'fwd_fastq', 'rev_fastq']
     output_type = ['bam']
@@ -641,7 +641,7 @@ class PairedBowtie2Align(Transform):
             SAMTOOLS, 'index', output_bam, '/dev/null', '2>&1'])
 
 
-class SymlinkInputs(Transform):
+class SymlinkInputs(RuffusTransform):
     """Create symlinks of the input arguments"""
     input_type = ['ANY']
     output_type = ['SAME']
@@ -738,7 +738,7 @@ class BuildCentrifugeDB(RuffusTask):
                 pass
 
 
-class Centrifuge(Transform):
+class Centrifuge(RuffusTransform):
     """Run centrifuge"""
     input_type = ['fasta', 'cf']
     output_type = ['tsv']
@@ -752,7 +752,7 @@ class Centrifuge(Transform):
             self.output_files[0], self.param])
 
 
-class ConvertCentrifugeToHits(Transform):
+class ConvertCentrifugeToHits(RuffusTransform):
     """Convert a centrifuge output file to a hits file"""
     input_type = ['centrifuge_output']
     output_type = ['tsv']
@@ -768,7 +768,7 @@ class ConvertCentrifugeToHits(Transform):
             self.output_files[0]])
 
 
-#  class BlobtoolsCreate(Transform):
+#  class BlobtoolsCreate(RuffusTransform):
 #      """Run centrifuge"""
 #      input_type = ['fasta', 'hits', 'fastq', 'fastq']
 #      output_type = ['tsv']
@@ -787,18 +787,18 @@ class ConvertCentrifugeToHits(Transform):
 # -----------------------------------------------------------------------------
 
 
-"""Type variable for Transform-like function"""
-TransformFunction = Callable[[Sequence[str], Sequence[str], Any], None]
+"""Type variable for RuffusTransform-like function"""
+RuffusTransformFunction = Callable[[Sequence[str], Sequence[str], Any], None]
 
-def apply_(task: Type[Transform])-> TransformFunction:
-    """Return function which applies a `Transform` to multiple inputs
+def apply_(task: Type[RuffusTransform])-> RuffusTransformFunction:
+    """Return function which applies a `RuffusTransform` to multiple inputs
 
     All extra parameters are passed to `task`
 
     Parameters
     ----------
     task
-        A Transform class
+        A RuffusTransform class
 
     Returns
     -------

@@ -3,15 +3,14 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 from collections import namedtuple
-from contextlib import redirect_stdout
-from io import StringIO
 from pathlib import Path
+from uuid import uuid4
+
 from pytest import (
         fixture,
         mark,
         raises,
         )
-from uuid import uuid4
 
 from fmbiopy.fmclass import list_classes
 from fmbiopy.fmlist import flatten
@@ -172,7 +171,7 @@ def test_apply_symlink_produces_expected_output(cd, full_dir):
         assert path.exists()
 
 @fixture()
-def input_suffixes(request):
+def input_suffixes():
     suffixes = ['fastq', 'fq', 'fastq.gz', 'fq.gz']
     return suffixes
 
@@ -186,11 +185,11 @@ def test_format_input_normal_usage(input_suffixes):
             r".*/.*fq.gz|fq|fastq.gz|fastq")
     assert actual_regex == expected_regex
 
+
 @fixture
 def output_suffixes():
     suffixes = ['.fasta', '.fq']
     return suffixes
-
 
 def test_output_format(output_suffixes):
     actual = output_format(output_suffixes, 'foo')
