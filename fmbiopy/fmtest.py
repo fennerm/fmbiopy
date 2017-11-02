@@ -140,6 +140,11 @@ def example_file(
         size : {'tiny', 'small'}
             The approximate size of the output file. Tiny files have ~10
             entries, small files have ~1000-10000.
+
+        Returns
+        -------
+        Path
+            A path to an example file of the requested type.
         """
         if filetype == 'fasta':
             outfile = dat[size]['assemblies'][0]
@@ -153,8 +158,8 @@ def example_file(
             outfile = dat[size]['sam'][0]
         elif filetype == 'bam':
             outfile = dat[size]['bam'][0]
-        elif filetype == 'adaptor_fasta':
-            outfile = dat[size]['adaptors'][0]
+        elif filetype == 'adapter_fasta':
+            outfile = dat[size]['adapters'][0]
         elif filetype == 'gz':
             outfile = dat[size]['zipped_fwd_reads'][0]
         elif filetype == 'cf':

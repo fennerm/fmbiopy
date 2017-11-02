@@ -55,6 +55,7 @@ BOWTIE2_BUILD = "bowtie2-build"
 BBDUK = "bbduk.sh"
 BBMERGE = "bbmerge.sh"
 FASTQC = "fastqc"
+SPADES = "spades.py"
 
 """Default output directory"""
 OUTPUT_DIR: Path = Path.cwd() / 'pipe'
@@ -756,9 +757,9 @@ class ConvertCentrifugeToHits(RuffusTransform):
             self.output_files[0]])
 
 
-class BBDukTrimAdaptors(RuffusTransform):
+class BBDukTrimAdapters(RuffusTransform):
     """Trim adaptor sequences with BBDuk"""
-    input_type = ['fwd_fastq', 'rev_fastq', 'adaptor_fasta']
+    input_type = ['fwd_fastq', 'rev_fastq', 'adapter_fasta']
     output_type = ['fwd_fastq', 'rev_fastq']
 
     def _build(self)-> None:
@@ -784,6 +785,19 @@ class BBDukQualityTrim(RuffusTransform):
             ''.join(['in2=', self.input_files[1]]),
             ''.join(['out=', self.output_files[0]]),
             ''.join(['out2=', self.output_files[1]]),
+            self.param])
+
+
+class BBDukQualityTrimUnpaired(RuffusTransform):
+    """Quality trim unpaired reads with BBDuk"""
+    input_type = ['fastq']
+    output_type = ['fastq']
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        self._add_command([
+            BBDUK, ''.join(['in=', self.input_files[0]]),
+            ''.join(['out=', self.output_files[0]]),
             self.param])
 
 
