@@ -153,6 +153,8 @@ def example_file(
             outfile = dat[size]['sam'][0]
         elif filetype == 'bam':
             outfile = dat[size]['bam'][0]
+        elif filetype == 'adaptor_fasta':
+            outfile = dat[size]['adaptors'][0]
         elif filetype == 'gz':
             outfile = dat[size]['zipped_fwd_reads'][0]
         elif filetype == 'cf':

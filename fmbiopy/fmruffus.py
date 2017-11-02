@@ -51,6 +51,7 @@ CENTRIFUGE_DOWNLOAD = "centrifuge-download"
 CENTRIFUGE_BUILD = "centrifuge-build"
 CENTRIFUGE = "centrifuge"
 BOWTIE2_BUILD = "bowtie2-build"
+BBDUK= "bbduk.sh"
 
 """Default output directory"""
 OUTPUT_DIR: Path = Path.cwd() / 'pipe'
@@ -768,6 +769,37 @@ class ConvertCentrifugeToHits(RuffusTransform):
             self.output_files[0]])
 
 
+class BBDukTrimAdaptors(RuffusTransform):
+    """Trim adaptor sequences with BBDuk"""
+    input_type = ['fwd_fastq', 'rev_fastq', 'adaptor_fasta']
+    output_type = ['fwd_fastq', 'rev_fastq']
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        self._add_command([
+            'bbduk.sh', ''.join(['in=', self.input_files[0]]),
+            ''.join(['in2=', self.input_files[1]]),
+            ''.join(['out=', self.output_files[0]]),
+            ''.join(['out2=', self.output_files[1]]),
+            ''.join(['ref=', self.input_files[2]]),
+            self.param])
+
+
+class BBDukQualityTrim(RuffusTransform):
+    """Trim adaptor sequences with BBDuk"""
+    input_type = ['fwd_fastq', 'rev_fastq']
+    output_type = ['fwd_fastq', 'rev_fastq']
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        self._add_command([
+            'bbduk.sh', ''.join(['in=', self.input_files[0]]),
+            ''.join(['in2=', self.input_files[1]]),
+            ''.join(['out=', self.output_files[0]]),
+            ''.join(['out2=', self.output_files[1]]),
+            self.param])
+
+
 #  class BlobtoolsCreate(RuffusTransform):
 #      """Run centrifuge"""
 #      input_type = ['fasta', 'hits', 'fastq', 'fastq']
@@ -879,7 +911,6 @@ def format_input(suffixes: List[str])-> formatter:
 
     input_formatter = formatter(*regexes)
     return input_formatter
-
 
 # -----------------------------------------------------------------------------
 # Exceptions
