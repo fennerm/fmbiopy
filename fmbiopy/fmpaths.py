@@ -201,6 +201,17 @@ def prefix(path: PurePath)-> str:
     return path.name.split('.')[0]
 
 
+def rm_gz_suffix(path: PurePath)-> PurePath:
+    """Gzip aware suffix removal
+
+    If .gz is the final path extension then two extensions are removed."""
+    if path.suffix == '.gz':
+        prefix = path.parent / Path(path.stem).stem
+    else:
+        prefix = path.parent / path.stem
+    return prefix
+
+
 def root(path: Path)-> Path:
     """Return the root name of a path (with directory included)"""
     while '.' in path.name:

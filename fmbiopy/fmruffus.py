@@ -34,6 +34,7 @@ from fmbiopy.fmpaths import (
         add_suffix,
         as_paths,
         get_bowtie2_indices,
+        rm_gz_suffix,
         )
 from fmbiopy.fmsystem import (
         remove_all,
@@ -53,6 +54,7 @@ CENTRIFUGE = "centrifuge"
 BOWTIE2_BUILD = "bowtie2-build"
 BBDUK = "bbduk.sh"
 BBMERGE = "bbmerge.sh"
+FASTQC = "fastqc"
 
 """Default output directory"""
 OUTPUT_DIR: Path = Path.cwd() / 'pipe'
@@ -280,6 +282,10 @@ class RuffusTask(ABC):
 
     _logger = ROOT_LOGGER
     output_type: List[str] = None
+    # If True, command will be run in shell
+    _shell = False
+    # If True, the task takes parameters
+    _parameterized = True
 
     def __init__(
             self,
@@ -295,13 +301,9 @@ class RuffusTask(ABC):
             A list of bash parameters e.g ['--foo', 'bar', '-x', '1']
         """
 
-
         # Store parameters
         self._log_results = log_results
         self.param: List[str] = param
-
-        # If True, command will be run in shell
-        self._shell = False
 
         # Initialize attributes
         # ---------------------
@@ -325,13 +327,10 @@ class RuffusTask(ABC):
         self._output_stems: Sequence[str] = None
 
         # Extra outputs produced which are not specified by the user
-        self._extra_outputs: Sequence[Path] = None
+        self._extra_outputs: List[Path] = None
 
         # The header to be written to the logfile at the start of the task
         self._task_header: str = ''
-
-        # If True, the task takes parameters
-        self._parameterized = True
 
     def cleanup(self)-> None:
         """Cleanup"""
@@ -482,6 +481,8 @@ class RuffusTransform(RuffusTask, ABC):
         type is acceptable input.
     """
     input_type: List[str] = None
+    # If True, input files will be deleted upon creation of output files
+    _inplace = False
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -498,9 +499,6 @@ class RuffusTransform(RuffusTask, ABC):
 
         # Input directories
         self._indirs: List[Path] = None
-
-        # If True, input files will be deleted upon creation of output files
-        self._inplace = False
 
     def run(self, *args):
         """Run a command
@@ -564,11 +562,8 @@ class Gunzip(RuffusTransform):
     """Unzip a file with gunzip"""
     input_type = ['gz']
     output_type = ['']
-
-    def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
-        self._inplace = True
-        self._shell = True
+    _shell = True
+    _inplace = True
 
     def cleanup(self)-> None:
         """Gzip the file back up"""
@@ -584,11 +579,8 @@ class Gzip(RuffusTransform):
     """Compress a file with gzip"""
     input_type = ['ANY']
     output_type = ['gz']
-
-    def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
-        self._inplace = True
-        self._shell = True
+    _shell = True
+    _inplace = True
 
     def cleanup(self) -> None:
         """Unzip the files again"""
@@ -605,10 +597,7 @@ class PairedBowtie2Align(RuffusTransform):
     """Align a pair of fastq files to a fasta file using bowtie2"""
     input_type = ['fasta', 'fwd_fastq', 'rev_fastq']
     output_type = ['bam']
-
-    def __init__(self, *args, **kwargs)-> None:
-        super().__init__(*args, **kwargs)
-        self._shell = True
+    _shell = True
 
     def _add_extra_outputs(self) -> List[Path]:
         """Add the .bt2 and .bai files to the output file list"""
@@ -657,6 +646,8 @@ class SymlinkInputs(RuffusTransform):
 class BuildCentrifugeDB(RuffusTask):
     """Build a custom centrifuge database"""
     output_type = ['cf']
+    _shell = True
+    _parameterized = False
 
     def __init__(self, *args, **kwargs)-> None:
         # Location of the seqid2taxid mapping file
@@ -673,8 +664,6 @@ class BuildCentrifugeDB(RuffusTask):
 
         # Location of the library directory
         self._library_dir: Path = None
-        self._shell = True
-        self._parameterized = False
 
     def _add_extra_outputs(self)-> List[Path]:
         """Add the library, taxonomy and SeqID2Taxmap files to extra outputs"""
@@ -758,10 +747,7 @@ class ConvertCentrifugeToHits(RuffusTransform):
     """Convert a centrifuge output file to a hits file"""
     input_type = ['centrifuge_output']
     output_type = ['tsv']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._parameterized = False
+    _parameterized = False
 
     def _build(self)-> None:
         """Build the command line arguments"""
@@ -816,6 +802,29 @@ class BBMerge(RuffusTransform):
             ''.join(['outu2=', self.output_files[2]]),
             ''.join(['ihist=', self.output_files[3]]),
             self.param])
+
+
+class FastQC(RuffusTransform):
+    """Produce FastQC report"""
+    input_type = ['fastq']
+    output_type = ['html', 'zip']
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        self._add_command([
+            FASTQC, self.param, self.param, self.input_files[0]])
+
+    def _post_command(self)-> None:
+        """Move the output files to the correct paths"""
+        output_root = rm_gz_suffix(self._input_paths[0])
+        fastqc_suffix = '_fastqc.'
+        exts = ['html', 'zip']
+        fastqc_out = [
+                Path(''.join([str(output_root), fastqc_suffix, ext]))
+                for ext in exts]
+
+        for i, out in enumerate(fastqc_out):
+            out.rename(self.output_files[i])
 
 
 #  class BlobtoolsCreate(RuffusTransform):

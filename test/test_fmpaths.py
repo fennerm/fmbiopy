@@ -190,6 +190,15 @@ def test_prefix(double_suffixed_path):
     assert '.' not in pre
 
 
+@fixture()
+def gzipped_path(double_suffixed_path):
+    return add_suffix(double_suffixed_path, '.gz')
+
+
+def test_rm_gz_suffix(double_suffixed_path, gzipped_path):
+    assert rm_gz_suffix(double_suffixed_path) == rm_gz_suffix(gzipped_path)
+
+
 def test_root(double_suffixed_path):
     actual = str(root(double_suffixed_path))
     par = double_suffixed_path.parent
