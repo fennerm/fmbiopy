@@ -127,7 +127,7 @@ def empty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
 @fixture(scope='session')
 def example_file(
         gen_tmp: GenTmpType,
-        dat: Dict[str, Dict[str, List[str]]])-> Callable[[str, str], Path]:
+        dat: Dict[str, Dict[str, List[Path]]])-> Callable[[str, str], Path]:
     """Return an example file generating fixture function"""
 
     def _get_example_file(filetype: str, size: str)-> Path:
@@ -164,6 +164,8 @@ def example_file(
             outfile = dat[size]['zipped_fwd_reads'][0]
         elif filetype == 'cf':
             outfile = root(dat[size]['centrifuge_idx'][0])
+        elif filetype == 'unpaired_fastq':
+            outfile = dat[size]['fwd_reads'][1]
         else:
             return gen_tmp(empty=False, suffix='.foo')
         return Path(outfile)

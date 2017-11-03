@@ -3,6 +3,7 @@
 Ruffus: http://www.ruffus.org.uk/
 """
 from collections import namedtuple
+from os import chdir
 from pathlib import Path
 from uuid import uuid4
 
@@ -118,7 +119,18 @@ class TestAllRuffusTasks(object):
             return (as_strs(input_example), as_strs(output_example))
         return _make_test_instance
 
+    @fixture(scope="module")
+    def cd(self, sandbox, startdir):
+        """Change directory before running test"""
+        tempdir = sandbox / uuid4().hex
+        tempdir.mkdir()
+        chdir(str(tempdir))
+        yield
+        chdir(str(startdir))
+
+
     @fixture(
+            scope="module",
             params=list_classes(
                 'fmruffus',
                 'fmbiopy',
@@ -137,9 +149,13 @@ class TestAllRuffusTasks(object):
 
     def test_param_are_added_to_command_or_exception_raised(self, task):
         try:
-            param=['--nonexistant', 'foo']
+            param = ['--nonexistant', 'foo']
             param_instance = task.cls(param=param)
-            param_instance.run(task.inp, task.out)
+            try:
+                param_instance.run(task.inp, task.out)
+            except FileNotFoundError:
+                pass
+
             for subcommand in param_instance._command:
                 if set(param).issubset(subcommand):
                     return

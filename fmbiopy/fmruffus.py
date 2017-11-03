@@ -9,6 +9,7 @@ from abc import (
 from logging import DEBUG
 from multiprocessing.managers import AcquirerProxy  #type: ignore
 from pathlib import Path
+from sys import version_info
 from typing import (
         Any,
         Callable,
@@ -34,6 +35,7 @@ from fmbiopy.fmpaths import (
         add_suffix,
         as_paths,
         get_bowtie2_indices,
+        prefix,
         rm_gz_suffix,
         )
 from fmbiopy.fmsystem import (
@@ -337,6 +339,7 @@ class RuffusTask(ABC):
         """Cleanup"""
         if self._output_paths is not None:
             remove_all(self._output_paths, silent=True)
+
         if self._extra_outputs is not None:
             remove_all(self._extra_outputs, silent=True)
 
@@ -596,7 +599,7 @@ class Gzip(RuffusTransform):
 
 class PairedBowtie2Align(RuffusTransform):
     """Align a pair of fastq files to a fasta file using bowtie2"""
-    input_type = ['fasta', 'fwd_fastq', 'rev_fastq', 'fastq']
+    input_type = ['fasta', 'fwd_fastq', 'rev_fastq', 'unpaired_fastq']
     output_type = ['bam']
     _shell = True
 
@@ -765,37 +768,50 @@ class ConvertCentrifugeToHits(RuffusTransform):
 class BBDukTrimAdapters(RuffusTransform):
     """Trim adaptor sequences with BBDuk"""
     input_type = ['fwd_fastq', 'rev_fastq', 'adapter_fasta']
-    output_type = ['fwd_fastq', 'rev_fastq']
+    output_type = ['fwd_fastq', 'rev_fastq', 'fastq']
 
     def _build(self)-> None:
         """Build the command line arguments"""
+        fwd_fastq_in = self.input_files[0]
+        rev_fastq_in = self.input_files[1]
+        adapters = self.input_files[2]
+        fwd_fastq_out = self.output_files[0]
+        rev_fastq_out = self.output_files[1]
+        unp_fastq_out = self.output_files[2]
         self._add_command([
-            BBDUK, ''.join(['in=', self.input_files[0]]),
-            ''.join(['in2=', self.input_files[1]]),
-            ''.join(['out=', self.output_files[0]]),
-            ''.join(['out2=', self.output_files[1]]),
-            ''.join(['ref=', self.input_files[2]]),
+            BBDUK, ''.join(['in=', fwd_fastq_in]),
+            ''.join(['in2=', rev_fastq_in]),
+            ''.join(['out=', fwd_fastq_out]),
+            ''.join(['out2=', rev_fastq_out]),
+            ''.join(['outs=', unp_fastq_out]),
+            ''.join(['ref=', adapters]),
             self.param])
 
 
 class BBDukQualityTrim(RuffusTransform):
     """Quality trim reads with BBDuk"""
     input_type = ['fwd_fastq', 'rev_fastq']
-    output_type = ['fwd_fastq', 'rev_fastq']
+    output_type = ['fwd_fastq', 'rev_fastq', 'fastq']
 
     def _build(self)-> None:
         """Build the command line arguments"""
+        fwd_fastq_in = self.input_files[0]
+        rev_fastq_in = self.input_files[1]
+        fwd_fastq_out = self.output_files[0]
+        rev_fastq_out = self.output_files[1]
+        unp_fastq_out = self.output_files[2]
         self._add_command([
-            BBDUK, ''.join(['in=', self.input_files[0]]),
-            ''.join(['in2=', self.input_files[1]]),
-            ''.join(['out=', self.output_files[0]]),
-            ''.join(['out2=', self.output_files[1]]),
+            BBDUK, ''.join(['in=', fwd_fastq_in]),
+            ''.join(['in2=', rev_fastq_in]),
+            ''.join(['out=', fwd_fastq_out]),
+            ''.join(['out2=', rev_fastq_out]),
+            ''.join(['outs=', unp_fastq_out]),
             self.param])
 
 
 class BBDukQualityTrimUnpaired(RuffusTransform):
     """Quality trim unpaired reads with BBDuk"""
-    input_type = ['fastq']
+    input_type = ['unpaired_fastq']
     output_type = ['fastq']
 
     def _build(self)-> None:
@@ -844,6 +860,44 @@ class FastQC(RuffusTransform):
 
         for i, out in enumerate(fastqc_out):
             out.rename(self.output_files[i])
+
+
+class SpadesAssemble(RuffusTransform):
+    """Assemble reads with Spades"""
+    input_type = ['fwd_fastq', 'rev_fastq', 'unpaired_fastq']
+    output_type = ['fasta']
+
+    def _add_extra_outputs(self)-> List[Path]:
+        """Add the assembly directory to the output list"""
+        output_dir = self._output_paths[0].parent.joinpath(
+                prefix(self._output_paths[0]))
+        return [output_dir]
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        fwd_fastq = self.input_files[0]
+        rev_fastq = self.input_files[1]
+        unpaired_fastq = self.input_files[2]
+        output_dir = self._extra_outputs[0]
+
+        # Python3.6 not support by SPADES so try run python2
+        if version_info.major == 3 and version_info.minor == 6:
+            py = 'python2'
+        else:
+            py = 'python3'
+
+        # Get the full Spades binary location
+        spades_bin = run_command(['which', SPADES], log=(False, False))[1]
+        spades_bin = spades_bin.rstrip()
+        self._add_command([
+            py, spades_bin, '-1', fwd_fastq, '-2', rev_fastq, '-s',
+            unpaired_fastq, '-o', str(output_dir), self.param])
+
+    def _post_command(self)-> None:
+        """Move the assembly file to the specified output path"""
+        output_dir = self._extra_outputs[0]
+        scaffolds_file = output_dir / 'scaffolds.fasta'
+        scaffolds_file.rename(self._output_paths[0])
 
 
 #  class BlobtoolsCreate(RuffusTransform):
@@ -961,7 +1015,6 @@ def format_input(suffixes: List[str])-> formatter:
 # -----------------------------------------------------------------------------
 # Exceptions
 # -----------------------------------------------------------------------------
-
 
 class ParameterError(ValueError):
     """Thrown when unparameterized task is given parameters"""

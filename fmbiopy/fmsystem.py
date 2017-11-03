@@ -22,6 +22,7 @@ from typing import (
         Sequence,
         Tuple,
         )
+from warnings import warn
 
 from fmbiopy.fmlist import exclude_blank
 from fmbiopy.fmpaths import as_strs
@@ -115,7 +116,13 @@ def remove_all(names: Iterable[Path], silent: bool = False)-> None:
     if isinstance(names, Iterable_):
         for name in names:
             if name:
-                remove_func(name)  # type: ignore
+                try:
+                    remove_func(name)  # type: ignore
+                except IsADirectoryError:
+                    if silent:
+                        warn('Attempted to delete a directory. Skipping')
+                    else:
+                        raise
     else:
         remove_func(names)  # type: ignore
 
