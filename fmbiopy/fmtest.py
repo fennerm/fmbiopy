@@ -223,8 +223,17 @@ def gen_tmp(sandbox: Path)-> GenTmpType:
     return _gen_tmp
 
 
+@fixture
+def gzipped_path(randpath, randstr):
+    """Return a gzipped file name"""
+    return Path('.'.join([str(randpath()), randstr()[0:3], 'gz']))
+
+
 @fixture(scope='session', autouse=True)
-def load_sandbox(update_testdat: None, sandbox: Path, testdat: Path) -> Iterator[Path]:
+def load_sandbox(
+        update_testdat: None,
+        sandbox: Path,
+        testdat: Path) -> Iterator[Path]:
     """Copy all test data files to the sandbox for the testing session
 
     Yields
@@ -376,9 +385,9 @@ def randpath(randstr: Callable[[], str], tmpdir: Path)-> RandPathType:
 @fixture(scope='session')
 def randstr()-> Callable[[], str]:
     """Generate a unique random string"""
-    def get_rand_str()-> str:
-        return uuid4().hex
-    return get_rand_str
+    def _get_rand_str()-> str:
+        return uuid4().hex.replace('.', '')
+    return _get_rand_str
 
 
 @fixture(scope='session')

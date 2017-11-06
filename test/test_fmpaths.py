@@ -147,6 +147,9 @@ def test_create_all(poss_path_lists):
             create_all(value)
 
 
+def test_extension_without_gz(gzipped_path, double_suffixed_path):
+    pass
+
 @mark.parametrize("ext,substr,expect", [
         (None, None, [Path('a.x'), Path('b.y'), Path('b.x')]),
         ('y', None, [Path('b.y')]),
@@ -184,19 +187,33 @@ def test_listdirs(gen_tmp, nested_dir):
     assert str(reg_file) not in as_strs(listdirs(nested_dir))
 
 
+def test_move(gen_tmp, tmpdir, randpath):
+    src = gen_tmp(empty=False, directory=tmpdir)
+    link1, link2, dest = [randpath() for i in range(3)]
+    link1.symlink_to(src)
+    link2.symlink_to(link1)
+    move(link2, dest)
+    assert dest.exists()
+    assert not link2.exists()
+    assert src.exists()
+
+
 def test_prefix(double_suffixed_path):
     pre = prefix(double_suffixed_path)
     assert '/' not in pre
     assert '.' not in pre
 
 
-@fixture()
-def gzipped_path(double_suffixed_path):
-    return add_suffix(double_suffixed_path, '.gz')
-
-
 def test_rm_gz_suffix(double_suffixed_path, gzipped_path):
-    assert rm_gz_suffix(double_suffixed_path) == rm_gz_suffix(gzipped_path)
+    for path in [double_suffixed_path, gzipped_path]:
+        nsuffixes = len(path.suffixes)
+        nsuffixes_after = len(rm_gz_suffix(path).suffixes)
+        diff = nsuffixes - nsuffixes_after
+        if path.suffix == '.gz':
+            expected_diff = 2
+        else:
+            expected_diff = 1
+        assert diff == expected_diff
 
 
 def test_root(double_suffixed_path):

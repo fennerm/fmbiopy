@@ -9,7 +9,7 @@ from abc import (
 from logging import DEBUG
 from multiprocessing.managers import AcquirerProxy  #type: ignore
 from pathlib import Path
-from sys import version_info
+import sys
 from typing import (
         Any,
         Callable,
@@ -26,6 +26,10 @@ from ruffus.proxy_logger import (
         setup_std_shared_logger,
         )
 
+from fmbiopy.biofile import (
+        Fasta,
+        Fastq,
+        )
 from fmbiopy.fmlist import (
         ensure_list,
         exclude_blank,
@@ -34,7 +38,9 @@ from fmbiopy.fmlist import (
 from fmbiopy.fmpaths import (
         add_suffix,
         as_paths,
+        extension_without_gz,
         get_bowtie2_indices,
+        move,
         prefix,
         rm_gz_suffix,
         )
@@ -47,7 +53,8 @@ from fmbiopy.fmsystem import (
 """Default logging format"""
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)6s - %(message)s"
 
-"""Binaries"""
+"""Binaries/Paths"""
+HOME = Path.home()
 SAMTOOLS = "samtools"
 BOWTIE2 = "bowtie2"
 CENTRIFUGE_DOWNLOAD = "centrifuge-download"
@@ -58,6 +65,7 @@ BBDUK = "bbduk.sh"
 BBMERGE = "bbmerge.sh"
 FASTQC = "fastqc"
 SPADES = "spades.py"
+REDUNDANS_DIR = str(HOME / 'src' / 'redundans')
 
 """Default output directory"""
 OUTPUT_DIR: Path = Path.cwd() / 'pipe'
@@ -501,6 +509,9 @@ class RuffusTransform(RuffusTask, ABC):
         # Input file stems
         self._input_stems: List[str] = None
 
+        # Filename prefix of the first input file
+        self._input_prefix: str = None
+
         # Input directories
         self._indirs: List[Path] = None
 
@@ -534,10 +545,24 @@ class RuffusTransform(RuffusTask, ABC):
             raise ParameterError('Cannot add parameters to this task')
 
     def _define_input_attributes(self, input_files)-> None:
+        """Define attributes related to the input files"""
         self.input_files: Sequence[str] = ensure_list(input_files)
         self._input_paths: List[Path] = as_paths(self.input_files)
         self._input_stems = self._get_stems(self._input_paths)
+        self._input_prefix = prefix(self._input_paths[0])
         self._indirs: List[Path] = [f.parent for f in self._input_paths]
+
+    def _gen_output_dir_path(self)-> Path:
+        """Generate a pathname which is a subdirectory of the output dir
+
+        E.g for storing additional non user specified outputs.
+        """
+        output_parent = self._output_paths[0].parent
+        transform_name = self.__class__.__name__
+        output_dir = output_parent.joinpath(
+                '_'.join([transform_name, self._input_prefix]))
+        return output_dir
+
 
     def _log_task_header(self)-> None:
         """Write the task header to the logfile"""
@@ -548,7 +573,14 @@ class RuffusTransform(RuffusTask, ABC):
 
 
 class SamtoolsIndexFasta(RuffusTransform):
-    """Index a .fasta file using samtools faidx"""
+    """Index a .fasta file using samtools faidx
+
+    Positional Inputs:
+    1. Fasta file
+
+    Positional Outputs:
+    1. Samtools fasta index (.fai)
+    """
 
     input_type = ['fasta']
     output_type = ['fasta.fai']
@@ -563,7 +595,14 @@ class SamtoolsIndexFasta(RuffusTransform):
 
 
 class Gunzip(RuffusTransform):
-    """Unzip a file with gunzip"""
+    """Unzip a file with gunzip
+
+    Positional Inputs:
+    1. Gzipped file (.gz)
+
+    Positional Outputs:
+    1. Unzipped file
+    """
     input_type = ['gz']
     output_type = ['']
     _shell = True
@@ -580,7 +619,14 @@ class Gunzip(RuffusTransform):
 
 
 class Gzip(RuffusTransform):
-    """Compress a file with gzip"""
+    """Compress a file with gzip
+
+    Positional Inputs:
+    1. File to be zipped
+
+    Positional Outputs:
+    1. Gzipped file.
+    """
     input_type = ['ANY']
     output_type = ['gz']
     _shell = True
@@ -598,7 +644,17 @@ class Gzip(RuffusTransform):
 
 
 class PairedBowtie2Align(RuffusTransform):
-    """Align a pair of fastq files to a fasta file using bowtie2"""
+    """Align a pair of fastq files to a fasta file using bowtie2
+
+    Positional Inputs:
+    1. Reference sequence (fasta)
+    2. Forward reads (fastq/fastq.gz)
+    3. Reverse reads (fastq/fastq.gz)
+    4. [Optional] Unpaired reads (fastq/fastq.gz)
+
+    Positional Output:
+    1. Alignment output (bam)
+    """
     input_type = ['fasta', 'fwd_fastq', 'rev_fastq', 'unpaired_fastq']
     output_type = ['bam']
     _shell = True
@@ -642,7 +698,14 @@ class PairedBowtie2Align(RuffusTransform):
 
 
 class SymlinkInputs(RuffusTransform):
-    """Create symlinks of the input arguments"""
+    """Create symlinks of the input arguments
+
+    Positional Inputs:
+    1. File to be symlinked
+
+    Positional Outputs:
+    1. Symlink
+    """
     input_type = ['ANY']
     output_type = ['SAME']
 
@@ -739,9 +802,19 @@ class BuildCentrifugeDB(RuffusTask):
 
 
 class Centrifuge(RuffusTransform):
-    """Run centrifuge"""
+    """Run centrifuge
+
+    Positional Inputs:
+    1. Assembled contigs (fasta)
+    2. Centrifuge database index
+
+    Positional Outputs:
+    1. Centrifuge report file
+    2. Centrifuge output file (by read)
+    """
     input_type = ['fasta', 'cf']
-    output_type = ['tsv']
+    output_type = ['tsv', 'tsv']
+    _shell = True
 
     def _build(self)-> None:
         """Build the command line arguments"""
@@ -749,11 +822,18 @@ class Centrifuge(RuffusTransform):
         centrifuge_idx = self.input_files[1]
         self._add_command([CENTRIFUGE, '-k', '1', '-f', '-x',
             centrifuge_idx, '-U', assembly, '--report-file',
-            self.output_files[0], self.param])
+            self.output_files[0], self.param, '>', self.output_files[1]])
 
 
 class ConvertCentrifugeToHits(RuffusTransform):
-    """Convert a centrifuge output file to a hits file"""
+    """Convert a centrifuge output file to a hits file
+
+    Positional Inputs:
+    1. Centrifuge output file (.tsv)
+
+    Positional Outputs:
+    1. Blobtools compatible hits file
+    """
     input_type = ['centrifuge_output']
     output_type = ['tsv']
     _parameterized = False
@@ -766,7 +846,18 @@ class ConvertCentrifugeToHits(RuffusTransform):
 
 
 class BBDukTrimAdapters(RuffusTransform):
-    """Trim adaptor sequences with BBDuk"""
+    """Trim adaptor sequences with BBDuk
+
+    Positional Inputs:
+    1. Forward reads (fastq/fastq.gz)
+    2. Reverse reads (fastq/fastq.gz)
+    3. Adapter sequences (fasta)
+
+    Positional Outputs:
+    1. Trimmed forward reads (fastq/fastq.gz)
+    2. Trimmed reverse reads (fastq/fastq.gz)
+    3. Trimmed unpaired reads (fastq/fastq.gz)
+    """
     input_type = ['fwd_fastq', 'rev_fastq', 'adapter_fasta']
     output_type = ['fwd_fastq', 'rev_fastq', 'fastq']
 
@@ -789,7 +880,17 @@ class BBDukTrimAdapters(RuffusTransform):
 
 
 class BBDukQualityTrim(RuffusTransform):
-    """Quality trim reads with BBDuk"""
+    """Quality trim reads with BBDuk
+
+    Positional Inputs:
+    1. Forward reads (fastq/fastq.gz)
+    2. Reverse reads (fastq/fastq.gz)
+
+    Positional Outputs:
+    1. Trimmed forward reads (fastq/fastq.gz)
+    2. Trimmed reverse reads (fastq/fastq.gz)
+    3. Trimmed unpaired reads (fastq/fastq.gz)
+    """
     input_type = ['fwd_fastq', 'rev_fastq']
     output_type = ['fwd_fastq', 'rev_fastq', 'fastq']
 
@@ -810,7 +911,14 @@ class BBDukQualityTrim(RuffusTransform):
 
 
 class BBDukQualityTrimUnpaired(RuffusTransform):
-    """Quality trim unpaired reads with BBDuk"""
+    """Quality trim unpaired reads with BBDuk
+
+    Positional Inputs:
+    1. Assembled contigs (fasta)
+    2. Forward reads (fastq/fastq.gz)
+    3. Reverse reads (fastq/fastq.gz)
+    4. [Optional] Reference sequence (fasta)
+    """
     input_type = ['unpaired_fastq']
     output_type = ['fastq']
 
@@ -823,7 +931,18 @@ class BBDukQualityTrimUnpaired(RuffusTransform):
 
 
 class BBMerge(RuffusTransform):
-    """Merge reads with BBMerge"""
+    """Merge reads with BBMerge
+
+    Positional Inputs:
+    1. Forward reads (fastq)
+    2. Reverse reads (fastq)
+
+    Positional Outputs:
+    1. Merged reads (fastq)
+    1. Forward reads (fastq)
+    2. Reverse reads (fastq)
+
+    """
     input_type = ['fwd_fastq', 'rev_fastq']
     output_type = ['fastq', 'fwd_fastq', 'rev_fastq', 'txt']
 
@@ -840,7 +959,15 @@ class BBMerge(RuffusTransform):
 
 
 class FastQC(RuffusTransform):
-    """Produce FastQC report"""
+    """Produce FastQC report
+
+    Positional Inputs:
+    1. Reads (.fastq)
+
+    Positional Outputs:
+    1. Report file (.html)
+    2. Report data (.zip)
+    """
     input_type = ['fastq']
     output_type = ['html', 'zip']
 
@@ -863,15 +990,23 @@ class FastQC(RuffusTransform):
 
 
 class SpadesAssemble(RuffusTransform):
-    """Assemble reads with Spades"""
+    """Assemble reads with Spades
+
+    Positional Inputs:
+    1. Forward reads (.fastq)
+    2. Reverse reads (.fastq)
+    3. [Optional] Unpaired reads (.fastq)
+
+    Positional Outputs:
+    1. Assembled contigs (.fasta)
+    """
+
     input_type = ['fwd_fastq', 'rev_fastq', 'unpaired_fastq']
     output_type = ['fasta']
 
     def _add_extra_outputs(self)-> List[Path]:
         """Add the assembly directory to the output list"""
-        output_dir = self._output_paths[0].parent.joinpath(
-                prefix(self._output_paths[0]))
-        return [output_dir]
+        return [self._gen_output_dir_path()]
 
     def _build(self)-> None:
         """Build the command line arguments"""
@@ -881,7 +1016,7 @@ class SpadesAssemble(RuffusTransform):
         output_dir = self._extra_outputs[0]
 
         # Python3.6 not support by SPADES so try run python2
-        if version_info.major == 3 and version_info.minor == 6:
+        if sys.version_info.major == 3 and sys.version_info.minor == 6:
             py = 'python2'
         else:
             py = 'python3'
@@ -897,7 +1032,80 @@ class SpadesAssemble(RuffusTransform):
         """Move the assembly file to the specified output path"""
         output_dir = self._extra_outputs[0]
         scaffolds_file = output_dir / 'scaffolds.fasta'
-        scaffolds_file.rename(self._output_paths[0])
+        move(scaffolds_file, self._output_paths[0])
+
+
+class Redundans(RuffusTransform):
+    """Collapse heterozygous contigs with redundans
+
+    Positional Inputs:
+    1. Assembled contigs (.fasta)
+    2. Forward reads (.fastq)
+    3. Reverse reads (.fastq)
+    4. [Optional] Reference Sequence (.fasta)
+    5. [Optional] Unpaired reads (.fastq)
+    4,5 can be passed in any order. Their file extension is used to separate
+    them.
+
+    Positional Outputs:
+    1. Fasta
+
+    Additional Outputs:
+    Extra Redundans output is stored in the output directory under as
+    'Redundans_<sample id>'.
+    """
+    input_type = ['fasta', 'fwd_fastq', 'rev_fastq', 'unpaired_fastq']
+    output_type = ['fasta']
+
+    def _add_extra_outputs(self)-> List[Path]:
+        """Add the extra redundans outputs to the output list"""
+        return [self._gen_output_dir_path()]
+
+    def _build(self)-> None:
+        """Build the command line arguments"""
+        # Redundans requires script to be run from current directory
+        input_fasta = self.input_files[0]
+        reads = [self.input_files[1], self.input_files[2]]
+        if len(self.input_files) > 3:
+            optional_inputs = self._input_paths[3:]
+            for inp in optional_inputs:
+                extension = extension_without_gz(inp)
+                if extension in Fasta.extensions:
+                    reference = str(inp)
+                elif extension in Fastq.extensions:
+                    reads.append(str(inp))
+
+        binary = str(Path(REDUNDANS_DIR) / 'redundans.py')
+        bin_dir = str(Path(REDUNDANS_DIR) / 'bin')
+        sys.path.append(bin_dir)
+        output_dir = str(self._gen_output_dir_path())
+
+        # Redundans requires python2
+        if sys.version_info.major == 3:
+            py = 'python2'
+        else:
+            py = 'python'
+
+        command = [
+                py, binary, '-v', '-f', input_fasta, '-i', reads, '-o',
+                output_dir, '-t', '1']
+
+        # If reference sequence given, add it to command
+        try:
+            command += ['-r', reference]
+        except NameError:
+            pass
+        command.append(self.param)
+        self._add_command(command)
+
+    def _post_command(self)-> None:
+        """Move the assembly file to the specified output path"""
+        output_dir = self._extra_outputs[0]
+        filled_scaffolds = output_dir / 'scaffolds.filled.fa'
+        move(filled_scaffolds, self._output_paths[0])
+        old_index_path = add_suffix(filled_scaffolds, '.fai')
+        new_index_path = add_suffix(self._output_paths[0], '.fai')
+        move(old_index_path, new_index_path)
 
 
 #  class BlobtoolsCreate(RuffusTransform):

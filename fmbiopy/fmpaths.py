@@ -4,6 +4,7 @@ from pathlib import (
         Path,
         PurePath,
         )
+from shutil import copyfile
 from typing import (
         Dict,
         Iterable,
@@ -135,6 +136,14 @@ def create_all(paths: Iterable[Path])-> None:
         path.touch(exist_ok=False)
 
 
+def extension_without_gz(path: Path)-> str:
+    """Get the file extension ignoring .gz if present"""
+    suffix = path.suffix
+    if suffix == '.gz':
+        return Path(path.stem).suffix
+    return suffix
+
+
 def find(
         directory: Path,
         extensions: Iterable[str] = None,
@@ -195,6 +204,17 @@ def listdirs(directory: Path) -> List[Path]:
             out.append(path)
     return out
 
+def move(src: Path, dest: Path)-> None:
+    """Move a file
+
+    Differs from `shutil.move` in that when a symlink is encountered, the
+    contents are copied to the new location and the link is destroyed"""
+    if src.is_symlink():
+        copyfile(str(src), str(dest))
+        src.unlink()
+    else:
+        src.rename(dest)
+
 
 def prefix(path: PurePath)-> str:
     """Get the part of a string before the first dot"""
@@ -217,3 +237,4 @@ def root(path: Path)-> Path:
     while '.' in path.name:
         path = path.parent / path.stem
     return path
+
