@@ -63,7 +63,7 @@ class TestBiofile(object):
     """Test `Biofile` class"""
 
     def test_extension_set(self, inst_biofiles):
-        assert hasattr(inst_biofiles, 'accepted_extensions')
+        assert hasattr(inst_biofiles, 'extensions')
 
     def test_input_type_set(self, inst_biofiles):
         assert hasattr(inst_biofiles, 'input_type')
@@ -106,7 +106,7 @@ class TestBiofile(object):
         read_path = dat['tiny']['fwd_reads'][0]
         incorrect_suffix = add_suffix(read_path, '.foobar')
 
-        if biofiles.accepted_extensions != ['ANY']:
+        if biofiles.extensions != ['ANY']:
             with raises(FileExtensionError):
                 biofiles(incorrect_suffix)
 

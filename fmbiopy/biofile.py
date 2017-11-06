@@ -80,13 +80,13 @@ class Biofile():
     ----------
     input_type : str
         (class) Filetype which is stored
-    accepted_extensions : List[str]
+    extensions : List[str]
         (class) List of acceptable input file extensions
     gzipped : bool
         Same as parameter
     """
     input_type: str = 'ANY'
-    accepted_extensions: List[str] = ['ANY']
+    extensions: List[str] = ['ANY']
 
     def __init__(
             self,
@@ -180,9 +180,9 @@ class Biofile():
         The superclass should not have accepted extensions, but subclasses will
         use this method for extension validation.
         """
-        if self.accepted_extensions != ['ANY']:
+        if self.extensions != ['ANY']:
             # Extension check is not caps sensitive
-            if self.extension.lower() not in self.accepted_extensions:
+            if self.extension.lower() not in self.extensions:
                 raise FileExtensionError(self._path)
         return True
 
@@ -206,33 +206,33 @@ class Fastq(Biofile):
     """Biofile class for holding .fastq files."""
 
     input_type = 'fastq'
-    accepted_extensions = ['.fastq', '.fq', '.fastq.gz', '.fq.gz']
+    extensions = ['.fastq', '.fq', '.fastq.gz', '.fq.gz']
 
 
 class Fasta(Biofile):
     """Biofile for class holding .fasta files."""
 
     input_type = 'fasta'
-    accepted_extensions = ['.fasta', '.fa', 'mfa', 'fna']
+    extensions = ['.fasta', '.fa', 'mfa', 'fna']
 
 
 # class Sam(Biofile):
 #     """Biofile class for holding .sam files"""
 #
 #     input_type = 'sam'
-#     accepted_extensions = ['.sam']
+#     extensions = ['.sam']
 #
 #
 # class Bam(Biofile):
 #     """Biofile class for holding .bam files"""
 #
 #     input_type = 'bam'
-#     accepted_extensions = ['.bam']
+#     extensions = ['.bam']
 #
 #     def __init__(self, *args, **kwargs) -> None:
 #         """Initialization """
 #         super().__init__(*args, **kwargs)
-#         self._accepted_extensions = ['bam']
+#         self._extensions = ['bam']
 #
 #
 # class SamtoolsFAIndex(Biofile):
@@ -286,7 +286,7 @@ class BiofileGroup(Sized):
         The stored `Biofile` class
     """
     input_type: List[str] = ['ANY*']
-    accepted_extensions = ['ANY']
+    extensions = ['ANY']
 
     def __init__(
             self,
@@ -445,7 +445,7 @@ class MatchedPrefixGroup(object):
     groups : List[BiofileGroup]
     """
     input_type = ['ANY*']
-    accepted_extensions = ['ANY']
+    extensions = ['ANY']
 
     def __init__(self, groups: List[BiofileGroup]) -> None:
         self.groups = groups
