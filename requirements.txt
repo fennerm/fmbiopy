@@ -1,5 +1,5 @@
 py==1.4.34
 setuptools==28.8.0
+typing==3.6.2
 pytest==3.2.2
 pypandoc==1.4
-typing==3.6.2
