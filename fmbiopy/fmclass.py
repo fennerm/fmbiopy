@@ -43,8 +43,12 @@ def list_classes(
     A list of classes in `module_name`
 
     """
-    import_module(package)
-    imported = import_module(''.join(['.', module]), package)
+    if package is None:
+        imported = import_module(module)
+    else:
+        import_module(package)
+        imported = import_module(''.join(['.', module]), package)
+
     classes: List[Type] = []
 
     # List all classes
