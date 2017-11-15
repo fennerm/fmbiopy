@@ -14,14 +14,13 @@ from typing import (
         Dict,
         Iterator,
         List,
+        NamedTuple,
         Tuple,
+        Type,
         )
 from uuid import uuid4
 
-from py import path
-from pytest import fixture
-from _pytest.fixtures import SubRequest
-
+import biofile as bf
 from fmbiopy.fmpaths import (
         as_dict,
         as_paths,
@@ -35,6 +34,9 @@ from fmbiopy.fmsystem import (
         silent_remove,
         working_directory,
         )
+from pytest import fixture
+from _pytest.fixtures import SubRequest
+
 
 """The type of the gen_tmp fixture"""
 GenTmpType = Callable[[bool, str, Path], Path]
@@ -102,13 +104,13 @@ def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
     return dat
 
 
+
 @fixture
 def double_suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
     """Generate a path with a two part suffix"""
     path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo.bar')
     yield path
     silent_remove(path)
-
 
 @fixture
 def empty_list()-> List:
@@ -127,10 +129,11 @@ def empty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
 @fixture(scope='session')
 def example_file(
         gen_tmp: GenTmpType,
-        dat: Dict[str, Dict[str, List[Path]]])-> Callable[[str, str], Path]:
+        dat: Dict[str, Dict[str, List[Path]]]
+        )-> Callable[[bf.Biofile, str], Path]:
     """Return an example file generating fixture function"""
 
-    def _get_example_file(filetype: str, size: str)-> Path:
+    def _get_example_file(filetype: Type[bf.Biofile], size: str)-> Path:
         """Return an example file of the requested filetype and size
 
         Parameters
@@ -146,28 +149,37 @@ def example_file(
         Path
             A path to an example file of the requested type.
         """
-        if filetype == 'fasta':
+        try:
+            cls = filetype
+        except AttributeError:
+            cls = bf.type_to_class(filetype)
+
+        if cls.__name__ == 'Fasta':
             outfile = dat[size]['assemblies'][0]
-        elif filetype in ['fastq', 'fwd_fastq']:
+        elif cls.__name__ in ['Fastq', 'FwdFastq']:
             outfile = dat[size]['fwd_reads'][0]
-        elif filetype == 'rev_fastq':
+        elif cls.__name__ == 'RevFastq':
             outfile = dat[size]['rev_reads'][0]
-        elif filetype == 'fai':
+        elif cls.__name__ == 'SamtoolsFAIndex':
             outfile = dat[size]['faindices'][0]
-        elif filetype == 'sam':
+        elif cls.__name__ == 'Sam':
             outfile = dat[size]['sam'][0]
-        elif filetype == 'bam':
+        elif cls.__name__ == 'Bam':
             outfile = dat[size]['bam'][0]
-        elif filetype == 'adapter_fasta':
+        elif cls.__name__ == 'Adapters':
             outfile = dat[size]['adapters'][0]
-        elif filetype == 'gz':
+        elif cls.__name__ == 'Gzipped':
             outfile = dat[size]['zipped_fwd_reads'][0]
-        elif filetype == 'cf':
+        elif cls.__name__ == 'CentrifugeDB':
             outfile = root(dat[size]['centrifuge_idx'][0])
-        elif filetype == 'unpaired_fastq':
+        elif cls.__name__ == 'CentrifugeOutput':
+            outfile = dat[size]['centrifuge_output'][0]
+        elif cls.__name__ == 'UnpairedFastq':
             outfile = dat[size]['fwd_reads'][1]
+        elif cls.__name__ == 'Biofile':
+            outfile = str(gen_tmp(empty=False, suffix='.foo'))
         else:
-            return gen_tmp(empty=False, suffix='.foo')
+            outfile = str(gen_tmp(empty=False, suffix=cls.extensions[0]))
         return Path(outfile)
 
     return _get_example_file
@@ -389,7 +401,6 @@ def randstr()-> Callable[[], str]:
         return uuid4().hex.replace('.', '')
     return _get_rand_str
 
-
 @fixture(scope='session')
 def randsuffix(randstr)-> Callable[[], str]:
     """Generate a unique random suffix"""
@@ -440,6 +451,24 @@ def suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
     yield path
     silent_remove(path)
 
+@fixture
+def suffixed_paths(
+        gen_tmp: GenTmpType,
+        tmpdir: Path,
+        randsuffix: Callable[[], str]
+        )-> Iterator[NamedTuple]:
+    """Generate a list of nonempty suffixed paths"""
+    suffixes = [randsuffix() for i in range(3)]
+    paths = [
+            gen_tmp(empty=False, directory=tmpdir, suffix=suffixes[i])
+            for i in range(3)]
+    tup = NamedTuple('suffixed_paths', [
+        ('paths', List[Path]), ('suffixes', List[str])])
+    tup.paths = paths
+    tup.suffixes = suffixes
+    yield tup
+    remove_all(paths)
+
 
 @fixture
 def symlink(
@@ -480,6 +509,18 @@ def testdir()-> Path:
 def tiny(sandbox: Path)-> Path:
     """Path to the 'small' subdirectory of sandbox"""
     return sandbox / 'tiny'
+
+
+@fixture(name='tiny_fwd_reads')
+def gen_tiny_fwd_reads(dat):
+    """Get tiny forward reads from dat"""
+    return dat['tiny']['fwd_reads']
+
+
+@fixture(name='tiny_fwd_reads')
+def gen_tiny_rev_reads(dat):
+    """Get tiny reverse reads from dat"""
+    return dat['tiny']['rev_reads']
 
 
 @fixture
