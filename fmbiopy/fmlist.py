@@ -59,6 +59,11 @@ def interleave(list1: Sequence[T], list2: Sequence[T]) -> List[T]:
     return [val for pair in zip(list1, list2) for val in pair]
 
 
+def none(x: Iterable[bool])-> bool:
+    """Return True if all elements in `x` are False"""
+    return all([not i for i in x])
+
+
 def not_empty(func: Callable)-> Callable:
     """Function decorator for functions which require nonempty list input"""
     def _wrapper(*args, **kwargs):
