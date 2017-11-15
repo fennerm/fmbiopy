@@ -192,7 +192,7 @@ def get_bowtie2_indices(prefix: str)-> List[Path]:
 
 def is_empty(path: Path)-> bool:
     """Return True if `path` is empty"""
-    return path.stat().st_size < 1
+    return size(path) < 1
 
 
 def listdirs(directory: Path) -> List[Path]:
@@ -238,3 +238,6 @@ def root(path: Path)-> Path:
         path = path.parent / path.stem
     return path
 
+def size(path: Path)-> int:
+    """Return the filesize of a path in bytes"""
+    return path.stat().st_size
