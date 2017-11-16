@@ -511,18 +511,6 @@ def tiny(sandbox: Path)-> Path:
     return sandbox / 'tiny'
 
 
-@fixture(name='tiny_fwd_reads')
-def gen_tiny_fwd_reads(dat):
-    """Get tiny forward reads from dat"""
-    return dat['tiny']['fwd_reads']
-
-
-@fixture(name='tiny_fwd_reads')
-def gen_tiny_rev_reads(dat):
-    """Get tiny reverse reads from dat"""
-    return dat['tiny']['rev_reads']
-
-
 @fixture
 def tmpdir(sandbox: Path, randstr: Callable[[], str])-> Iterator[Path]:
     """`pathlib.Path` version of `pytest` fixture"""
