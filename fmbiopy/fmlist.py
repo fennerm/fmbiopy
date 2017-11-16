@@ -13,6 +13,10 @@ from typing import (
 from fmbiopy.fmerr import EmptyListError
 from fmbiopy.fmtype import T
 
+def as_strs(x: Sequence[Any])-> List[str]:
+    """Convert a list of items to their string representations"""
+    return [str(xi) for xi in x]
+
 def ensure_list(x: Any)-> List:
     """If not a sequence, convert to one"""
     if isinstance(x, str):
