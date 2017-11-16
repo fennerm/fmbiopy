@@ -7,7 +7,11 @@ from collections import Iterable as Iterable_
 from contextlib import contextmanager
 from errno import ENOENT
 from logging import getLogger
-from os import chdir
+from os import (
+        chdir,
+        PathLike,
+        )
+
 from pathlib import Path
 from subprocess import (
         Popen,
@@ -16,24 +20,29 @@ from subprocess import (
 from typing import (
         Any,
         Callable,
+        cast,
         Dict,
         Generator,
         Iterable,
+        List,
         Sequence,
         Tuple,
         )
 from warnings import warn
 
-from fmbiopy.fmlist import exclude_blank
-from fmbiopy.fmpaths import as_strs
+from fmbiopy.fmlist import (
+        as_strs,
+        exclude_blank,
+        )
+from fmbiopy.fmlog import MutexLogger
 
 
 def run_command(
-        command: Sequence[str],
+        command: Sequence[PathLike],
         logger_id: str = '',
         log: Tuple[bool, bool] = (True, True),
-        mutex_logger: 'fmbiopy.fmruffus.RuffusLog' = None,  # type: ignore
-        shell: bool = False) -> Tuple[int, str, str]:
+        mutex_logger: MutexLogger = None,
+        shell: bool = False)-> Tuple[int, str, str]:
     """Run a bash command with logging support
 
     Parameters
@@ -60,13 +69,14 @@ def run_command(
     """
 
     command = exclude_blank(command)
+    rfmt_command = as_strs(command)
 
     if shell:
         # If run in shell, command needs to be a string, not a list
-        command = ' '.join(command)
+        rfmt_command = ' '.join(command) # type: ignore
 
     process = Popen(
-            command,
+            rfmt_command,
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,  # UTF-8 encoding specification
