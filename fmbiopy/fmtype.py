@@ -1,5 +1,9 @@
 """ Custom types for static typing with the typing module and mypy"""
 
+from pathlib import (
+        Path,
+        PurePath,
+        )
 from typing import (
         TypeVar,
         Union,
@@ -9,3 +13,5 @@ from typing import (
 T = TypeVar('T')
 
 StrOrBytes = Union[str, bytes]
+
+PathLike = Union[str, Path, PurePath]
