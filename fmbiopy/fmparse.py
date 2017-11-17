@@ -1,8 +1,13 @@
 """Parsing utilities"""
+from collections import defaultdict
 import sys
 from typing import (
         Any,
         Dict,
+        List,
+        Sequence,
+        Tuple,
+        Union,
         )
 
 from docopt import (
@@ -18,4 +23,3 @@ def helpful_docopt(doc: str, *args, **kwargs)-> Dict[str, Any]:
     except DocoptExit:
         print(doc)
         sys.exit()
-
