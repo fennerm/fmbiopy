@@ -6,7 +6,6 @@ Moving/creating files, running commands etc.
 from collections import Iterable as Iterable_
 from contextlib import contextmanager
 from errno import ENOENT
-from logging import getLogger
 from os import chdir
 
 from pathlib import Path
@@ -17,7 +16,6 @@ from subprocess import (
 from typing import (
         Any,
         Callable,
-        cast,
         Dict,
         Generator,
         Iterable,
@@ -69,7 +67,7 @@ def run_command(
 
     if shell:
         # If run in shell, command needs to be a string, not a list
-        rfmt_command = ' '.join(command) # type: ignore
+        rfmt_command = ' '.join(rfmt_command)
 
     process = Popen(
             rfmt_command,
@@ -84,7 +82,7 @@ def run_command(
     if mutex_logger:
         write = mutex_logger.write
     else:
-        write = getLogger(logger_id).info
+        write = print
 
     # Write log
     for out, l in zip(output, log):
