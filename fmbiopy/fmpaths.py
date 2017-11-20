@@ -4,12 +4,14 @@ from pathlib import (
         Path,
         PurePath,
         )
+from shutil import copyfile
 from typing import (
         Dict,
         Iterable,
         List,
-        Sequence,
         )
+
+from fmbiopy.fmlist import not_empty
 
 
 def absglob(directory: Path, pattern: str)-> List[Path]:
@@ -24,30 +26,35 @@ def add_suffix(path: PurePath, suffix: str)-> Path:
     return Path(str(path) + suffix)
 
 
-def all_exist(paths: Iterable[Path]) -> bool:
+@not_empty
+def all_absolute(paths: Iterable[Path])-> bool:
+    """Return True if all paths in `paths` are absolute"""
+    return all([p.is_absolute() for p in paths])
+
+
+@not_empty
+def all_exist(paths: Iterable[Path])-> bool:
     """Return True if all paths in list exist """
     return all(apply_exists(paths))
 
 
+@not_empty
 def any_dont_exist(paths: Iterable[Path]) -> bool:
     """Return True if any path in list does not exist """
     return not all(apply_exists(paths))
 
 
+@not_empty
 def any_exist(paths: Iterable[Path]) -> bool:
     """Return True if any path in list exists """
     return any(apply_exists(paths))
 
 
+@not_empty
 def all_empty(paths: Iterable[Path]) -> bool:
     """Return True if all paths in list exist, and are non-empty"""
     check_all_exist(paths)
     return all(apply_is_empty(paths))
-
-
-def apply_exists(paths: Iterable[Path]) -> List[bool]:
-    """Apply os.path.exists to a list of paths"""
-    return [p.exists() for p in paths]
 
 
 def apply_is_empty(paths: Iterable[Path]) -> List[bool]:
@@ -55,8 +62,14 @@ def apply_is_empty(paths: Iterable[Path]) -> List[bool]:
 
     Returns
     -------
-    A list of bools"""
+    List[bool]
+        True if empty for each path"""
     return [is_empty(p) for p in paths]
+
+
+def apply_exists(paths: Iterable[Path])-> List[bool]:
+    """Apply os.path.exists to a list of paths"""
+    return [p.exists() for p in paths]
 
 
 def as_dict(directory: Path) -> Dict[str, List[Path]]:
@@ -69,8 +82,9 @@ def as_dict(directory: Path) -> Dict[str, List[Path]]:
 
     Returns
     -------
-    Output dictionary is of the form Dict[x, y] where x is a subdirectory of
-    `direc` and and y is the contents of x as a list.
+    Dict[str, List[Path]]
+        Output dictionary is of the form Dict[x, y] where x is a subdirectory
+        of `direc` and and y is the contents of x as a list.
     """
     subdirs = listdirs(directory)
     output = {}
@@ -92,6 +106,11 @@ def as_paths(
     strict
         Passed to `pathlib.Path.resolve()`. Does nothing if `absolute` is
         False.
+
+    Returns
+    -------
+    List[Path]
+        The list as paths
     """
     paths = [Path(string) for string in strs]
     if absolute:
@@ -104,10 +123,25 @@ def as_strs(paths: Iterable[PurePath])-> List[str]:
     return [str(path) for path in paths]
 
 
-def check_all_exist(paths: Iterable[Path]) -> None:
+def check_all_exist(paths: Iterable[Path])-> None:
     """Raise OSError if any paths in list do not exist """
     if not all_exist(paths):
-        raise OSError("Not all paths exist: \n" + ' '.join(as_strs(paths)))
+        raise FileNotFoundError(
+                "Not all paths exist: \n" + ' '.join(as_strs(paths)))
+
+
+def create_all(paths: Iterable[Path])-> None:
+    """Given a list of nonexistant paths, create them"""
+    for path in paths:
+        path.touch(exist_ok=False)
+
+
+def extension_without_gz(path: Path)-> str:
+    """Get the file extension ignoring .gz if present"""
+    suffix = path.suffix
+    if suffix == '.gz':
+        return Path(path.stem).suffix
+    return suffix
 
 
 def find(
@@ -127,7 +161,8 @@ def find(
 
     Returns
     -------
-    List of files with the given extensions and substrings"""
+    List[Path]
+        List of files with the given extensions and substrings"""
     # Filter by file extension
     hits: List[Path] = []
     if extensions is not None:
@@ -157,7 +192,7 @@ def get_bowtie2_indices(prefix: str)-> List[Path]:
 
 def is_empty(path: Path)-> bool:
     """Return True if `path` is empty"""
-    return path.stat().st_size < 1
+    return size(path) < 1
 
 
 def listdirs(directory: Path) -> List[Path]:
@@ -169,21 +204,40 @@ def listdirs(directory: Path) -> List[Path]:
             out.append(path)
     return out
 
+def move(src: Path, dest: Path)-> None:
+    """Move a file
+
+    Differs from `shutil.move` in that when a symlink is encountered, the
+    contents are copied to the new location and the link is destroyed"""
+    if src.is_symlink():
+        copyfile(str(src), str(dest))
+        src.unlink()
+    else:
+        src.rename(dest)
+
 
 def prefix(path: PurePath)-> str:
     """Get the part of a string before the first dot"""
     return path.name.split('.')[0]
 
 
-def resolve(path: str, *args, **kwargs)-> str:
-    """Return the absolute path of a string path
+def rm_gz_suffix(path: PurePath)-> PurePath:
+    """Gzip aware suffix removal
 
-    Additional parameters are passed to `Path.resolve()`
-    """
-    return str(Path(path).resolve(*args, **kwargs))
+    If .gz is the final path extension then two extensions are removed."""
+    if path.suffix == '.gz':
+        prefix = path.parent / Path(path.stem).stem
+    else:
+        prefix = path.parent / path.stem
+    return prefix
+
 
 def root(path: Path)-> Path:
     """Return the root name of a path (with directory included)"""
     while '.' in path.name:
         path = path.parent / path.stem
     return path
+
+def size(path: Path)-> int:
+    """Return the filesize of a path in bytes"""
+    return path.stat().st_size

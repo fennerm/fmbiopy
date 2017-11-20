@@ -7,7 +7,11 @@ from collections import Iterable as Iterable_
 from contextlib import contextmanager
 from errno import ENOENT
 from logging import getLogger
-from os import chdir
+from os import (
+        chdir,
+        PathLike,
+        )
+
 from pathlib import Path
 from subprocess import (
         Popen,
@@ -16,23 +20,29 @@ from subprocess import (
 from typing import (
         Any,
         Callable,
+        cast,
         Dict,
         Generator,
         Iterable,
+        List,
         Sequence,
         Tuple,
         )
+from warnings import warn
 
-from fmbiopy.fmlist import exclude_blank
-from fmbiopy.fmpaths import as_strs
+from fmbiopy.fmlist import (
+        as_strs,
+        exclude_blank,
+        )
+from fmbiopy.fmlog import MutexLogger
 
 
 def run_command(
-        command: Sequence[str],
+        command: Sequence[PathLike],
         logger_id: str = '',
         log: Tuple[bool, bool] = (True, True),
-        mutex_logger: 'fmbiopy.fmruffus.RuffusLog' = None,  # type: ignore
-        shell: bool = False) -> Tuple[int, str, str]:
+        mutex_logger: MutexLogger = None,
+        shell: bool = False)-> Tuple[int, str, str]:
     """Run a bash command with logging support
 
     Parameters
@@ -54,17 +64,19 @@ def run_command(
 
     Returns
     -------
-    A triple of the form (return code, standard out, standard error)
+    Tuple[int, str, str]
+        A tuple of the form (return code, standard out, standard error)
     """
 
     command = exclude_blank(command)
+    rfmt_command = as_strs(command)
 
     if shell:
         # If run in shell, command needs to be a string, not a list
-        command = ' '.join(command)
+        rfmt_command = ' '.join(command) # type: ignore
 
     process = Popen(
-            command,
+            rfmt_command,
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,  # UTF-8 encoding specification
@@ -98,10 +110,10 @@ def working_directory(directory: Path) -> Generator[Path, None, None]:
 
     owd = Path.cwd()
     try:
-        chdir(directory.name)
+        chdir(str(directory))
         yield directory
     finally:
-        chdir(owd.name)
+        chdir(str(owd))
 
 
 def remove_all(names: Iterable[Path], silent: bool = False)-> None:
@@ -114,7 +126,13 @@ def remove_all(names: Iterable[Path], silent: bool = False)-> None:
     if isinstance(names, Iterable_):
         for name in names:
             if name:
-                remove_func(name)  # type: ignore
+                try:
+                    remove_func(name)  # type: ignore
+                except IsADirectoryError:
+                    if silent:
+                        warn('Attempted to delete a directory. Skipping')
+                    else:
+                        raise
     else:
         remove_func(names)  # type: ignore
 
@@ -170,12 +188,13 @@ def parse_param_dict(param: Dict[str, str]) -> str:
 
     Parameters
     ----------
-    param:
+    param
         A dictionary with argument flags (-x, --long etc.) as the keys and
         BASH parameter values as the values
 
     Returns
     -------
+    str
         A Bash command substring containing the parameters
     """
     if param:

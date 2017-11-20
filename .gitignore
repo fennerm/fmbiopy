@@ -1,4 +1,5 @@
 *.swp
+*.coverage
 *.pyc
 /json/
 /not_mine/

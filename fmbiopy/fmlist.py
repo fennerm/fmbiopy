@@ -1,13 +1,21 @@
 """Utility functions for carrying out list manipulation"""
 
 from collections import Iterable as Iterable_
-from typing import Any
-from typing import Iterable
-from typing import Iterator
-from typing import List
-from typing import Sequence
+from typing import (
+        Any,
+        Callable,
+        Iterable,
+        Iterator,
+        List,
+        Sequence,
+        )
 
+from fmbiopy.fmerr import EmptyListError
 from fmbiopy.fmtype import T
+
+def as_strs(x: Sequence[Any])-> List[str]:
+    """Convert a list of items to their string representations"""
+    return [str(xi) for xi in x]
 
 def ensure_list(x: Any)-> List:
     """If not a sequence, convert to one"""
@@ -20,6 +28,7 @@ def ensure_list(x: Any)-> List:
         return [x]
 
     return x
+
 
 def exclude_blank(seq: Iterable[T])-> List[T]:
     """Remove empty and None items from an iterable"""
@@ -52,6 +61,20 @@ def interleave(list1: Sequence[T], list2: Sequence[T]) -> List[T]:
     if len(list1) != len(list2):
         raise ValueError('Lists are not the same length')
     return [val for pair in zip(list1, list2) for val in pair]
+
+
+def none(x: Iterable[bool])-> bool:
+    """Return True if all elements in `x` are False"""
+    return all([not i for i in x])
+
+
+def not_empty(func: Callable)-> Callable:
+    """Function decorator for functions which require nonempty list input"""
+    def _wrapper(*args, **kwargs):
+        if not args[0]:
+            raise EmptyListError
+        return func(*args, **kwargs)
+    return _wrapper
 
 
 def split_list(x: Sequence[T], at: T) -> List[List[T]]:

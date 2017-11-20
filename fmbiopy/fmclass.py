@@ -43,8 +43,12 @@ def list_classes(
     A list of classes in `module_name`
 
     """
-    import_module(package)
-    imported = import_module(''.join(['.', module]), package)
+    if package is None:
+        imported = import_module(module)
+    else:
+        import_module(package)
+        imported = import_module(''.join(['.', module]), package)
+
     classes: List[Type] = []
 
     # List all classes
@@ -70,3 +74,9 @@ def list_classes(
         classes = [cls for cls in classes if classname(cls) not in exclude]
 
     return sorted(classes, key=classname)
+
+def parent_names(cls: Type):
+    """Get the names of the parent classes of `cls`"""
+    parent_classes = cls.__bases__
+    names = [classname(parent) for parent in parent_classes]
+    return names

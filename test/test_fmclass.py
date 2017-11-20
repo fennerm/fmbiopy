@@ -1,10 +1,10 @@
-"""Test suite for fmbiopy.fmclass.py"""
-import pytest
+"""Test suite for fmbiopy.py"""
+from pytest import fixture
 
-import fmbiopy.fmclass as fmclass
+from fmbiopy.fmclass import *
 
-@pytest.fixture(scope='class')
-def egclass(gen_tmp, testdir, sandbox):
+@fixture(scope='class')
+def egclassfile(gen_tmp, testdir, sandbox):
     # We have to give each classfile a unique directory to prevent interference
     # from previous imports in the namespace
     tmpfile = gen_tmp(empty=True, directory=sandbox, suffix='.py')
@@ -22,24 +22,39 @@ def egclass(gen_tmp, testdir, sandbox):
 
     return (module_name, package_name)
 
+
+@fixture
+def egclass():
+    class A(object):
+        pass
+    class B(object):
+        pass
+    class C(A, B):
+        pass
+
+    return C
+
+
 def classnames(classes):
-    return [fmclass.classname(cls) for cls in classes]
+    return [classname(cls) for cls in classes]
 
-@pytest.fixture(scope='class')
-def all_classes(egclass):
-    classes = fmclass.list_classes(module=egclass[0], package=egclass[1])
+
+@fixture(scope='class')
+def all_classes(egclassfile):
+    classes = list_classes(
+            module=egclassfile[0], package=egclassfile[1])
     return classnames(classes)
 
-@pytest.fixture(scope='class')
-def no_foo(egclass):
-    classes = fmclass.list_classes(
-            module=egclass[0], package=egclass[1], exclude=['Foo'])
+@fixture(scope='class')
+def no_foo(egclassfile):
+    classes = list_classes(
+            module=egclassfile[0], package=egclassfile[1], exclude=['Foo'])
     return classnames(classes)
 
-@pytest.fixture(scope='class')
-def foo_type(egclass):
-    classes = fmclass.list_classes(
-            module=egclass[0], package=egclass[1], of_type=['Foo'])
+@fixture(scope='class')
+def foo_type(egclassfile):
+    classes = list_classes(
+            module=egclassfile[0], package=egclassfile[1], of_type=['Foo'])
     return classnames(classes)
 
 class TestListClasses(object):
@@ -54,3 +69,6 @@ class TestListClasses(object):
     def test_choose_type(self, foo_type):
         expected = ['Bar', 'Foo']
         assert foo_type == expected
+
+def test_parent_names(egclass):
+    assert parent_names(egclass) == ['A', 'B']
