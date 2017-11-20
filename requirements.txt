@@ -1,0 +1,4 @@
+setuptools==28.8.0
+pytest==3.2.5
+py==1.5.2
+typing==3.6.2
