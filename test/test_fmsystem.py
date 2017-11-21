@@ -19,7 +19,7 @@ class TestRunCommand():
             command = ['wc', '-m', str(tmpfile)]
             temp.write('xyz')
             temp.flush()
-            succ = run_command(command)
+            succ = bash(command)
             assert succ[0] == 0
             assert succ[1] == '3 '+ str(tmpfile) + '\n'
             assert succ[2] == ''
@@ -29,7 +29,7 @@ class TestRunCommand():
             command = ['wc', '-m', '/', temp.name]
             temp.write('xyz')
             temp.flush()
-            succ_and_fail = run_command(command)
+            succ_and_fail = bash(command)
             assert succ_and_fail[0] == 1
             assert succ_and_fail[1] == (
                     '      0 /\n      3 ' + temp.name + '\n      3 total\n')
@@ -37,14 +37,14 @@ class TestRunCommand():
 
     def test_trivial_failure(self):
         command = ['wc', '-m', '/']
-        fail = run_command(command)
+        fail = bash(command)
         assert fail[0] == 1
         assert fail[1] == '0 /\n'
         assert fail[2] == 'wc: /: Is a directory\n'
 
     def test_shell_true_doesnt_fail(self):
         command = ['echo', 'foo', '|', 'grep', 'foo']
-        process = run_command(command, shell=True)
+        process = bash(command, shell=True)
         assert process[0] == 0
         assert process[1] == "foo\n"
         assert not process[2]

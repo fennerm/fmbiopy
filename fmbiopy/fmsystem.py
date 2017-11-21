@@ -31,8 +31,9 @@ from fmbiopy.fmlist import (
 from fmbiopy.fmlog import MutexLogger
 
 
-def run_command(
-        command: Sequence[Any],
+=======
+def bash(
+        command: Sequence[PathLike],
         logger_id: str = '',
         log: Tuple[bool, bool] = (True, True),
         mutex_logger: MutexLogger = None,
@@ -152,10 +153,13 @@ def delete(paths: Iterable[Path]) -> Generator[None, None, None]:
     finally:
         remove_all(paths)
 
+def run_command(*args, **kwargs):
+    """Deprecated. Use bash"""
+    return bash(*args, **kwargs)
 
-def run_silently(command: Sequence[str]) -> Tuple[int, str, str]:
+def run_silently(command: Sequence[str])-> Tuple[int, str, str]:
     """Run a command without logging results """
-    return run_command(command, log=(False, False))
+    return bash(command, log=(False, False))
 
 
 def concat(filenames: Iterable[Path], outpath: Path)-> bool:
