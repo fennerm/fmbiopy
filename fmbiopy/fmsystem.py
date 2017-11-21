@@ -7,11 +7,7 @@ from collections import Iterable as Iterable_
 from contextlib import contextmanager
 from errno import ENOENT
 from logging import getLogger
-from os import (
-        chdir,
-        PathLike,
-        )
-
+from os import chdir
 from pathlib import Path
 from subprocess import (
         Popen,
@@ -20,11 +16,9 @@ from subprocess import (
 from typing import (
         Any,
         Callable,
-        cast,
         Dict,
         Generator,
         Iterable,
-        List,
         Sequence,
         Tuple,
         )
@@ -34,11 +28,10 @@ from fmbiopy.fmlist import (
         as_strs,
         exclude_blank,
         )
-from fmbiopy.fmlog import MutexLogger
 
 
 def bash(
-        command: Sequence[PathLike],
+        command: Sequence,
         logger_id: str = '',
         log: Tuple[bool, bool] = (False, True),
         shell: bool = False)-> Tuple[int, str, str]:
