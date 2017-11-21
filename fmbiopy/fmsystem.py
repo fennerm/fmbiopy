@@ -34,7 +34,7 @@ def bash(
         command: Sequence,
         logger_id: str = '',
         log: Tuple[bool, bool] = (False, True),
-        shell: bool = False)-> Tuple[int, str, str]:
+        shell: bool = True)-> Tuple[int, str, str]:
     """Run a bash command with logging support
 
     Command can either be a list or a string
