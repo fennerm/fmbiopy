@@ -2,52 +2,77 @@
 from pathlib import Path
 import tempfile
 
-import pytest
+from pytest import (
+        fixture,
+        mark,
+        )
+from factory import (
+        Factory,
+        lazy_attribute,
+        )
+from pytest_factoryboy import (
+        LazyFixture,
+        register,
+        )
 
-
+from fmbiopy.fmlog import setup_log
 from fmbiopy.fmpaths import (
         any_exist,
         all_exist,
         )
 from fmbiopy.fmsystem import *
 
+class Command():
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        if self.logfile is not None:
+            setup_log(self.logfile)
+
+
+class CommandFactory(Factory):
+    success = True
+    as_list = True
+    shell = True
+    logfile = None
+
+    class Meta:
+        model = Command
+
+    @lazy_attribute
+    def command(self):
+        if self.success:
+            command = ['echo', 'foo']
+        else:
+            command = ['false']
+
+        if self.as_list:
+            command = ' '.join(command)
+        return command
+
+register(CommandFactory)
+
 class TestRunCommand():
+    @mark.parametrize('command__as_list', [True, False])
+    def test_successful_command(self, command):
+        results = bash(command.command, shell=command.shell)
+        assert results == (0, 'foo\n', '')
 
-    def test_trivial_success(self, tmpdir, gen_tmp):
-        tmpfile = gen_tmp(directory=tmpdir)
-        with tmpfile.open(mode='wt') as temp:
-            command = ['wc', '-m', str(tmpfile)]
-            temp.write('xyz')
-            temp.flush()
-            succ = bash(command)
-            assert succ[0] == 0
-            assert succ[1] == '3 '+ str(tmpfile) + '\n'
-            assert succ[2] == ''
+    @mark.parametrize('command__as_list', [True, False])
+    @mark.parametrize('command__success', [False])
+    @mark.parametrize('command__shell', [True, False])
+    def test_failed_command(self, command):
+        results = bash(command.command, shell=command.shell)
+        assert results == (1, '', '')
 
-    def test_trivial_mixed_success(self):
-        with tempfile.NamedTemporaryFile(mode='wt') as temp:
-            command = ['wc', '-m', '/', temp.name]
-            temp.write('xyz')
-            temp.flush()
-            succ_and_fail = bash(command)
-            assert succ_and_fail[0] == 1
-            assert succ_and_fail[1] == (
-                    '      0 /\n      3 ' + temp.name + '\n      3 total\n')
-            assert succ_and_fail[2] == 'wc: /: Is a directory\n'
-
-    def test_trivial_failure(self):
-        command = ['wc', '-m', '/']
-        fail = bash(command)
-        assert fail[0] == 1
-        assert fail[1] == '0 /\n'
-        assert fail[2] == 'wc: /: Is a directory\n'
-
-    def test_shell_true_doesnt_fail(self):
-        command = ['echo', 'foo', '|', 'grep', 'foo']
-        process = bash(command, shell=True)
-        assert process[0] == 0
-        assert process[1] == "foo\n"
-        assert not process[2]
+    @mark.parametrize('command__logfile', [LazyFixture(
+        lambda randpath: randpath())])
+    @mark.parametrize('command__command', ['echo foo 1>&2'])
+    @mark.parametrize('command__shell', [True])
+    def test_logging(self, command, randpath):
+        bash(command.command, shell = command.shell)
+        assert 'foo' in command.logfile.read_text()
 
 
 class TestDelete():
@@ -61,7 +86,7 @@ class TestDelete():
 
 
 class TestParseParamDict():
-    @pytest.fixture
+    @fixture
     def example_dict(self):
         example = {
                 '-a': 'a_val',

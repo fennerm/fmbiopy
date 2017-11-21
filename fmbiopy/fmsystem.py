@@ -40,24 +40,21 @@ from fmbiopy.fmlog import MutexLogger
 def bash(
         command: Sequence[PathLike],
         logger_id: str = '',
-        log: Tuple[bool, bool] = (True, True),
-        mutex_logger: MutexLogger = None,
+        log: Tuple[bool, bool] = (False, True),
         shell: bool = False)-> Tuple[int, str, str]:
     """Run a bash command with logging support
+
+    Command can either be a list or a string
 
     Parameters
     ----------
     command
         Bash command to be run
     logger_id
-        Name to use for logging handler (ignored if mutex_log given).
-        By default, root logger is used.
+        Name to use for logging handler. By default, root logger is used.
     log
         If log[0] is True, stdout will be logged. If log[1] is True, stderr
-        will be logged
-    mutex_logger
-        If running in parallel, a RuffusLog instance can be passed to log
-        output with a mutex lock.
+        will be logged. By default only stderr is logged.
     shell
         If True, the command is run directly in the shell rather than the
         python interpreter. Useful for Bash commands with piping.
@@ -67,16 +64,20 @@ def bash(
     Tuple[int, str, str]
         A tuple of the form (return code, standard out, standard error)
     """
-
-    command = exclude_blank(command)
-    rfmt_command = as_strs(command)
+    if not isinstance(command, str):
+        command = exclude_blank(command)
+        command = as_strs(command)
 
     if shell:
         # If run in shell, command needs to be a string, not a list
-        rfmt_command = ' '.join(command) # type: ignore
+        if not isinstance(command, str):
+            command = ' '.join(command)
+    else:
+        if isinstance(command, str):
+            command = command.split(' ')
 
     process = Popen(
-            rfmt_command,
+            command,
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,  # UTF-8 encoding specification
@@ -84,16 +85,10 @@ def bash(
 
     output = process.communicate()
 
-    # Select a logging function
-    if mutex_logger:
-        write = mutex_logger.write
-    else:
-        write = getLogger(logger_id).info
-
     # Write log
-    for out, l in zip(output, log):
-        if out and l:
-            write(out)
+    for msg, stream in zip(output, log):
+        if msg and stream:
+            getLogger(logger_id).info(msg)
 
     return (int(process.returncode), output[0], output[1])
 

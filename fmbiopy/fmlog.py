@@ -154,7 +154,7 @@ class MutexLogger(object):
             self.write('=' * 80)
 
 
-def setup_log(logfile: str) -> None:
+def setup_log(logfile: Path) -> None:
     """Set up a logging instance for a given logfile path. See:
     https://stackoverflow.com/questions/9321741/printing-to-screen-and-writing\
     -to-a-file-at-the-same-time """
@@ -162,7 +162,7 @@ def setup_log(logfile: str) -> None:
                         format='%(asctime)s %(name)-12s %(levelname)-8s \
                                 %(message)s',
                         datefmt='%m-%d %H:%M',
-                        filename=logfile,
+                        filename=str(logfile),
                         filemode='w')
 
     # define a Handler which writes INFO messages or higher to the sys.stderr
