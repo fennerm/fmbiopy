@@ -22,67 +22,59 @@ from fmbiopy.fmpaths import (
         )
 from fmbiopy.fmsystem import *
 
-class Command():
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+# class Command():
+#     def __init__(self, **kwargs):
+#         for key, value in kwargs.items():
+#             setattr(self, key, value)
+#
+#         if self.logfile is not None:
+#             setup_log(self.logfile)
+#
+#
+# class CommandFactory(Factory):
+#     success = True
+#     as_list = True
+#     shell = True
+#     logfile = None
+#
+#     class Meta:
+#         model = Command
+#
+#     @lazy_attribute
+#     def command(self):
+#         if self.success:
+#             command = ['echo', 'foo']
+#         else:
+#             command = ['false']
+#
+#         if self.as_list:
+#             command = ' '.join(command)
+#         return command
+#
+# register(CommandFactory)
 
-        if self.logfile is not None:
-            setup_log(self.logfile)
+# class TestBash():
+#     @mark.parametrize('command__as_list', [True, False])
+#     def test_successful_command(self, command):
+#         assert False # Rewrite logging in bash function
+#         results = bash(command.command, shell=command.shell)
+#         assert results == (0, 'foo\n', '')
+#
+#     @mark.parametrize('command__as_list', [True, False])
+#     @mark.parametrize('command__success', [False])
+#     @mark.parametrize('command__shell', [True, False])
+#     def test_failed_command(self, command):
+#         results = bash(command.command, shell=command.shell)
+#         assert results == (1, '', '')
+#
+#     @mark.parametrize('command__logfile', [LazyFixture(
+#         lambda randpath: randpath())])
+#     @mark.parametrize('command__command', ['echo foo 1>&2'])
+#     @mark.parametrize('command__shell', [True])
+#     def test_logging(self, command, randpath):
+#         bash(command.command, shell = command.shell)
+#         assert 'foo' in command.logfile.read_text()
 
-
-class CommandFactory(Factory):
-    success = True
-    as_list = True
-    shell = True
-    logfile = None
-
-    class Meta:
-        model = Command
-
-    @lazy_attribute
-    def command(self):
-        if self.success:
-            command = ['echo', 'foo']
-        else:
-            command = ['false']
-
-        if self.as_list:
-            command = ' '.join(command)
-        return command
-
-register(CommandFactory)
-
-class TestRunCommand():
-    @mark.parametrize('command__as_list', [True, False])
-    def test_successful_command(self, command):
-        results = bash(command.command, shell=command.shell)
-        assert results == (0, 'foo\n', '')
-
-    @mark.parametrize('command__as_list', [True, False])
-    @mark.parametrize('command__success', [False])
-    @mark.parametrize('command__shell', [True, False])
-    def test_failed_command(self, command):
-        results = bash(command.command, shell=command.shell)
-        assert results == (1, '', '')
-
-    @mark.parametrize('command__logfile', [LazyFixture(
-        lambda randpath: randpath())])
-    @mark.parametrize('command__command', ['echo foo 1>&2'])
-    @mark.parametrize('command__shell', [True])
-    def test_logging(self, command, randpath):
-        bash(command.command, shell = command.shell)
-        assert 'foo' in command.logfile.read_text()
-
-
-class TestDelete():
-    def test_normal_usage(self, gen_tmp):
-        tmpfiles = [gen_tmp() for i in range(3)]
-        assert all_exist(tmpfiles)
-        with delete(tmpfiles):
-            pass
-
-        assert not any_exist(tmpfiles)
 
 
 class TestParseParamDict():
@@ -102,6 +94,7 @@ class TestParseParamDict():
 
     def test_empty_input(self):
         assert parse_param_dict({}) == ''
+
 
 class TestWorkingDirectory():
     def test_changes_directory(self, tmpdir):

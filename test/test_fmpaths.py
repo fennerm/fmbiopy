@@ -1,41 +1,16 @@
 """Test fmbiopy.fmpaths"""
 
-from pathlib import Path
 from pytest import (
         fixture,
         mark,
         raises,
         )
 
+from plumbum import local
 
 from fmbiopy.fmerr import EmptyListError
 from fmbiopy.fmpaths import *
-from fmbiopy.fmsystem import working_directory
 
-
-def test_absglob(full_dir):
-    glb = absglob(full_dir, '*')
-    assert all_absolute(glb)
-
-
-def test_add_suffix(randsuffix, randpath):
-    suff = randsuffix()
-    suffixed = add_suffix(randpath(), suff)
-    assert suffixed.suffix == suff
-    assert suffixed.is_absolute()
-
-
-def test_all_absolute(poss_path_lists):
-    (name, value) = poss_path_lists
-    if name == 'absolute_exist_paths':
-        assert all_absolute(value)
-    elif name == 'relative_nonexist_paths':
-        assert not all_absolute(value)
-    elif name == 'mixed_absolute_relative_paths':
-        assert not all_absolute(value)
-    elif name == 'empty_list':
-        with raises(EmptyListError):
-            all_absolute(value)
 
 
 def test_all_exist(poss_path_lists):
@@ -119,7 +94,7 @@ def test_as_dict(nested_dir):
 def test_as_paths(randstrs):
     paths = as_paths(randstrs(3))
     for path in paths:
-        assert isinstance(path, Path)
+        assert isinstance(path, LocalPath)
 
 
 def test_as_strs(empty_list):
@@ -134,31 +109,32 @@ def test_check_all_exist():
 
 def test_create_all(poss_path_lists):
     name, value = poss_path_lists
-    if name == 'absolute_exist_paths':
-        with raises(FileExistsError):
-            create_all(value)
-    elif name == 'absolute_nonexist_paths':
+    if name == 'absolute_nonexist_paths':
         create_all(value)
         assert all_exist(value)
     elif name == 'empty_list':
         create_all(value)
-    elif name == 'nonempty_paths':
-        with raises(FileExistsError):
-            create_all(value)
 
 
-def test_extension_without_gz(gzipped_path, double_suffixed_path):
-    pass
+class TestDelete():
+    def test_normal_usage(self, gen_tmp):
+        tmpfiles = [gen_tmp() for i in range(3)]
+        assert all_exist(tmpfiles)
+        with delete(tmpfiles):
+            pass
+
+        assert not any_exist(tmpfiles)
+
 
 @mark.parametrize("ext,substr,expect", [
-        (None, None, [Path('a.x'), Path('b.y'), Path('b.x')]),
-        ('y', None, [Path('b.y')]),
-        (None, 'a', [Path('a.x')]),
+        (None, None, ['a.x', 'b.y', 'b.x']),
+        ('y', None, ['b.y']),
+        (None, 'a', ['a.x']),
         (None, 'k', []),
-        ('x', 'b', [Path('b.x')])])
+        ('x', 'b', ['b.x'])])
 def test_find(ext, substr, expect, full_dir):
     if expect:
-        expect = sorted([full_dir.joinpath(exp) for exp in expect])
+        expect = sorted([full_dir / exp for exp in expect])
     assert find(full_dir, extensions=ext, substring=substr) == expect
 
 
@@ -190,8 +166,8 @@ def test_listdirs(gen_tmp, nested_dir):
 def test_move(gen_tmp, tmpdir, randpath):
     src = gen_tmp(empty=False, directory=tmpdir)
     link1, link2, dest = [randpath() for i in range(3)]
-    link1.symlink_to(src)
-    link2.symlink_to(link1)
+    src.symlink(link1)
+    link1.symlink(link2)
     move(link2, dest)
     assert dest.exists()
     assert not link2.exists()
@@ -218,6 +194,9 @@ def test_rm_gz_suffix(double_suffixed_path, gzipped_path):
 
 def test_root(double_suffixed_path):
     actual = str(root(double_suffixed_path))
-    par = double_suffixed_path.parent
-    expected = str(par / Path(double_suffixed_path.stem).stem)
+    par = double_suffixed_path.up()
+    expected = str(par / local.path(double_suffixed_path.stem).stem)
     assert actual == expected
+
+
+

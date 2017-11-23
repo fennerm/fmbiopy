@@ -3,7 +3,6 @@
 Pytest functions must be imported explicitely.
 """
 from os import chdir
-from pathlib import Path
 from shutil import (
         copytree,
         rmtree,
@@ -26,34 +25,35 @@ from fmbiopy.fmpaths import (
         as_paths,
         create_all,
         listdirs,
-        root,
-        )
-from fmbiopy.fmsystem import (
         remove_all,
-        run_command,
+        root,
         silent_remove,
-        working_directory,
+        )
+from plumbum.cmd import git
+from plumbum import (
+        local,
+        LocalPath,
         )
 from pytest import fixture
 from _pytest.fixtures import SubRequest
 
 
 """The type of the gen_tmp fixture"""
-GenTmpType = Callable[[bool, str, Path], Path]
+GenTmpType = Callable[[bool, str, LocalPath], LocalPath]
 
 
 @fixture
 def absolute_nonexist_paths(
-        tmpdir: Path,
-        relative_nonexist_paths: List[Path])-> List[Path]:
+        tmpdir: LocalPath,
+        relative_nonexist_paths: List[LocalPath])-> List[LocalPath]:
     """Generate a list of absolute paths to nonexistant paths"""
     return [tmpdir / p.name for p in relative_nonexist_paths]
 
 
 @fixture
 def absolute_exist_paths(
-        tmpdir: Path,
-        randstrs: Callable[[int], List[str]])-> Iterator[List[Path]]:
+        tmpdir: LocalPath,
+        randstrs: Callable[[int], List[str]])-> Iterator[List[LocalPath]]:
     """Generate a list of absolute paths which exist"""
     paths = [tmpdir / x for x in randstrs(3)]
     create_all(paths)
@@ -63,8 +63,8 @@ def absolute_exist_paths(
 
 @fixture
 def absolute_some_exist_paths(
-        absolute_exist_paths: List[Path],
-        absolute_nonexist_paths: List[Path])-> List[Path]:
+        absolute_exist_paths: List[LocalPath],
+        absolute_nonexist_paths: List[LocalPath])-> List[LocalPath]:
     """Generate a list of paths, half of which exist"""
     return absolute_exist_paths + absolute_nonexist_paths
 
@@ -83,7 +83,7 @@ def cd(tmpdir, startdir)-> Iterator[None]:
 
 
 @fixture(scope='session')
-def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
+def dat(sandbox) -> Dict[str, Dict[str, List[LocalPath]]]:
     """Create a dictionary of test data
 
     Assumes test directory is structured such that all test data is stored in
@@ -106,7 +106,9 @@ def dat(sandbox) -> Dict[str, Dict[str, List[Path]]]:
 
 
 @fixture
-def double_suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+def double_suffixed_path(
+        gen_tmp: GenTmpType,
+        tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Generate a path with a two part suffix"""
     path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo.bar')
     yield path
@@ -119,7 +121,7 @@ def empty_list()-> List:
 
 
 @fixture
-def empty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+def empty_path(gen_tmp: GenTmpType, tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Generate an empty but existing path"""
     path = gen_tmp(directory=tmpdir, empty=True)
     yield path
@@ -129,11 +131,11 @@ def empty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
 @fixture(scope='session')
 def example_file(
         gen_tmp: GenTmpType,
-        dat: Dict[str, Dict[str, List[Path]]]
-        )-> Callable[[bf.Biofile, str], Path]:
+        dat: Dict[str, Dict[str, List[LocalPath]]]
+        )-> Callable[[bf.Biofile, str], LocalPath]:
     """Return an example file generating fixture function"""
 
-    def _get_example_file(filetype: Type[bf.Biofile], size: str)-> Path:
+    def _get_example_file(filetype: Type[bf.Biofile], size: str)-> LocalPath:
         """Return an example file of the requested filetype and size
 
         Parameters
@@ -146,7 +148,7 @@ def example_file(
 
         Returns
         -------
-        Path
+        LocalPath
             A path to an example file of the requested type.
         """
         try:
@@ -180,13 +182,13 @@ def example_file(
             outfile = str(gen_tmp(empty=False, suffix='.foo'))
         else:
             outfile = str(gen_tmp(empty=False, suffix=cls.extensions[0]))
-        return Path(outfile)
+        return local.path(outfile)
 
     return _get_example_file
 
 
 @fixture()
-def full_dir(tmpdir: Path)-> Iterator[Path]:
+def full_dir(tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Create a temporary directory with some misc. temporary files"""
     paths = [tmpdir / name for name in ['a.x', 'b.y', 'b.x']]
     create_all(paths)
@@ -195,7 +197,7 @@ def full_dir(tmpdir: Path)-> Iterator[Path]:
 
 
 @fixture(scope='session')
-def gen_tmp(sandbox: Path)-> GenTmpType:
+def gen_tmp(sandbox: LocalPath)-> GenTmpType:
     """Generate a named temporary file.
     imported = importlib.import_module(module, package)
 
@@ -219,9 +221,9 @@ def gen_tmp(sandbox: Path)-> GenTmpType:
     def _gen_tmp(
             empty: bool = True,
             suffix: str = '',
-            directory: Path = sandbox)-> Path:
+            directory: LocalPath = sandbox)-> LocalPath:
 
-        tmpfile = Path(NamedTemporaryFile(
+        tmpfile = LocalPath(NamedTemporaryFile(
             delete=False, dir=str(directory), suffix=suffix).name)
 
         if not empty:
@@ -238,14 +240,18 @@ def gen_tmp(sandbox: Path)-> GenTmpType:
 @fixture
 def gzipped_path(randpath, randstr):
     """Return a gzipped file name"""
-    return Path('.'.join([str(randpath()), randstr()[0:3], 'gz']))
+    return LocalPath('.'.join([str(randpath()), randstr()[0:3], 'gz']))
 
+@fixture(name='home')
+def gen_home():
+    """Get the path to the home directory"""
+    return LocalPath.home()
 
 @fixture(scope='session', autouse=True)
 def load_sandbox(
         update_testdat: None,
-        sandbox: Path,
-        testdat: Path) -> Iterator[Path]:
+        sandbox: LocalPath,
+        testdat: LocalPath) -> Iterator[LocalPath]:
     """Copy all test data files to the sandbox for the testing session
 
     Yields
@@ -264,7 +270,7 @@ def load_sandbox(
         rmtree(str(sandbox))
 
     copytree(str(testdat), str(sandbox), ignore=_ignore_git)
-    sandbox.joinpath('__init__.py').touch()
+    (sandbox / '__init__.py').touch()
     yield sandbox
     if sandbox.exists():
         rmtree(str(sandbox))
@@ -272,19 +278,19 @@ def load_sandbox(
 
 @fixture
 def mixed_absolute_relative_paths(
-        absolute_nonexist_paths: List[Path],
-        relative_nonexist_paths: List[Path])-> List[Path]:
+        absolute_nonexist_paths: List[LocalPath],
+        relative_nonexist_paths: List[LocalPath])-> List[LocalPath]:
     """Generate a list of paths, half of which are absolute, half are not"""
     return absolute_nonexist_paths + relative_nonexist_paths
 
 
 @fixture()
-def nested_dir(tmpdir: Path)-> Iterator[Path]:
+def nested_dir(tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Create a set of nested directories and files inside a temp directory
 
     Yields
     ------
-    Path
+    LocalPath
         Path of the temporary directory.
     """
 
@@ -301,7 +307,7 @@ def nested_dir(tmpdir: Path)-> Iterator[Path]:
 
 
 @fixture
-def nonempty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+def nonempty_path(gen_tmp: GenTmpType, tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Generate a nonempty path"""
     path = gen_tmp(empty=False, directory=tmpdir)
     yield path
@@ -309,7 +315,9 @@ def nonempty_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
 
 
 @fixture
-def nonempty_paths(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[List[Path]]:
+def nonempty_paths(
+        gen_tmp: GenTmpType,
+        tmpdir: LocalPath)-> Iterator[List[LocalPath]]:
     """Generate a list of nonempty paths"""
     paths = [gen_tmp(empty=False, directory=tmpdir) for i in range(3)]
     yield paths
@@ -319,9 +327,9 @@ def nonempty_paths(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[List[Path]]:
 @fixture
 def nonexistant_parent(
         randstr: Callable[[], str],
-        tmpdir: Path)-> Iterator[Path]:
+        tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Generate a path for which the parent doesn't exist"""
-    path = tmpdir.joinpath(randstr()).joinpath(randstr())
+    path = tmpdir / randstr() / randstr()
     yield path
     silent_remove(path)
 
@@ -329,9 +337,9 @@ def nonexistant_parent(
 @fixture()
 def nonexistant_path(
         randstr: Callable[[], str],
-        tmpdir: Path)-> Iterator[Path]:
+        tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Generate a nonexistant path"""
-    path = tmpdir.joinpath(randstr())
+    path = tmpdir / randstr()
     yield path
     silent_remove(path)
 
@@ -341,16 +349,16 @@ def nonexistant_path(
     'double_suffixed_path', 'symlink', 'tmpdir'])
 def poss_paths(
         request: SubRequest,
-        empty_path: Path,
-        nonexistant_path: Path,
-        nonexistant_parent: Path,
-        nonempty_path: Path,
-        suffixed_path: Path,
-        double_suffixed_path: Path,
-        symlink: Path,
-        tmpdir: Path,
-        )-> Tuple[str, Path]:
-    """Generate various kinds of possible valid `Path`s
+        empty_path: LocalPath,
+        nonexistant_path: LocalPath,
+        nonexistant_parent: LocalPath,
+        nonempty_path: LocalPath,
+        suffixed_path: LocalPath,
+        double_suffixed_path: LocalPath,
+        symlink: LocalPath,
+        tmpdir: LocalPath,
+        )-> Tuple[str, LocalPath]:
+    """Generate various kinds of possible valid `LocalPath`s
 
     Returns
     -------
@@ -365,15 +373,15 @@ def poss_paths(
     'mixed_absolute_relative_paths', 'nonempty_paths'])
 def poss_path_lists(
         request: SubRequest,
-        absolute_exist_paths: List[Path],
-        absolute_nonexist_paths: List[Path],
-        absolute_some_exist_paths: List[Path],
+        absolute_exist_paths: List[LocalPath],
+        absolute_nonexist_paths: List[LocalPath],
+        absolute_some_exist_paths: List[LocalPath],
         empty_list: List,
-        mixed_absolute_relative_paths: List[Path],
-        relative_nonexist_paths: List[Path],
-        nonempty_paths: List[Path],
-        )-> Tuple[str, Path]:
-    """Generate various kinds of possible valid lists of `Path`s
+        mixed_absolute_relative_paths: List[LocalPath],
+        relative_nonexist_paths: List[LocalPath],
+        nonempty_paths: List[LocalPath],
+        )-> Tuple[str, LocalPath]:
+    """Generate various kinds of possible valid lists of `LocalPath`s
 
     Returns
     -------
@@ -383,14 +391,14 @@ def poss_path_lists(
 
 
 """ Type variable for `randpath`"""
-RandPathType = Callable[[], Path]
+RandPathType = Callable[[], LocalPath]
 
 
 @fixture
-def randpath(randstr: Callable[[], str], tmpdir: Path)-> RandPathType:
+def randpath(randstr: Callable[[], str], tmpdir: LocalPath)-> RandPathType:
     """Return a randomly generated nonexistant path"""
-    def _gen_randpath()-> Path:
-        return tmpdir.joinpath(randstr())
+    def _gen_randpath()-> LocalPath:
+        return tmpdir / randstr()
     return _gen_randpath
 
 
@@ -421,31 +429,31 @@ def randstrs(randstr: Callable[[], str])-> Callable[[int], List[str]]:
 @fixture
 def relative_nonexist_paths(
         randstrs: Callable[[int], List[str]],
-        tmpdir: Path)-> List[Path]:
+        tmpdir: LocalPath)-> List[LocalPath]:
     """Generate a list of relative paths"""
-    paths = [Path(tmpdir.name) / x for x in randstrs(3)]
+    paths = [LocalPath(tmpdir.name) / x for x in randstrs(3)]
     return paths
 
 
 @fixture(scope='session')
-def sandbox(testdir: Path)-> Path:
+def sandbox(testdir: LocalPath)-> LocalPath:
     """Path to the sandbox directory"""
     return testdir / 'sandbox'
 
 
 @fixture(scope='session')
-def small(sandbox: Path)-> Path:
+def small(sandbox: LocalPath)-> LocalPath:
     """Path to the 'small' subdirectory of sandbox"""
     return sandbox / 'small'
 
 
 @fixture(scope='session')
-def startdir()-> Path:
+def startdir()-> LocalPath:
     """The directory from which testing was initialized"""
-    return Path.cwd().absolute()
+    return LocalPath.cwd().absolute()
 
 @fixture
-def suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
+def suffixed_path(gen_tmp: GenTmpType, tmpdir: LocalPath)-> Iterator[LocalPath]:
     """Generate a nonempty path with a suffix"""
     path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
     yield path
@@ -454,7 +462,7 @@ def suffixed_path(gen_tmp: GenTmpType, tmpdir: Path)-> Iterator[Path]:
 @fixture
 def suffixed_paths(
         gen_tmp: GenTmpType,
-        tmpdir: Path,
+        tmpdir: LocalPath,
         randsuffix: Callable[[], str]
         )-> Iterator[NamedTuple]:
     """Generate a list of nonempty suffixed paths"""
@@ -463,7 +471,7 @@ def suffixed_paths(
             gen_tmp(empty=False, directory=tmpdir, suffix=suffixes[i])
             for i in range(3)]
     tup = NamedTuple('suffixed_paths', [
-        ('paths', List[Path]), ('suffixes', List[str])])
+        ('paths', List[LocalPath]), ('suffixes', List[str])])
     tup.paths = paths
     tup.suffixes = suffixes
     yield tup
@@ -474,8 +482,8 @@ def suffixed_paths(
 def symlink(
         gen_tmp: GenTmpType,
         randpath: RandPathType,
-        tmpdir: Path,
-        )-> Iterator[Path]:
+        tmpdir: LocalPath,
+        )-> Iterator[LocalPath]:
     """Produce a symlink"""
     target = gen_tmp(empty=False, directory=tmpdir)
     path = randpath()
@@ -485,7 +493,7 @@ def symlink(
 
 
 @fixture(scope='session')
-def testdat(testdir)-> Path:
+def testdat(testdir)-> LocalPath:
     """Path to the testdat directory"""
     return testdir / 'testdat'
 
@@ -496,8 +504,8 @@ def testdat_repo()-> str:
 
 
 @fixture(scope='session')
-def testdir()-> Path:
-    """Path to the test directory"""
+def testdir()-> LocalPath:
+    """LocalPath to the test directory"""
     possible = as_paths(['test', 'tests', '.'])
     for poss in possible:
         if poss.exists():
@@ -506,14 +514,16 @@ def testdir()-> Path:
 
 
 @fixture(scope='session')
-def tiny(sandbox: Path)-> Path:
+def tiny(sandbox: LocalPath)-> LocalPath:
     """Path to the 'small' subdirectory of sandbox"""
     return sandbox / 'tiny'
 
 
 @fixture
-def tmpdir(sandbox: Path, randstr: Callable[[], str])-> Iterator[Path]:
-    """`pathlib.Path` version of `pytest` fixture"""
+def tmpdir(
+        sandbox: LocalPath,
+        randstr: Callable[[], str])-> Iterator[LocalPath]:
+    """`plumbum.LocalPath` version of `pytest` fixture"""
     path = sandbox / randstr()
     path.mkdir()
     yield path
@@ -521,21 +531,22 @@ def tmpdir(sandbox: Path, randstr: Callable[[], str])-> Iterator[Path]:
 
 
 @fixture()
-def unique_dir(sandbox: Path)-> Iterator[Path]:
+def unique_dir(sandbox: LocalPath)-> Iterator[LocalPath]:
     """Create a directory in sandbox with a unique name"""
-    path = sandbox.joinpath(randstr())
+    path = sandbox / randstr()
     path.mkdir()
     yield path
     rmtree(str(path))
 
 
 @fixture(scope='session', autouse=True)
-def update_testdat(testdir: Path, testdat: Path, testdat_repo: str)-> None:
+def update_testdat(
+        testdir: LocalPath, testdat: LocalPath, testdat_repo: str)-> None:
     """Make sure that testdat is up to date"""
 
     if not testdat.exists():
-        with working_directory(testdir):
-            run_command(['git', 'clone', testdat_repo])
+        with local.cwd(testdir):
+            git['clone', testdat_repo]()
     else:
-        with working_directory(testdat):
-            run_command(['git', 'pull'])
+        with local.cwd(testdat):
+            git['pull']()

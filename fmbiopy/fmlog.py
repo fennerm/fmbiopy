@@ -9,9 +9,12 @@ from logging import (
         StreamHandler,
         )
 from multiprocessing.managers import AcquirerProxy  #type: ignore
-from pathlib import Path
 from typing import Tuple
 
+from plumbum import (
+        local,
+        LocalPath,
+        )
 from ruffus.proxy_logger import (
         LoggerProxy,
         make_shared_logger_and_proxy,
@@ -42,7 +45,7 @@ class MutexLogger(object):
     def __init__(
             self,
             name: str,
-            location: Path,
+            location: LocalPath,
             formatter: str = DEFAULT_LOG_FORMAT,
             delay: bool = True,
             level: int = DEBUG,
@@ -154,7 +157,7 @@ class MutexLogger(object):
             self.write('=' * 80)
 
 
-def setup_log(logfile: Path) -> None:
+def setup_log(logfile: LocalPath) -> None:
     """Set up a logging instance for a given logfile path. See:
     https://stackoverflow.com/questions/9321741/printing-to-screen-and-writing\
     -to-a-file-at-the-same-time """
