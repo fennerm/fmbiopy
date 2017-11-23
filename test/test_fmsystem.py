@@ -94,11 +94,3 @@ class TestParseParamDict():
 
     def test_empty_input(self):
         assert parse_param_dict({}) == ''
-
-
-class TestWorkingDirectory():
-    def test_changes_directory(self, tmpdir):
-        with working_directory(tmpdir):
-            assert Path.cwd() == tmpdir
-
-

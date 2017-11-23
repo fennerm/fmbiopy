@@ -449,8 +449,8 @@ def small(sandbox: LocalPath)-> LocalPath:
 
 @fixture(scope='session')
 def startdir()-> LocalPath:
-    """The directory from which testing was initialized"""
-    return LocalPath.cwd().absolute()
+    """The directory from which testing was started"""
+    return local.cwd
 
 @fixture
 def suffixed_path(gen_tmp: GenTmpType, tmpdir: LocalPath)-> Iterator[LocalPath]:

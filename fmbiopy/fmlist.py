@@ -13,9 +13,21 @@ from typing import (
 from fmbiopy.fmerr import EmptyListError
 from fmbiopy.fmtype import T
 
+
+def any_endswith(items: Sequence[str], suffix)-> bool:
+    """Return True if any item in list ends with the given suffix """
+    return any([item.endswith(suffix) for item in items])
+
+
+def all_equal(items: Sequence)-> bool:
+    """Test whether all items in list are equal """
+    return all(item == items[0] for item in items)
+
+
 def as_strs(x: Sequence[Any])-> List[str]:
     """Convert a list of items to their string representations"""
     return [str(xi) for xi in x]
+
 
 def ensure_list(x: Any)-> List:
     """If not a sequence, convert to one"""
