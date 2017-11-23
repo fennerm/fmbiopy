@@ -30,7 +30,7 @@ def as_strs(x: Sequence[Any])-> List[str]:
 
 
 def ensure_list(x: Any)-> List:
-    """If not a sequence, convert to one"""
+    """If not a list, convert to one"""
     if isinstance(x, str):
         return [x]
 
@@ -44,7 +44,7 @@ def ensure_list(x: Any)-> List:
 
 def exclude_blank(seq: Iterable[T])-> List[T]:
     """Remove empty and None items from an iterable"""
-    return list(filter(bool, seq))
+    return [x for x in seq if x]
 
 
 def flatten(sequence: Iterable)-> List[Any]:
@@ -63,9 +63,14 @@ def flatten(sequence: Iterable)-> List[Any]:
     return list(_get_flat(sequence))
 
 
-def get_unique(items: Sequence[str]) -> List[str]:
+def get_unique(items: Sequence[str])-> List[str]:
     """ Get the unique elements of a string list """
-    return sorted(list(set(items)))
+    unique = list(set(items))
+    try:
+        unique = sorted(unique)
+    except TypeError:
+        pass
+    return unique
 
 
 def interleave(list1: Sequence[T], list2: Sequence[T]) -> List[T]:
@@ -119,6 +124,6 @@ def split_list(x: Sequence[T], at: T) -> List[List[T]]:
                 buffer_.append(item)
 
         output.append(buffer_)
-        return output
+        return exclude_blank(output)
 
-    return [list(x)]
+    return [x]
