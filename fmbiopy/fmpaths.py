@@ -27,7 +27,7 @@ def all_exist(paths: Iterable[LocalPath])-> bool:
 
 @not_empty
 def any_dont_exist(paths: Iterable[LocalPath]) -> bool:
-    """Return True if any path in list does not exist """
+    """Return True if any path in list doesnot exist """
     return not all(apply_exists(paths))
 
 
@@ -94,6 +94,7 @@ def as_paths(strs: Iterable[str])-> List[LocalPath]:
 def as_strs(paths: Iterable[LocalPath])-> List[str]:
     """Convert a list of `plumbum.LocalPath` to string"""
     return [str(path) for path in paths]
+
 
 
 def check_all_exist(paths: Iterable[LocalPath])-> None:
