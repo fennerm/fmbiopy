@@ -1,0 +1,3 @@
+#!/bin/sh 
+
+samtools view -b -F 4 "$1" > "${1%%.bam}.mapped.bam"

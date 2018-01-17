@@ -7,41 +7,29 @@ from inspect import (
         isclass,
         )
 
-from typing import (
-        Any,
-        List,
-        Tuple,
-        Type,
-        )
 
-
-def classname(cls: Type) -> str:
+def classname(cls) -> str:
     """Return the name of a class"""
     return cls.__name__
 
 
-def list_classes(
-        module: str,
-        package: str = None,
-        exclude: List[str] = None,
-        of_type: List[str] = None) -> List[Any]:
+def list_classes(module, package=None, exclude=None, of_type=None):
     """List all classes in a python module
 
     Parameters
     ----------
-    module_name
+    module: str
         Module name to inspect
-    package: optional
+    package: str, Optional
         If doing a relative import, specify the package name to import from
-    exclude, optional
+    exclude: List[str], optional
         List of classes to exclude from the return
-    type, optional
+    of_type: List[str], optional
         Only classes of given type should be returned
 
     Returns
     -------
-    A list of classes in `module_name`
-
+    A list of classes in `module`
     """
     if package is None:
         imported = import_module(module)
@@ -49,25 +37,28 @@ def list_classes(
         import_module(package)
         imported = import_module(''.join(['.', module]), package)
 
-    classes: List[Type] = []
+    classes = []
 
     # List all classes
     for _, obj in getmembers(imported):
+        # Check if class
         if isclass(obj):
-            if of_type:
-                if obj.__module__ == imported.__name__:
+            # Check if class is defined in the target file.
+            if obj.__module__ == imported.__name__:
+                if of_type:
                     # List object's class and class inheritance
-                    class_inheritance: Tuple[Type, ...] = getmro(obj)
+                    class_inheritance = getmro(obj)
 
                     # Get class inheritance names
-                    inheritance_names: List[str] = [
+                    inheritance_names = [
                             classname(cls) for cls in class_inheritance]
 
-                    for typ in of_type:
-                        if typ in inheritance_names:
-                            classes.append(obj)
-            else:
-                classes.append(obj)
+                    # Check if any of the objects inheritance is of the target
+                    # type.
+                    if any([typ in inheritance_names for typ in of_type]):
+                        classes.append(obj)
+                else:
+                    classes.append(obj)
 
     # Exclude some
     if exclude:
@@ -75,8 +66,8 @@ def list_classes(
 
     return sorted(classes, key=classname)
 
-def parent_names(cls: Type):
-    """Get the names of the parent classes of `cls`"""
+def parent_names(cls):
+    """Get the names of the parent classes of a class `cls`"""
     parent_classes = cls.__bases__
     names = [classname(parent) for parent in parent_classes]
     return names
