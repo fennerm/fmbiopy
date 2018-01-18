@@ -1,3 +1,12 @@
-# Misc. personal bioinformatics python modules
+# Misc. bioinformatics scripts and library code.
 
-Various useful scripts are stored in 'bin/', library code in 'fmbiopy/'.
+Some of the scripts in bin work as standalone. Others require the entire package
+to be installed.
+
+To install the package
+
+```
+  git clone https://github.com/fennerm/fmbiopy
+  cd fmbiopy
+  pip install .
+```

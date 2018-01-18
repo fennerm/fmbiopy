@@ -40,10 +40,10 @@ def url(name=NAME, username=USERNAME):
     return '/'.join(['http://github.com', username, name])
 
 
-def get_scriptpaths():
+def list_scripts():
     """Get the names of the scripts in the bin directory"""
     files = glob("bin/*")
-    scripts = [f for f in files if os.path.isfile(f)]
+    scripts = [f for f in files if (os.path.isfile(f) and '__init__' not in f)]
     return scripts
 
 

@@ -1,5 +1,5 @@
-setuptools==28.8.0
 pytest==3.3.1
 plumbum==1.6.4
 docopt==0.6.2
+setuptools==28.8.0
 pypandoc==1.4
