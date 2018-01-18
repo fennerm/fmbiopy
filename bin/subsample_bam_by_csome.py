@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """Subsample N chromosomes/contigs from a bam file
 
+Only chromosomes/contigs which have at least one alignment are sampled
+
 Usage:
   subsample_bam_by_csome.py -n N -o OUTBAM INBAM
 
@@ -13,7 +15,7 @@ from random import sample
 
 from plumbum.cmd import (
     extract_csome,
-    list_csomes,
+    list_nonempty_csomes,
 )
 
 from fmbiopy.fmparse import helpful_docopt
@@ -22,7 +24,7 @@ from fmbiopy.fmlist import exclude_blank
 
 def main(n, inbam, outbam):
     n = int(n)
-    csome_names = exclude_blank(list_csomes(inbam).split("\n"))
+    csome_names = exclude_blank(list_nonempty_csomes(inbam).split("\n"))
     random_csomes = sample(set(csome_names), n)
     args = [inbam] + random_csomes
     (extract_csome.__getitem__(args) > outbam)()
