@@ -8,7 +8,7 @@ from inspect import (
         )
 
 
-def classname(cls) -> str:
+def classname(cls):
     """Return the name of a class"""
     return cls.__name__
 

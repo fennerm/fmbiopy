@@ -2,13 +2,10 @@
 """Convert a sam file to a bam file"""
 import sys
 
-from plumbum import (
-        local,
-        LocalPath,
-        )
+from plumbum import local
 from plumbum.cmd import samtools
 
-def sam_to_bam(sam: LocalPath, bam: LocalPath):
+def sam_to_bam(sam, bam):
     """Convert a sam file to a bam file"""
     if sam.suffix != '.sam':
         raise OSError('File is not a .sam file')

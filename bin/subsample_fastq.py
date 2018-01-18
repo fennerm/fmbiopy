@@ -14,21 +14,11 @@ Options:
   -n --sample=<N>   Number of reads to sample
 """
 
-from biofile import Fastq
-from plumbum import (
-        local,
-        LocalPath,
-        )
+from plumbum import local
 
 from fmbiopy.fmparse import helpful_docopt
-from fmbiopy.fmpaths import as_paths
 
-def subsample_fastq(
-        in1: Fastq,
-        in2: Fastq,
-        out1: LocalPath,
-        out2: LocalPath,
-        n: int)-> None:
+def subsample_fastq(in1, in2, out1, out2, n):
     """Subsample reads from a pair of fastq files using seqtk
 
     Parameters
@@ -46,9 +36,6 @@ def subsample_fastq(
 
 if __name__ == "__main__":
     opts = helpful_docopt(__doc__)
-    readkeys = ['IN1', 'IN2']
-    inps = [Fastq(opts[key], determine_gzip=True) for key in readkeys]
-    subopts = [opts['OUT1'], opts['OUT2']]
-    outs = as_paths(subopts)
 
-    subsample_fastq(inps[0], inps[1], outs[0], outs[1], n=opts['--sample'])
+    subsample_fastq(opts['IN1'], opts['IN2'], opts['OUT1'], opts['OUT2'],
+                    n=opts['--sample'])

@@ -3,12 +3,12 @@
 Functions which start with 'check_' raise exceptions, all others return bools
 """
 
-def all_equal(items)-> bool:
+def all_equal(items):
     """Test whether all items in list are equal"""
     return all(item == items[0] for item in items)
 
 
-def any_endswith(items, suffix)-> bool:
+def any_endswith(items, suffix):
     """Return True if any item in list ends with the given suffix
 
     Parameters

@@ -1,5 +1,6 @@
 """Setup script"""
 from glob import glob
+import os
 from setuptools import (
         find_packages,
         setup,
@@ -39,6 +40,13 @@ def url(name=NAME, username=USERNAME):
     return '/'.join(['http://github.com', username, name])
 
 
+def get_scriptpaths():
+    """Get the names of the scripts in the bin directory"""
+    files = glob("bin/*")
+    scripts = [f for f in files if os.path.isfile(f)]
+    return scripts
+
+
 setup(name=NAME,
       version='0.0.1',
       description=long_description()[0],
@@ -48,5 +56,5 @@ setup(name=NAME,
       author_email='fmacrae.dev@gmail.com',
       license='MIT',
       packages=find_packages(exclude=["*test*"]),
-      scripts=glob("bin/*")
+      scripts=get_scriptpaths()
     )

@@ -12,7 +12,7 @@ def test_align_and_sort(threads, dat, sandbox):
     idx = ref.with_suffix('')
     unpaired = dat['tiny']['fwd_reads'][1]
     out_bam = sandbox / 'out.bam'
-    align_and_sort = local['align_and_sort.py']
+    align_and_sort = local['bin/align_and_sort.py']
 
     if threads:
         (align_and_sort[

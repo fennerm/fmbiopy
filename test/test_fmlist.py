@@ -47,7 +47,7 @@ def test_flatten(inp, expected):
     ('abc', ['a', 'b', 'c']),
     ([], [])])
 def test_get_unique(inp, expected):
-    assert get_unique(inp) == expected
+    assert set(get_unique(inp)) == set(expected)
 
 
 @mark.parametrize('inp1, inp2, expected', [

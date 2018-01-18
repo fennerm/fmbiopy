@@ -8,16 +8,9 @@ from logging import (
         INFO,
         StreamHandler,
         )
-from multiprocessing.managers import AcquirerProxy  #type: ignore
-from typing import Tuple
-
-from plumbum import (
-        local,
-        LocalPath,
-        )
 
 
-def setup_log(logfile: LocalPath) -> None:
+def setup_log(logfile):
     """Set up a logging instance for a given logfile path. See:
     https://stackoverflow.com/questions/9321741/printing-to-screen-and-writing\
     -to-a-file-at-the-same-time """

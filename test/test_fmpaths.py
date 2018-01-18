@@ -6,11 +6,18 @@ from pytest import (
         raises,
         )
 
-from plumbum import local
+from plumbum import (
+    local,
+    LocalPath,
+)
 
 from fmbiopy.fmerr import EmptyListError
 from fmbiopy.fmpaths import *
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 
 
 def test_all_exist(poss_path_lists):

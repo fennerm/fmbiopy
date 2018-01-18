@@ -1,6 +1,6 @@
 """Test module for nreads script"""
 
-from fmscripts.nreads import nreads
+from bin.nreads import nreads
 
 def test_nreads(dat):
     input_fastq = dat['tiny']['fwd_reads'][0]
