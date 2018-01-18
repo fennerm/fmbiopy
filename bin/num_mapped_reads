@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+## Get the number of mapped reads from a bam file
+samtools view -c -F 4 "$1"

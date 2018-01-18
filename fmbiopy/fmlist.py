@@ -4,6 +4,7 @@ try:
     from collections.abc import Sequence
 except ImportError:
     from collections import Sequence
+import random
 
 
 from fmbiopy.fmerr import EmptyListError

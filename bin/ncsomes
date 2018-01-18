@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+## Get the number of chromosomes/contigs in a .bam file
+samtools idxstats "$1" | cut -f 1 | wc -l

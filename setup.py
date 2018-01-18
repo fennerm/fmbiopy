@@ -42,8 +42,10 @@ def url(name=NAME, username=USERNAME):
 
 def list_scripts():
     """Get the names of the scripts in the bin directory"""
-    files = glob("bin/*")
-    scripts = [f for f in files if (os.path.isfile(f) and '__init__' not in f)]
+    scripts = glob("bin/*")
+    scripts = [f for f in scripts if os.path.isfile(f)]
+    scripts = [f for f in scripts if '__init__' not in f]
+    scripts = [f for f in scripts if not f.endswith('.pyc')]
     return scripts
 
 

@@ -11,7 +11,10 @@ from shutil import (
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
-from plumbum import local
+from plumbum import (
+    FG,
+    local,
+)
 from plumbum.cmd import git
 from pytest import fixture
 
@@ -24,6 +27,7 @@ from fmbiopy.fmpaths import (
     root,
     silent_remove,
 )
+
 
 @fixture
 def absolute_nonexist_paths(tmpdir, relative_nonexist_paths):
@@ -44,6 +48,29 @@ def absolute_exist_paths(tmpdir, randstrs):
 def absolute_some_exist_paths(absolute_exist_paths, absolute_nonexist_paths):
     """Generate a list of paths, half of which exist"""
     return absolute_exist_paths + absolute_nonexist_paths
+
+
+def assert_script_produces_files(script, args, output, outdir = None):
+    """Assert that a script with given command line args produces expected files
+
+    Parameters
+    ----------
+    script : str
+        Path to the script
+    args : List[str]
+        List of command line arguments
+    output: List[str] or List[plumbum.LocalPath]
+        List of output files
+    outdir: str or plumbum.LocalPath, optional
+        If given, the output filenames are relative to this directory
+    """
+    execute = local[script]
+    execute.__getitem__(args) & FG
+    for f in output:
+        f = local.path(f)
+        if outdir:
+            f = local.path(outdir) / f
+        assert f.exists()
 
 
 @fixture
