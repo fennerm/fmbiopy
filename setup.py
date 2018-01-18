@@ -56,5 +56,5 @@ setup(name=NAME,
       author_email='fmacrae.dev@gmail.com',
       license='MIT',
       packages=find_packages(exclude=["*test*"]),
-      scripts=get_scriptpaths()
+      scripts=list_scripts()
     )
