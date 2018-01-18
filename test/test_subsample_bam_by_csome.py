@@ -18,7 +18,6 @@ def get_nonempty_csomes(bam):
     list_nonempty_csomes = local["bin/list_nonempty_csomes"]
     nonempty_csomes = list_nonempty_csomes(bam)
     nonempty_csomes = exclude_blank(nonempty_csomes.split('\n'))[0:-1]
-    nonempty_csomes = [exclude_blank(x.split(' '))[1] for x in nonempty_csomes]
     return nonempty_csomes
 
 def test_subsample_bam_by_csome(subsampled_bam):
