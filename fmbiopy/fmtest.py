@@ -15,13 +15,18 @@ from plumbum import (
     FG,
     local,
 )
-from plumbum.cmd import git
+from plumbum.cmd import (
+    git,
+    picard,
+    samtools,
+)
 from pytest import fixture
 
 from fmbiopy.fmpaths import (
     as_dict,
     as_paths,
     create_all,
+    is_empty,
     listdirs,
     remove_all,
     root,
@@ -50,7 +55,8 @@ def absolute_some_exist_paths(absolute_exist_paths, absolute_nonexist_paths):
     return absolute_exist_paths + absolute_nonexist_paths
 
 
-def assert_script_produces_files(script, args, output, outdir = None):
+def assert_script_produces_files(script, args, output, redirect=None,
+                                 empty_ok=False, outdir=None):
     """Assert that a script with given command line args produces expected files
 
     Parameters
@@ -61,16 +67,28 @@ def assert_script_produces_files(script, args, output, outdir = None):
         List of command line arguments
     output: List[str] or List[plumbum.LocalPath]
         List of output files
+    redirect: str or plumbum.LocalPath, optional
+        If defined, redirect the stdout of the script to the given file.
+    empty_ok : bool
+        If True, output files are valid even if they are empty
     outdir: str or plumbum.LocalPath, optional
         If given, the output filenames are relative to this directory
     """
     execute = local[script]
-    execute.__getitem__(args) & FG
+    command = execute.__getitem__(args)
+
+    if redirect:
+        (command > redirect)()
+    else:
+        command()
+
     for f in output:
         f = local.path(f)
         if outdir:
             f = local.path(outdir) / f
         assert f.exists()
+        if not empty_ok:
+            assert not is_empty(f)
 
 
 @fixture
@@ -190,7 +208,8 @@ def gzipped_path(randpath, randstr):
 @fixture(name='home')
 def gen_home():
     """Get the path to the home directory"""
-    return local.path.home()
+    return local.env.home()
+
 
 
 @fixture(scope='session', autouse=True)
@@ -441,6 +460,15 @@ def tiny(sandbox):
     return sandbox / 'tiny'
 
 
+@fixture(name="tiny_indexed_bam")
+def gen_tiny_indexed_bam(dat):
+    bam = dat["tiny"]["bam"][0]
+    samtools("index", bam)
+    index = local.path(bam + ".bai")
+    yield bam
+    index.delete()
+
+
 @fixture
 def tmpdir(sandbox, randstr):
     """`plumbum.LocalPath` version of `pytest` fixture"""
@@ -469,3 +497,7 @@ def update_testdat(testdir, testdat, testdat_repo):
     else:
         with local.cwd(testdat):
             git['pull']()
+
+def validate_bam_file(bam_or_sam):
+    picard("ValidateSamFile", "I=" + bam_or_sam, "MODE=SUMMARY",
+           "IGNORE_WARNINGS=true", "iGNORE=MISSING_READ_GROUP")

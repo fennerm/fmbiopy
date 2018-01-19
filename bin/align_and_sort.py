@@ -11,25 +11,24 @@ of Bowtie2 needs to be piped to samtools.
 Requires: bowtie2, samtools
 
 Usage:
-align_and_sort.py [args]*
-align_and_sort.py (-h | --help)
+  align_and_sort.py [args]*
+  align_and_sort.py (-h | --help)
 
 Options:
--h --help                 Show this screen
+  -h --help                 Show this screen
 """
 from __future__ import print_function
 import sys
+from uuid import uuid4
 
 from plumbum import (
     BG,
-    FG,
     local,
 )
 from plumbum.cmd import (
     bowtie2,
     samtools,
 )
-from uuid import uuid4
 
 
 def _get_reference(args):
@@ -114,8 +113,9 @@ def align_and_sort(args):
         bowtie2.__getitem__(args) |
         samtools['view', '-bhS'] |
         samtools['sort', '-@', threads, '-T', uuid4().hex[1:8]])
-    p = align_pipe & BG(stdout = sys.stdout, stderr = sys.stderr)
+    p = align_pipe & BG(stdout=sys.stdout, stderr=sys.stderr)
     p.wait()
+
 
 if __name__ == '__main__':
     if sys.argv[1] in ['-h', '--help']:
