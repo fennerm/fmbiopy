@@ -7,7 +7,6 @@ from warnings import warn
 
 from plumbum import local
 
-
 from fmbiopy.fmlist import (
     is_non_string_sequence,
     not_empty,
@@ -17,6 +16,7 @@ try:
     FileNotFoundError
 except NameError:
     FileNotFoundError = IOError
+
 
 @not_empty
 def all_exist(paths):
@@ -95,12 +95,11 @@ def as_strs(paths):
     return [str(path) for path in paths]
 
 
-
 def check_all_exist(paths):
     """Raise OSError if any paths in list do not exist """
     if not all_exist(paths):
         raise FileNotFoundError(
-                "Not all paths exist: \n" + ' '.join(as_strs(paths)))
+            "Not all paths exist: \n" + ' '.join(as_strs(paths)))
 
 
 def create_all(paths):
@@ -136,7 +135,7 @@ def extension_without_gz(path):
     suffixes = path.suffixes
     last = len(suffixes)
     if suffixes[last] == '.gz':
-        extension = suffixes[last-1]
+        extension = suffixes[last - 1]
     else:
         extension = suffixes[last]
     return extension
@@ -179,8 +178,9 @@ def find(directory, extensions=None, substring=None):
 
 def get_bowtie2_indices(prefix):
     """Given the bowtie2 index prefix, return the bowtie2 indices"""
-    bowtie_suffixes = ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2',
-                       '.rev.2.bt2']
+    bowtie_suffixes = [
+        '.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2', '.rev.2.bt2'
+    ]
     paths = [local.path(prefix + suffix) for suffix in bowtie_suffixes]
     return paths
 
@@ -198,6 +198,7 @@ def listdirs(directory):
         if path.is_dir():
             out.append(path)
     return out
+
 
 def move(src, dest):
     """Move a file
@@ -239,6 +240,11 @@ def remove_all(names, silent=False):
         remove_func(names)
 
 
+def recursive_list_contents(path=local.cwd):
+    """Recursively list contents of a directory"""
+    return list(local.path(path).walk())
+
+
 def rm_gz_suffix(path):
     """Gzip aware suffix removal
 
@@ -251,7 +257,7 @@ def rm_gz_suffix(path):
 
 
 def root(path):
-    """Return the root name of a path (with directory included)"""
+    """Return the root name of a path(with directory included)"""
     return path.with_suffix('', None)
 
 

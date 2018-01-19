@@ -1,10 +1,10 @@
 """Test fmbiopy.fmpaths"""
 
 from pytest import (
-        fixture,
-        mark,
-        raises,
-        )
+    fixture,
+    mark,
+    raises,
+)
 
 from plumbum import (
     local,
@@ -133,12 +133,9 @@ class TestDelete():
         assert not any_exist(tmpfiles)
 
 
-@mark.parametrize("ext,substr,expect", [
-        (None, None, ['a.x', 'b.y', 'b.x']),
-        ('y', None, ['b.y']),
-        (None, 'a', ['a.x']),
-        (None, 'k', []),
-        ('x', 'b', ['b.x'])])
+@mark.parametrize("ext,substr,expect",
+                  [(None, None, ['a.x', 'b.y', 'b.x']), ('y', None, ['b.y']),
+                   (None, 'a', ['a.x']), (None, 'k', []), ('x', 'b', ['b.x'])])
 def test_find(ext, substr, expect, full_dir):
     if expect:
         expect = sorted([full_dir / exp for exp in expect])
@@ -187,6 +184,15 @@ def test_prefix(double_suffixed_path):
     assert '.' not in pre
 
 
+def test_recursive_list_contents(nested_dir):
+    expected = [
+        "foo", "bar", "car", "foo/a.x", "foo/b.y", "bar/a.x", "bar/b.y",
+        "car/a.x", "car/b.y"
+    ]
+    expected = [nested_dir / x for x in expected]
+    assert set(recursive_list_contents(nested_dir)) == set(expected)
+
+
 def test_rm_gz_suffix(double_suffixed_path, gzipped_path):
     for path in [double_suffixed_path, gzipped_path]:
         nsuffixes = len(path.suffixes)
@@ -202,8 +208,3 @@ def test_rm_gz_suffix(double_suffixed_path, gzipped_path):
 def test_root(double_suffixed_path):
     actual = str(root(double_suffixed_path))
     par = double_suffixed_path.up()
-    expected = str(par / local.path(double_suffixed_path.stem).stem)
-    assert actual == expected
-
-
-

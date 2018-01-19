@@ -7,7 +7,6 @@ from inspect import (
         isclass,
         )
 
-
 def classname(cls):
     """Return the name of a class"""
     return cls.__name__
@@ -65,6 +64,7 @@ def list_classes(module, package=None, exclude=None, of_type=None):
         classes = [cls for cls in classes if classname(cls) not in exclude]
 
     return sorted(classes, key=classname)
+
 
 def parent_names(cls):
     """Get the names of the parent classes of a class `cls`"""
