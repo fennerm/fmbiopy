@@ -12,6 +12,7 @@ from fmbiopy.fmlist import (
     not_empty,
 )
 
+# If using python2 FileNotFoundError won't work
 try:
     FileNotFoundError
 except NameError:
@@ -26,7 +27,7 @@ def all_exist(paths):
 
 @not_empty
 def any_dont_exist(paths):
-    """Return True if any path in list doesnot exist """
+    """Return True if any path in list does not exist """
     return not all(apply_exists(paths))
 
 
@@ -96,14 +97,14 @@ def as_strs(paths):
 
 
 def check_all_exist(paths):
-    """Raise OSError if any paths in list do not exist """
+    """Raise error if any paths in list do not exist """
     if not all_exist(paths):
         raise FileNotFoundError(
             "Not all paths exist: \n" + ' '.join(as_strs(paths)))
 
 
 def create_all(paths):
-    """Given a list of nonexistant paths, create them"""
+    """Given a list of nonexistant filenames, create them"""
     for path in paths:
         path.touch()
 
@@ -120,7 +121,6 @@ def delete(paths):
         with delete(paths):
             <code>
     """
-
     try:
         yield
     except Exception:
@@ -149,13 +149,13 @@ def find(directory, extensions=None, substring=None):
     directory
         The name of the directory to search in
     extensions, optional
-        List of target file extensions (e.g py, txt)
+        List of target file extensions without dot.
     substring, optional
         Target substring
 
     Returns
     -------
-    List[LocalPath]
+    List[plumbum.LocalPath]
         List of files with the given extensions and substrings"""
     # Filter by file extension
     hits = []
