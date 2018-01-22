@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+while true; do
+    squeue -u schaack
+    sleep 5
+done
