@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+## Determine the lengths of the sequences in a fasta file
+bioawk -c fastx '{ print length($seq) }' <"$1"
