@@ -3,10 +3,9 @@
 Some of the scripts in bin work as standalone. Others require the entire package
 to be installed.
 
-To install the package
+To install the package:
 
 ```
   git clone https://github.com/fennerm/fmbiopy
-  cd fmbiopy
-  pip install .
+  cd fmbiopy && pip install -r requirements.txt .
 ```
