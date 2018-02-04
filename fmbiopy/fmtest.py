@@ -83,9 +83,10 @@ def assert_script_produces_files(script, args, output, redirect=None,
         command()
 
     for f in output:
-        f = local.path(f)
         if outdir:
             f = local.path(outdir) / f
+        else:
+            f = local.path(f)
         assert f.exists()
         if not empty_ok:
             assert not is_empty(f)
@@ -209,7 +210,6 @@ def gzipped_path(randpath, randstr):
 def gen_home():
     """Get the path to the home directory"""
     return local.env.home()
-
 
 
 @fixture(scope='session', autouse=True)
@@ -497,6 +497,7 @@ def update_testdat(testdir, testdat, testdat_repo):
     else:
         with local.cwd(testdat):
             git['pull']()
+
 
 def validate_bam_file(bam_or_sam):
     picard("ValidateSamFile", "I=" + bam_or_sam, "MODE=SUMMARY",
