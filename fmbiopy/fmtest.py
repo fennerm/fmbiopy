@@ -206,10 +206,15 @@ def gzipped_path(randpath, randstr):
     return local.path('.'.join([str(randpath()), randstr()[0:3], 'gz']))
 
 
-@fixture(name='home')
-def gen_home():
+def home():
     """Get the path to the home directory"""
     return local.env.home()
+
+
+@fixture
+def indexed_small_bam(dat):
+    """Return a path to an indexed_bam file"""
+    return dat["small"]["indexed_bam"][0]
 
 
 @fixture(scope='session', autouse=True)
