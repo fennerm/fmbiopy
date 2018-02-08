@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
-## List chromosomes in an indexed .bam file
-samtools idxstats "$1" | cut -f 1
+## List chromosomes in an indexed .bam file or a fasta file
+if [[ "$1" =~ .*bam ]]; then
+    samtools idxstats "$1" | cut -f 1
+elif [[ "$1" =~ .*fa.* ]]; then
+    grep -e ">" "$1" | cut -c 2-
+fi
