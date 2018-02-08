@@ -10,11 +10,12 @@ from __future__ import print_function
 from fmbiopy.fmparse import helpful_docopt
 from plumbum import local
 from plumbum.cmd import (
-        bc,
-        echo,
-        wc,
-        zcat,
-        )
+    bc,
+    echo,
+    wc,
+    zcat,
+)
+
 
 def nreads(path):
     """Calculate the number of reads in a fastq or fastq.gz file
