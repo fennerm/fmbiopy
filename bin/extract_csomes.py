@@ -36,7 +36,10 @@ except ImportError:
 from uuid import uuid4
 
 from docopt import docopt
-from plumbum import local
+from plumbum import (
+    FG,
+    local,
+)
 from plumbum.cmd import (
     cat,
     samtools,
@@ -76,7 +79,9 @@ class BamExtractor(Thread):
         while True:
             contig_list, output_file = self.queue.get()
             contig_list = ' '.join(contig_list)
-            (samtools['view', '-bh', self.bam, contig_list] > output_file)()
+            log.info("Extracting contigs...")
+            samtools['view', '-bh', self.bam, contig_list] > output_file & FG
+            log.info("Done extracting contigs, shutting down...")
             self.queue.task_done()
 
 
