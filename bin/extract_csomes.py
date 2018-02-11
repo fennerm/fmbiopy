@@ -119,10 +119,13 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
             else:
                 output_bam = tmpdir / 'merged.bam'
             merge_bams(chunk_bams, output_bam)
+        else:
+            output_bam = chunk_bams[0]
 
-            if output_format == 'fastq':
-                log.info('Converting to .fastq')
-                to_fastq(output_bam, output_prefix)
+        if output_format == 'fastq':
+            log.info('Converting to .fastq')
+            to_fastq(output_bam, output_prefix)
+
         else:
             log.info('')
 
