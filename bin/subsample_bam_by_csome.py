@@ -16,6 +16,7 @@ from random import sample
 from plumbum.cmd import (
     extract_csome,
     list_nonempty_csomes,
+    samtools,
 )
 
 from fmbiopy.fmparse import helpful_docopt
@@ -27,7 +28,7 @@ def main(n, inbam, outbam):
     csome_names = exclude_blank(list_nonempty_csomes(inbam).split("\n"))
     random_csomes = sample(set(csome_names), n)
     args = [inbam] + random_csomes
-    (extract_csome.__getitem__(args) > outbam)()
+    (extract_csome.__getitem__(args) | samtools['sort'] > outbam)()
 
 
 if __name__ == "__main__":

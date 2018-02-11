@@ -3,4 +3,4 @@
 # Usage:
 #   extract_csome BAM CSOME...
 
-sambamba view -f "bam" "$@"
+samtools view -bh "$@" | samtools sort

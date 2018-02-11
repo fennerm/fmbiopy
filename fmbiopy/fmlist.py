@@ -5,7 +5,6 @@ try:
     from collections.abc import Sequence
 except ImportError:
     from collections import Sequence
-import random
 
 from fmbiopy.fmerr import EmptyListError
 
@@ -57,6 +56,19 @@ def flatten(items):
     return result
 
 
+def distribute_across(n, xs):
+    '''Evenly spread an int across a numeric list
+
+    E.g distribute_int_across_list(3, [1, 1, 1]) == [2, 2, 2]
+    '''
+    if not xs:
+        raise IndexError("List cannot be empty")
+    div, mod = divmod(n, len(xs))
+    xs = [x + div for x in xs]
+    xs = [x + 1 for x in xs[0:mod]] + xs[mod:]
+    return xs
+
+
 def get_unique(items):
     """ Get the unique elements of a string list """
     unique = list(set(items))
@@ -95,7 +107,12 @@ def not_empty(func):
     return _wrapper
 
 
-def split_list(x, at):
+def split_into_chunks(xs, chunk_size):
+    '''Split the list, xs, into n evenly sized chunks (order not conserved)'''
+    return [xs[index::chunk_size] for index in range(chunk_size)]
+
+
+def split_list(xs, at):
     """Split a list into sublists by a specific item value
 
     E.g split_list(['a', 'b', '.', 'c', '.', 'd') = [['a', 'b'], ['c'], ['d']
@@ -109,22 +126,23 @@ def split_list(x, at):
 
     Returns
     -------
-    A list of sublists split by `at`
+    List[List]
+        A list of sublists split by `at`
     """
-    if at in x:
+    if at in xs:
         # Stores the intermediate sublists for output
         output = []
         # Stores items in between split values
         buffer_ = []
 
-        for item in x:
-            if item == at:
+        for x in xs:
+            if x == at:
                 output.append(buffer_)
                 buffer_ = []
             else:
-                buffer_.append(item)
+                buffer_.append(x)
 
         output.append(buffer_)
         return exclude_blank(output)
 
-    return [x]
+    return [xs]

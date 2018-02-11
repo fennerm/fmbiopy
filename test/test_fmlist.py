@@ -1,11 +1,12 @@
 """Test suite for fmbiopy.fmlist"""
 from pytest import (
-        fixture,
-        mark,
-        raises,
-        )
+    fixture,
+    mark,
+    raises,
+)
 
 from fmbiopy.fmlist import *
+
 
 def test_any_endswith():
     assert any_endswith(['bar', 'foo'], 'o')
@@ -19,7 +20,17 @@ def test_all_equal():
 
 def test_as_strs():
     # Trivial
-    as_strs([1,2,3])
+    as_strs([1, 2, 3])
+
+
+def test_distribute_across():
+    with raises(IndexError):
+        distribute_across(4, [])
+
+    assert distribute_across(2, [1, 1]) == [2, 2]
+    assert distribute_across(5, [4]) == [9]
+    assert distribute_across(2, [0, 0, 2]) == [1, 1, 2]
+
 
 @mark.parametrize('inp,expected', [
     (3, [3]), (None, [None]), ([1, 2], [1, 2]), ('foo', ['foo'])])
@@ -43,7 +54,7 @@ def test_flatten(inp, expected):
 
 
 @mark.parametrize('inp, expected', [
-    ([1,1,2], [1,2]), ([2, None], [2, None]),
+    ([1, 1, 2], [1, 2]), ([2, None], [2, None]),
     ('abc', ['a', 'b', 'c']),
     ([], [])])
 def test_get_unique(inp, expected):
@@ -67,11 +78,22 @@ def test_none(inp, expect):
     assert none(inp) == expect
 
 
+def test_split_into_chunks():
+    assert split_into_chunks('', 1) == ['']
+    assert split_into_chunks('ab', 2) == ['a', 'b']
+    assert split_into_chunks('abc', 2) == ['ac', 'b']
+
+    xs = list(range(8))
+    result = split_into_chunks(xs, 3)
+    assert [len(x) <= 3 for x in result]
+    assert set(flatten(result)) == set(xs)
+
+
 @mark.parametrize('inp,expect', [
     ([1, 2, 0, 3, 0, 4], [[1, 2], [3], [4]]),
     ([1, 2, 0], [[1, 2]]),
     ([], [[]]),
-    ([1,2], [[1, 2]])])
+    ([1, 2], [[1, 2]])])
 def test_split_list(inp, expect):
     assert split_list(inp, 0) == expect
 

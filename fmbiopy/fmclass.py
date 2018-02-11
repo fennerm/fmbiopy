@@ -2,10 +2,11 @@
 
 from importlib import import_module
 from inspect import (
-        getmembers,
-        getmro,
-        isclass,
-        )
+    getmembers,
+    getmro,
+    isclass,
+)
+
 
 def classname(cls):
     """Return the name of a class"""
@@ -28,7 +29,8 @@ def list_classes(module, package=None, exclude=None, of_type=None):
 
     Returns
     -------
-    A list of classes in `module`
+    List[class]
+        A list of classes in `module`
     """
     if package is None:
         imported = import_module(module)
@@ -50,7 +52,7 @@ def list_classes(module, package=None, exclude=None, of_type=None):
 
                     # Get class inheritance names
                     inheritance_names = [
-                            classname(cls) for cls in class_inheritance]
+                        classname(cls) for cls in class_inheritance]
 
                     # Check if any of the objects inheritance is of the target
                     # type.

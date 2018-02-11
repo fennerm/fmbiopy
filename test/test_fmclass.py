@@ -16,6 +16,7 @@ def gen_class_text():
             super().__init__()\n\n"
     return txt
 
+
 @fixture(scope='class')
 def egclassfile(gen_tmp, testdir, sandbox, class_text):
     # We have to give each classfile a unique directory to prevent interference
@@ -27,6 +28,7 @@ def egclassfile(gen_tmp, testdir, sandbox, class_text):
     package_name = '.'.join([testdir.name, sandbox.name])
     return (module_name, package_name)
 
+
 @fixture(name='local_classfile')
 def gen_local_classfile(gen_tmp, class_text):
     tmpfile = gen_tmp(empty=True, directory=local.cwd, suffix='.py')
@@ -35,14 +37,19 @@ def gen_local_classfile(gen_tmp, class_text):
     module_name = tmpfile.with_suffix('').name
     yield module_name
     tmpfile.delete()
+    tmpfile_pyc = local.path(tmpfile + "c")
+    if tmpfile_pyc.exists():
+        tmpfile_pyc.delete()
 
 
 @fixture
 def egclass():
     class A(object):
         pass
+
     class B(object):
         pass
+
     class C(A, B):
         pass
 
@@ -56,21 +63,23 @@ def classnames(classes):
 @fixture(scope='class')
 def all_classes(egclassfile):
     classes = list_classes(
-            module=egclassfile[0], package=egclassfile[1])
+        module=egclassfile[0], package=egclassfile[1])
     return classnames(classes)
 
 
 @fixture(scope='class')
 def no_foo(egclassfile):
     classes = list_classes(
-            module=egclassfile[0], package=egclassfile[1], exclude=['Foo'])
+        module=egclassfile[0], package=egclassfile[1], exclude=['Foo'])
     return classnames(classes)
+
 
 @fixture(scope='class')
 def foo_type(egclassfile):
     classes = list_classes(
-            module=egclassfile[0], package=egclassfile[1], of_type=['Foo'])
+        module=egclassfile[0], package=egclassfile[1], of_type=['Foo'])
     return classnames(classes)
+
 
 class TestListClasses(object):
     def test_simple_case(self, all_classes):
@@ -89,6 +98,7 @@ class TestListClasses(object):
         expected = ['Bar', 'Car', 'Foo']
         sys.path.append(str(local.cwd))
         assert classnames(list_classes(local_classfile)) == expected
+
 
 def test_parent_names(egclass):
     assert parent_names(egclass) == ['A', 'B']

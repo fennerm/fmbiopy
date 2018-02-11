@@ -2,7 +2,9 @@
 
 Pytest functions must be imported explicitely.
 """
+from __future__ import print_function
 from os import chdir
+from random import randint
 from collections import namedtuple
 from shutil import (
     copytree,
@@ -11,17 +13,21 @@ from shutil import (
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
-from plumbum import (
-    FG,
-    local,
-)
+from Bio import SeqIO
+from numpy.random import binomial
+from plumbum import local
 from plumbum.cmd import (
+    bowtie2,
     git,
     picard,
     samtools,
 )
 from pytest import fixture
 
+from fmbiopy.fmbio import (
+    index_fasta,
+    simulate_fasta,
+)
 from fmbiopy.fmpaths import (
     as_dict,
     as_paths,
@@ -29,7 +35,6 @@ from fmbiopy.fmpaths import (
     is_empty,
     listdirs,
     remove_all,
-    root,
     silent_remove,
 )
 
@@ -209,12 +214,6 @@ def gzipped_path(randpath, randstr):
 def home():
     """Get the path to the home directory"""
     return local.env.home()
-
-
-@fixture
-def indexed_small_bam(dat):
-    """Return a path to an indexed_bam file"""
-    return dat["small"]["indexed_bam"][0]
 
 
 @fixture(scope='session', autouse=True)
@@ -465,8 +464,129 @@ def tiny(sandbox):
     return sandbox / 'tiny'
 
 
-@fixture(name="tiny_indexed_bam")
-def gen_tiny_indexed_bam(dat):
+@fixture(scope='session')
+def fasta(sandbox):
+    output = {}
+    output['fasta'] = sandbox / (uuid4().hex + '.fa')
+    output['bt2'] = output['fasta'].with_suffix('')
+    simulate_fasta(10, 500, output['fasta'])
+    index_fasta(output['fasta'], 'all')
+    yield output
+    output['fasta'].delete()
+    output['bt2'].delete()
+
+
+@fixture(scope='session')
+def nonindexed_fasta(sandbox, fasta):
+    output_file = sandbox / (uuid4().hex + '.fa')
+    fasta['fasta'].copy(output_file)
+    yield output_file
+    output_file.delete()
+
+
+@fixture(scope='session')
+def simulated_reads(sandbox, fasta):
+    python2 = local['python2']
+    gen_reads = python2['test/lib/neat-genreads/genReads.py']
+    output_prefix = sandbox / uuid4().hex
+    output = {}
+    output['fwd'] = local.path(output_prefix + '_read1.fq')
+    output['rev'] = local.path(output_prefix + '_read2.fq')
+    output['bam'] = local.path(output_prefix + '_golden.bam')
+
+    gen_reads['-r', fasta['fasta'], '-R', '100', '-o', output_prefix, '--bam',
+              '--pe', '300', '30']()
+    return output
+
+
+def trim(read, prob_trim, trim_interval):
+    if binomial(1, prob_trim) == 1:
+        trimmed_bases = randint(trim_interval[0], trim_interval[1])
+        return read[:-trimmed_bases]
+    return read
+
+
+@fixture(scope='session')
+def paired_trimmed_fastq(sandbox, simulated_reads):
+    '''Produce a test dataset with trimmed paired fastq files
+
+    Returns a dict with 'fwd', 'rev' and 'unpaired' entries.
+    '''
+    prefix = sandbox / uuid4().hex
+    prob_removal = 0.05
+    prob_trim = 0.5
+    trim_interval = [1, 30]
+
+    trimmed = {}
+    trimmed['fwd'] = local.path(prefix + '.R1.fastq')
+    trimmed['rev'] = local.path(prefix + '.R2.fastq')
+    trimmed['unpaired'] = local.path(prefix + '.unpaired.fastq')
+
+    with trimmed['fwd'].open('w') as out_fwd, \
+            trimmed['rev'].open('w') as out_rev, \
+            trimmed['unpaired'].open('w') as out_unp:
+        for reads in zip(SeqIO.parse(simulated_reads['fwd'], 'fastq'),
+                         SeqIO.parse(simulated_reads['rev'], 'fastq')):
+            # Trim the reads
+            reads = [trim(read, prob_trim, trim_interval) for read in reads]
+
+            # Remove some of the reads
+            is_removed = binomial(1, prob_removal, 2)
+            if is_removed[0] and not is_removed[1]:
+                out_unp.write(reads[1].format('fastq'))
+            elif is_removed[1] and not is_removed[0]:
+                out_unp.write(reads[0].format('fastq'))
+            else:
+                out_fwd.write(reads[0].format('fastq'))
+                out_rev.write(reads[1].format('fastq'))
+    return trimmed
+
+
+@fixture(scope='session')
+def partial_fasta(sandbox, fasta):
+    output = {}
+    output['fasta'] = sandbox / (uuid4().hex + '.fa')
+    output['bt2'] = output['fasta'].with_suffix('')
+    with output['fasta'].open('w') as f:
+        for i, record in enumerate(SeqIO.parse(fasta['fasta'], "fasta")):
+            if i < 4:
+                # Full sequences
+                print('>' + record.id, file=f)
+                print(record.seq, file=f)
+            elif i > 3 and i < 7:
+                # Trimmed sequences
+                print('>' + record.id, file=f)
+                print(record.seq[0:250], file=f)
+    index_fasta(output['fasta'], 'all')
+    return output
+
+
+@fixture(scope='session')
+def trimmed_bam(sandbox, partial_fasta, paired_trimmed_fastq):
+    output_sam = sandbox / (uuid4().hex + '.sam')
+    output_bam = sandbox / (uuid4().hex + '.bam')
+
+    bowtie2['-x', partial_fasta['bt2'],
+            '-1', paired_trimmed_fastq['fwd'],
+            '-2', paired_trimmed_fastq['rev'],
+            '-U', paired_trimmed_fastq['unpaired'],
+            '-S', output_sam]()
+    (samtools['view', '-bh', output_sam] | samtools['sort'] > output_bam)()
+    samtools['index', output_bam]()
+    return output_bam
+
+
+@fixture
+def indexed_bam(sandbox, simulated_reads):
+    bam = simulated_reads['bam']
+    samtools('index', bam)
+    index = local.path(bam + ".bai")
+    yield bam
+    index.delete()
+
+
+@fixture
+def tiny_indexed_bam(dat):
     bam = dat["tiny"]["bam"][0]
     samtools("index", bam)
     index = local.path(bam + ".bai")

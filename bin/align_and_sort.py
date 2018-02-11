@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """Align reads with bowtie2 and sort
-print(sys.argv)
 
 This is a wrapper around bowtie2 which handles the indexing step before
 alignment, and converts the output sam to a sorted and indexed bam file.
@@ -33,6 +32,7 @@ from plumbum.cmd import (
 
 def _get_reference(args):
     """Get the path to the reference seq from a list of bowtie2 arguments"""
+    print(args)
     ref_index = _optget(args, "-x")
 
     reference = local.path(ref_index + '.fa')
@@ -50,6 +50,7 @@ def _get_threads(args):
     except ValueError:
         threads = 1
     return threads
+
 
 def _optget(args, short, long=None):
     """Parse command line arguments to fetch the value of an option
@@ -92,7 +93,9 @@ def _optget(args, short, long=None):
         raise
     return opt
 
+
 def align_and_sort(args):
+    '''Align with bowtie2 and sort with samtools'''
     ref = _get_reference(args)
     fai_indices = local.path(ref + '.fai')
     if not fai_indices:

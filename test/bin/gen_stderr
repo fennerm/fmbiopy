@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+## Used by test modules which check stderr
+echo "$@" 1>&2
