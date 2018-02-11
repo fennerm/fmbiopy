@@ -112,15 +112,16 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
 
         queue.join()
 
+        if output_format == 'bam':
+            output_bam = local.path(output_prefix + '.bam')
+        else:
+            output_bam = tmpdir / 'merged.bam'
+
         if nchunks > 1:
             log.info('Merging temporary .bam files')
-            if output_format == 'bam':
-                output_bam = local.path(output_prefix + '.bam')
-            else:
-                output_bam = tmpdir / 'merged.bam'
             merge_bams(chunk_bams, output_bam)
         else:
-            output_bam = chunk_bams[0]
+            chunk_bams[0].move(output_bam)
 
         if output_format == 'fastq':
             log.info('Converting to .fastq')
