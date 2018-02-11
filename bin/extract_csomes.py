@@ -80,7 +80,7 @@ class BamExtractor(Thread):
             contig_list, output_file = self.queue.get()
             contig_list = ' '.join(contig_list)
             log.info("Extracting contigs...")
-            samtools['view', '-bh', self.bam, contig_list] > output_file & FG
+            (samtools['view', '-bh', self.bam, contig_list] > output_file)()
             log.info("Done extracting contigs, shutting down...")
             self.queue.task_done()
 
