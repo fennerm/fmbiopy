@@ -9,20 +9,21 @@ PREFIX.unpaired.fastq.gz.
 This works similar to blobtools bamfilter but does not exclude unpaired reads.
 
 Usage:
-  extract_csomes.py [-n NCHUNKS] [-f FORMAT] [-p THREADS] -o PREFIX -i TXTFILE
-    BAM
+extract_csomes.py [-n NCHUNKS] [-f FORMAT] [-p THREADS] -o PREFIX -i TXTFILE
+BAM
 
 Options:
-  -o, --output_prefix=PREFIX    Output prefix
-  -f, --output_format=FORMAT    Output file format ('bam' or 'fastq')
-                                [default:'bam']
-  -i, --include=TXTFILE         List of contig names to include (separated by
-                                newlines)
-  -n, --nchunks=NCHUNKS         Number of chunks to split the region list. By
-                                default, NCHUNKS=THREADS
-  -p, --threads=THREADS         Number of threads [default: 1]
+-o, --output_prefix=PREFIX    Output prefix
+-f, --output_format=FORMAT    Output file format ('bam' or 'fastq')
+[default:'bam']
+-i, --include=TXTFILE         List of contig names to include (separated by
+newlines)
+-n, --nchunks=NCHUNKS         Number of chunks to split the region list. By
+default, NCHUNKS=THREADS
+-p, --threads=THREADS         Number of threads [default: 1]
 '''
 import logging as log
+import os
 try:
     from queue import Queue
 except ImportError:
@@ -40,10 +41,7 @@ from plumbum import (
     FG,
     local,
 )
-from plumbum.cmd import (
-    cat,
-    samtools,
-)
+from plumbum.cmd import cat
 
 from fmbiopy.fmbio import (
     merge_bams,
@@ -76,13 +74,15 @@ class BamExtractor(Thread):
 
     def run(self):
         '''Get the work from the queue and run samtools'''
-        while True:
-            contig_list, output_file = self.queue.get()
-            contig_list = ' '.join(contig_list)
-            log.info("Extracting contigs...")
-            (samtools['view', '-bh', self.bam, contig_list] > output_file)()
-            log.info("Done extracting contigs, shutting down...")
-            self.queue.task_done()
+        contig_list, output_file = self.queue.get()
+        contig_list = ' '.join(contig_list)
+        log.info("Extracting contigs...")
+        # For some reason I couldn't get plumbum to work here over ssh.
+        command = ' '.join(['samtools view -bh', self.bam, contig_list, '>',
+                            output_file])
+        os.system(command)
+        log.info("Done extracting contigs, shutting down...")
+        self.queue.task_done()
 
 
 def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
