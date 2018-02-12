@@ -69,9 +69,9 @@ def index_fasta(filename, method='samtools'):
 
 def merge_bams(bams, output_file):
     '''Merge a list of .bam files into a single sorted, indexed .bam file'''
-    merge_args = ['merge', output_file] + bams
-    (samtools.__getitem__(merge_args))()
-    (samtools['index', output_file])()
+    merge_args = ['cat'] + bams
+    (samtools.__getitem__(merge_args) | samtools['sort'] > output_file) & FG
+    samtools['index', output_file] & FG
 
 
 def to_fastq(bam, output_prefix, zipped=True):
