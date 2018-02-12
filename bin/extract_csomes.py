@@ -83,7 +83,6 @@ class BamExtractor(Thread):
             self.queue.task_done()
 
 
-
 def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
     log.info('Running extract_csomes.py with parameters:')
     log.info('Input Bam: %s', str(bam))
@@ -92,10 +91,7 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
     log.info('Threads: %s', str(nthreads))
     log.info('Output Prefix: %s', str(output_prefix))
     log.info('Number of chunks: %s', str(nchunks))
-    tmpdir = local.path('tmp' + uuid4().hex)
-    try:
-        tmpdir.mkdir()
-
+    with local.tempdir() as tmpdir:
         log.info('Reading input contig list')
         region_list = capture_stdout(cat[contig_file])
         if len(region_list) < nchunks:
@@ -129,9 +125,6 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
             print(output_format)
             log.info('Converting to .fastq')
             to_fastq(output_bam, output_prefix)
-    except:
-        pass
-    tmpdir.delete()
 
 
 if __name__ == '__main__':
