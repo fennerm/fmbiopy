@@ -30,12 +30,12 @@ def count_reads(filename):
     Parameters
     ----------
     filename: Pathlike
-        A file path
+    A file path
 
     Returns
     -------
     int
-        The number of reads in the file
+    The number of reads in the file
     """
     filename = local.path(filename)
     if is_fastq(filename):
@@ -56,9 +56,9 @@ def index_fasta(filename, method='samtools'):
     Parameters
     ----------
     filename: pathlike
-        Path to the fasta file
+    Path to the fasta file
     method: string, optional
-        Indexing method (Possible values: ['samtools', 'bowtie2', 'all'])
+    Indexing method (Possible values: ['samtools', 'bowtie2', 'all'])
     '''
     if method in ['samtools', 'all']:
         samtools['faidx', filename]()
@@ -67,10 +67,18 @@ def index_fasta(filename, method='samtools'):
         bowtie_build[filename, filename.with_suffix('')]()
 
 
-def merge_bams(bams, output_file):
+def merge_bams(bams, output_file, sort_by="index"):
     '''Merge a list of .bam files into a single sorted, indexed .bam file'''
     merge_args = ['cat'] + bams
-    (samtools.__getitem__(merge_args) | samtools['sort'] > output_file) & FG
+    cat = samtools.__getitem__(merge_args)
+    if sort_by == 'index':
+        cat_and_sort = cat | samtools['sort']
+
+    elif sort_by == 'name':
+        cat_and_sort = cat | samtools['sort', '-n']
+    else:
+        raise ValueError("sort_by must be one of ['index', 'name']")
+    (cat_and_sort | samtools['fixmate'] > output_file) & FG
     samtools['index', output_file] & FG
 
 
@@ -94,14 +102,14 @@ def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):
     Parameters
     ----------
     num_sequences: int
-        Number of sequences to simulate
+    Number of sequences to simulate
     contig_length: int
-        Length of each contig
+    Length of each contig
     output_file: pathlike
-        Path for the output fasta
+    Path for the output fasta
     include_n: bool
-        If True, 'N' nucleotides are included in the fasta. 'N' nucleotides are
-        included rarely (~1 every 100 bases)
+    If True, 'N' nucleotides are included in the fasta. 'N' nucleotides are
+    included rarely (~1 every 100 bases)
     '''
     output_file = local.path(output_file)
     name_base = '>simulated_fasta_' + str(contig_length) + '_'
