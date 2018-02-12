@@ -36,10 +36,7 @@ from plumbum import (
     FG,
     local,
 )
-from plumbum.cmd import (
-    cat,
-    samtools,
-)
+from plumbum.cmd import cat
 
 from fmbiopy.fmbio import (
     merge_bams,
@@ -77,8 +74,7 @@ class BamExtractor(Thread):
             contig_list = ' '.join(contig_list)
             log.info("Extracting contigs...")
 
-            # For some reason I couldn't get plumbum to work here with large file
-            # lists. Might be hitting some sort of argument length limit
+            # For some reason I couldn't get plumbum to work here with threading
             command = ' '.join(['samtools view -bh', self.bam, contig_list, '>',
                                 output_file])
             os.system(command)
@@ -118,7 +114,7 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
         else:
             output_bam = tmpdir / 'merged.bam'
 
-        log.info('Merging temporary .bam files to ' + output_bam)
+        log.info('Merging temporary .bam files to %s', output_bam)
         merge_bams(chunk_bams, output_bam, sort_by="name")
 
         if output_format == 'fastq':

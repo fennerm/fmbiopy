@@ -84,9 +84,9 @@ def merge_bams(bams, output_file, sort_by="index"):
                 (samtools['sort', tmpfile] > output_file) & FG
             elif sort_by == 'name':
                 tmpfile.move(output_file)
-    elif len(bams) == 1:
-        (samtools['sort', '-n', bams[0]] |
-         samtools['fixmate', '-', output_file]) & FG
+            elif len(bams) == 1:
+                (samtools['sort', '-n', bams[0]] |
+                 samtools['fixmate', '-', output_file]) & FG
     else:
         raise ValueError("len(bams) must be > 0")
 
@@ -101,7 +101,7 @@ def to_fastq(bam, output_prefix, zipped=True):
     if zipped:
         for k, v in reads.items():
             reads[k] = local.path(v + '.gz')
-    samtools['fastq', '-O', '-s', reads['unpaired'], '-1', reads['fwd'], '-2',
+    samtools['fastq', '-0', reads['unpaired'], '-1', reads['fwd'], '-2',
              reads['rev'], bam] & FG
 
 
