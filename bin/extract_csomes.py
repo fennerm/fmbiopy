@@ -122,7 +122,6 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
             chunk_bams[0].move(output_bam)
 
         if output_format == 'fastq':
-            print(output_format)
             log.info('Converting to .fastq')
             to_fastq(output_bam, output_prefix)
 
