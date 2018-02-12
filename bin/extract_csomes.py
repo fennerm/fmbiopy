@@ -29,11 +29,6 @@ try:
 except ImportError:
     from Queue import Queue
 from threading import Thread
-try:
-    from tempfile import TemporaryDirectory
-except ImportError:
-    from backports.tempfile import TemporaryDirectory
-
 from uuid import uuid4
 
 from docopt import docopt
@@ -55,9 +50,9 @@ from fmbiopy.fmsystem import capture_stdout
 setup_log()
 
 
-def start_workers(nthreads, queue, bam):
+def start_workers(nchunks, queue, bam):
     '''Initialize the worker threads'''
-    for i in range(nthreads):
+    for i in range(nchunks):
         worker = BamExtractor(queue, bam)
         log.info('Starting BamExtractor thread %s', i)
         worker.daemon = True
@@ -74,15 +69,19 @@ class BamExtractor(Thread):
 
     def run(self):
         '''Get the work from the queue and run samtools'''
-        contig_list, output_file = self.queue.get()
-        contig_list = ' '.join(contig_list)
-        log.info("Extracting contigs...")
-        # For some reason I couldn't get plumbum to work here over ssh.
-        command = ' '.join(['samtools view -bh', self.bam, contig_list, '>',
-                            output_file])
-        os.system(command)
-        log.info("Done extracting contigs, shutting down...")
-        self.queue.task_done()
+        while True:
+            contig_list, output_file = self.queue.get()
+            contig_list = ' '.join(contig_list)
+            log.info("Extracting contigs...")
+
+            # For some reason I couldn't get plumbum to work here with large file
+            # lists. Might be hitting some sort of argument length limit
+            command = ' '.join(['samtools view -bh', self.bam, contig_list, '>',
+                                output_file])
+            os.system(command)
+            log.info("Done extracting contigs, shutting down...")
+            self.queue.task_done()
+
 
 
 def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
@@ -93,18 +92,21 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
     log.info('Threads: %s', str(nthreads))
     log.info('Output Prefix: %s', str(output_prefix))
     log.info('Number of chunks: %s', str(nchunks))
-    with TemporaryDirectory() as tmpdir:
-        tmpdir = local.path(tmpdir)
+    tmpdir = local.path('tmp' + uuid4().hex)
+    try:
+        tmpdir.mkdir()
 
         log.info('Reading input contig list')
         region_list = capture_stdout(cat[contig_file])
+        if len(region_list) < nchunks:
+            nchunks = len(region_list)
 
         log.info('Dividing contig list into %s chunks', nchunks)
         chunks = split_into_chunks(region_list, nchunks)
         chunk_bams = [tmpdir / (uuid4().hex + '.bam') for _ in range(nchunks)]
 
-        queue = Queue()
-        start_workers(nthreads, queue, bam)
+        queue = Queue(maxsize=nthreads)
+        start_workers(nchunks, queue, bam)
 
         log.info('Queueing jobs')
         for chunk, chunk_bam in zip(chunks, chunk_bams):
@@ -118,17 +120,18 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
             output_bam = tmpdir / 'merged.bam'
 
         if nchunks > 1:
-            log.info('Merging temporary .bam files')
+            log.info('Merging temporary .bam files to ' + output_bam)
             merge_bams(chunk_bams, output_bam)
         else:
             chunk_bams[0].move(output_bam)
 
         if output_format == 'fastq':
+            print(output_format)
             log.info('Converting to .fastq')
             to_fastq(output_bam, output_prefix)
-
-        else:
-            log.info('')
+    except:
+        pass
+    tmpdir.delete()
 
 
 if __name__ == '__main__':
