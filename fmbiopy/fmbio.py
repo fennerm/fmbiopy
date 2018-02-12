@@ -1,6 +1,7 @@
 '''Functions for operating on bioinformatics files'''
 from __future__ import print_function
 from numpy.random import choice
+from uuid import uuid4
 
 from plumbum import (
     FG,
@@ -11,6 +12,8 @@ from plumbum.cmd import (
     wc,
     zcat,
 )
+
+from fmbiopy.fmpaths import delete
 from fmbiopy.fmsystem import capture_stdout
 
 
@@ -69,17 +72,23 @@ def index_fasta(filename, method='samtools'):
 
 def merge_bams(bams, output_file, sort_by="index"):
     '''Merge a list of .bam files into a single sorted, indexed .bam file'''
-    merge_args = ['cat'] + bams
-    cat = samtools.__getitem__(merge_args)
-    if sort_by == 'index':
-        cat_and_sort = cat | samtools['sort']
+    if len(bams) > 1:
+        merge_args = ['cat'] + bams
 
-    elif sort_by == 'name':
-        cat_and_sort = cat | samtools['sort', '-n']
+        tmpfile = local.path(uuid4().hex + '.bam')
+        with delete(tmpfile):
+            (samtools.__getitem__(merge_args) | samtools['sort', '-n'] |
+             samtools['fixmate', '-', tmpfile]) & FG
+
+            if sort_by == 'index':
+                (samtools['sort', tmpfile] > output_file) & FG
+            elif sort_by == 'name':
+                tmpfile.move(output_file)
+    elif len(bams) == 1:
+        (samtools['sort', '-n', bams[0]] |
+         samtools['fixmate', '-', output_file]) & FG
     else:
-        raise ValueError("sort_by must be one of ['index', 'name']")
-    (cat_and_sort | samtools['fixmate'] > output_file) & FG
-    samtools['index', output_file] & FG
+        raise ValueError("len(bams) must be > 0")
 
 
 def to_fastq(bam, output_prefix, zipped=True):
@@ -92,7 +101,7 @@ def to_fastq(bam, output_prefix, zipped=True):
     if zipped:
         for k, v in reads.items():
             reads[k] = local.path(v + '.gz')
-    samtools['fastq', '-s', reads['unpaired'], '-1', reads['fwd'], '-2',
+    samtools['fastq', '-O', '-s', reads['unpaired'], '-1', reads['fwd'], '-2',
              reads['rev'], bam] & FG
 
 

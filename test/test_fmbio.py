@@ -27,10 +27,11 @@ def test_count_reads_output_correct_for_empty_file(gen_tmp):
     assert count_reads(tmp) == 0
 
 
-def test_merge_bams(dat, sandbox):
+@mark.parametrize('sort_by', ['index', 'name'])
+def test_merge_bams(dat, sandbox, sort_by):
     bams = dat['tiny']['bam'][0:2]
     output_file = sandbox / (uuid4().hex + '.bam')
-    merge_bams(bams, output_file)
+    merge_bams(bams, output_file, sort_by=sort_by)
     assert count_reads(output_file) == count_reads(
         bams[0]) + count_reads(bams[1])
 

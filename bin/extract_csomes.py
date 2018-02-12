@@ -36,7 +36,10 @@ from plumbum import (
     FG,
     local,
 )
-from plumbum.cmd import cat
+from plumbum.cmd import (
+    cat,
+    samtools,
+)
 
 from fmbiopy.fmbio import (
     merge_bams,
@@ -115,11 +118,8 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
         else:
             output_bam = tmpdir / 'merged.bam'
 
-        if nchunks > 1:
-            log.info('Merging temporary .bam files to ' + output_bam)
-            merge_bams(chunk_bams, output_bam, sort_by="name")
-        else:
-            (samtools['sort', '-n', chunk_bams[0]] > output_bam) & FG
+        log.info('Merging temporary .bam files to ' + output_bam)
+        merge_bams(chunk_bams, output_bam, sort_by="name")
 
         if output_format == 'fastq':
             log.info('Converting to .fastq')

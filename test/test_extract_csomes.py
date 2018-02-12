@@ -50,5 +50,7 @@ def test_extract_csomes(sandbox, partial_fasta, trimmed_bam, output_format,
 
     if output_format == 'fastq':
         assert num_output_reads[0] == num_output_reads[1]
+        # Check that files are mostly paired
+        assert num_output_reads[0] > num_output_reads[2]
 
     assert sum(num_output_reads) < num_input_reads

@@ -124,10 +124,10 @@ def delete(paths):
     try:
         yield
     except Exception:
-        remove_all(paths)
+        remove_all(paths, silent=True)
         raise
     finally:
-        remove_all(paths)
+        remove_all(paths, silent=True)
 
 
 def extension_without_gz(path):
