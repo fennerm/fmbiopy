@@ -91,6 +91,7 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
     log.info('Output Prefix: %s', str(output_prefix))
     log.info('Number of chunks: %s', str(nchunks))
     with local.tempdir() as tmpdir:
+
         log.info('Reading input contig list')
         region_list = capture_stdout(cat[contig_file])
         if len(region_list) < nchunks:
@@ -107,19 +108,19 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
         for chunk, chunk_bam in zip(chunks, chunk_bams):
             queue.put((chunk, chunk_bam))
 
-        queue.join()
+            queue.join()
 
-        if output_format == 'bam':
-            output_bam = local.path(output_prefix + '.bam')
-        else:
-            output_bam = tmpdir / 'merged.bam'
+            if output_format == 'bam':
+                output_bam = local.path(output_prefix + '.bam')
+            else:
+                output_bam = tmpdir / 'merged.bam'
 
-        log.info('Merging temporary .bam files to %s', output_bam)
-        merge_bams(chunk_bams, output_bam, sort_by="name")
+                log.info('Merging temporary .bam files to %s', output_bam)
+                merge_bams(chunk_bams, output_bam, sort_by="name")
 
-        if output_format == 'fastq':
-            log.info('Converting to .fastq')
-            to_fastq(output_bam, output_prefix)
+                if output_format == 'fastq':
+                    log.info('Converting to .fastq')
+                    to_fastq(output_bam, output_prefix)
 
 
 if __name__ == '__main__':
@@ -129,8 +130,8 @@ if __name__ == '__main__':
         nchunks = nthreads
     else:
         nchunks = int(opts['--nchunks'])
-        if nchunks < nthreads:
-            raise ValueError("Number of chunks must be >= nthreads")
+    if nchunks < nthreads:
+        raise ValueError("Number of chunks must be >= nthreads")
 
     output_format = opts['--output_format']
     if output_format not in ['bam', 'fastq']:

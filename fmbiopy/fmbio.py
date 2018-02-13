@@ -84,9 +84,10 @@ def merge_bams(bams, output_file, sort_by="index"):
                 (samtools['sort', tmpfile] > output_file) & FG
             elif sort_by == 'name':
                 tmpfile.move(output_file)
-            elif len(bams) == 1:
-                (samtools['sort', '-n', bams[0]] |
-                 samtools['fixmate', '-', output_file]) & FG
+
+    elif len(bams) == 1:
+        (samtools['sort', '-n', bams[0]] |
+         samtools['fixmate', '-', output_file]) & FG
     else:
         raise ValueError("len(bams) must be > 0")
 
@@ -98,11 +99,20 @@ def to_fastq(bam, output_prefix, zipped=True):
     reads['rev'] = local.path(output_prefix + '.R2.fastq')
     reads['unpaired'] = local.path(output_prefix + '.unpaired.fastq')
 
+    bbmap_repair = local['repair.sh']
+    bbmap_reformat = local['reformat.sh']
+
     if zipped:
         for k, v in reads.items():
             reads[k] = local.path(v + '.gz')
-    samtools['fastq', '-0', reads['unpaired'], '-1', reads['fwd'], '-2',
-             reads['rev'], bam] & FG
+
+    # Piping through bbmap repair and reformat ensures that pairing info is
+    # correct
+    (samtools['fastq', bam] |
+     bbmap_repair['in=stdin', 'out=stdout', 'outs=' + reads['unpaired']] |
+     bbmap_reformat['in=stdin', 'out1=' + reads['fwd'], 'out2=' + reads['rev']]
+     ) & FG
+
 
 
 def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):

@@ -43,6 +43,7 @@ def test_to_fastq(dat, sandbox):
     expected_output = [local.path(output_prefix + suff) for suff in suffixes]
     to_fastq(bam, output_prefix)
     assert all_exist(expected_output) and none(apply_is_empty(expected_output))
+    assert False # Check that it works when some pairs have become orphaned
 
 
 @mark.parametrize("contig_length", [0, 10])
