@@ -17,6 +17,7 @@ from Bio import SeqIO
 from numpy.random import binomial
 from plumbum import local
 from plumbum.cmd import (
+    bam_to_sam,
     bowtie2,
     git,
     picard,
@@ -469,19 +470,16 @@ def fasta(sandbox):
     output = {}
     output['fasta'] = sandbox / (uuid4().hex + '.fa')
     output['bt2'] = output['fasta'].with_suffix('')
-    simulate_fasta(10, 500, output['fasta'])
+    simulate_fasta(100, 500, output['fasta'])
     index_fasta(output['fasta'], 'all')
-    yield output
-    output['fasta'].delete()
-    output['bt2'].delete()
+    return output
 
 
 @fixture(scope='session')
 def nonindexed_fasta(sandbox, fasta):
     output_file = sandbox / (uuid4().hex + '.fa')
     fasta['fasta'].copy(output_file)
-    yield output_file
-    output_file.delete()
+    return output_file
 
 
 @fixture(scope='session')
@@ -494,7 +492,7 @@ def simulated_reads(sandbox, fasta):
     output['rev'] = local.path(output_prefix + '_read2.fq')
     output['bam'] = local.path(output_prefix + '_golden.bam')
 
-    gen_reads['-r', fasta['fasta'], '-R', '100', '-o', output_prefix, '--bam',
+    gen_reads['-r', fasta['fasta'], '-R', '101', '-o', output_prefix, '--bam',
               '--pe', '300', '30']()
     return output
 
@@ -563,35 +561,22 @@ def partial_fasta(sandbox, fasta):
 
 @fixture(scope='session')
 def trimmed_bam(sandbox, partial_fasta, paired_trimmed_fastq):
-    output_sam = sandbox / (uuid4().hex + '.sam')
     output_bam = sandbox / (uuid4().hex + '.bam')
 
-    bowtie2['-x', partial_fasta['bt2'],
-            '-1', paired_trimmed_fastq['fwd'],
-            '-2', paired_trimmed_fastq['rev'],
-            '-U', paired_trimmed_fastq['unpaired'],
-            '-S', output_sam]()
-    (samtools['view', '-bh', output_sam] | samtools['sort'] > output_bam)()
+    (bowtie2['-x', partial_fasta['bt2'],
+             '-1', paired_trimmed_fastq['fwd'],
+             '-2', paired_trimmed_fastq['rev'],
+             '-U', paired_trimmed_fastq['unpaired']] |
+     samtools['view', '-bh', '-'] | samtools['sort', '-'] > output_bam)()
     samtools['index', output_bam]()
     return output_bam
 
 
-@fixture
-def indexed_bam(sandbox, simulated_reads):
-    bam = simulated_reads['bam']
-    samtools('index', bam)
-    index = local.path(bam + ".bai")
-    yield bam
-    index.delete()
-
-
-@fixture
-def tiny_indexed_bam(dat):
-    bam = dat["tiny"]["bam"][0]
-    samtools("index", bam)
-    index = local.path(bam + ".bai")
-    yield bam
-    index.delete()
+@fixture(scope="session")
+def sam(sandbox, trimmed_bam):
+    sam = sandbox / (uuid4().hex + '.sam')
+    (bam_to_sam[trimmed_bam] > sam)()
+    return sam
 
 
 @fixture
