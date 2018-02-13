@@ -38,7 +38,7 @@ def count_reads(filename):
     Returns
     -------
     int
-    The number of reads in the file
+        The number of reads in the file
     """
     filename = local.path(filename)
     if is_fastq(filename):
@@ -109,10 +109,10 @@ def to_fastq(bam, output_prefix, zipped=True):
     # Piping through bbmap repair and reformat ensures that pairing info is
     # correct
     (samtools['fastq', bam] |
-     bbmap_repair['in=stdin', 'out=stdout', 'outs=' + reads['unpaired']] |
-     bbmap_reformat['in=stdin', 'out1=' + reads['fwd'], 'out2=' + reads['rev']]
+     bbmap_repair['in=stdin.fastq', 'out=stdout', 'outs=' + reads['unpaired']] |
+     bbmap_reformat['in=stdin.fastq', 'int=t', 'out1=' + reads['fwd'],
+                    'out2=' + reads['rev']]
      ) & FG
-
 
 
 def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):

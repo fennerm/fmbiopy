@@ -75,8 +75,8 @@ class BamExtractor(Thread):
             log.info("Extracting contigs...")
 
             # For some reason I couldn't get plumbum to work here with threading
-            command = ' '.join(['samtools view -bh', self.bam, contig_list, '>',
-                                output_file])
+            command = ' '.join(['samtools view -bh', self.bam, contig_list,
+                                '>', output_file])
             os.system(command)
             log.info("Done extracting contigs, shutting down...")
             self.queue.task_done()
@@ -108,19 +108,19 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
         for chunk, chunk_bam in zip(chunks, chunk_bams):
             queue.put((chunk, chunk_bam))
 
-            queue.join()
+        queue.join()
 
-            if output_format == 'bam':
-                output_bam = local.path(output_prefix + '.bam')
-            else:
-                output_bam = tmpdir / 'merged.bam'
+        if output_format == 'bam':
+            output_bam = local.path(output_prefix + '.bam')
+        else:
+            output_bam = tmpdir / 'merged.bam'
 
-                log.info('Merging temporary .bam files to %s', output_bam)
-                merge_bams(chunk_bams, output_bam, sort_by="name")
+        log.info('Merging temporary .bam files to %s', output_bam)
+        merge_bams(chunk_bams, output_bam, sort_by="name")
 
-                if output_format == 'fastq':
-                    log.info('Converting to .fastq')
-                    to_fastq(output_bam, output_prefix)
+        if output_format == 'fastq':
+            log.info('Converting to .fastq')
+            to_fastq(output_bam, output_prefix)
 
 
 if __name__ == '__main__':

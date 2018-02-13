@@ -17,10 +17,11 @@ from Bio import SeqIO
 from numpy.random import binomial
 from plumbum import local
 from plumbum.cmd import (
-    bam_to_sam,
     bowtie2,
     git,
+    head,
     picard,
+    sambamba,
     samtools,
 )
 from pytest import fixture
@@ -38,6 +39,7 @@ from fmbiopy.fmpaths import (
     remove_all,
     silent_remove,
 )
+from fmbiopy.fmsystem import capture_stdout
 
 
 @fixture
@@ -68,17 +70,17 @@ def assert_script_produces_files(script, args, output, redirect=None,
     Parameters
     ----------
     script : str
-        Path to the script
+    Path to the script
     args : List[str]
-        List of command line arguments
+    List of command line arguments
     output: List[str] or List[plumbum.LocalPath]
-        List of output files
+    List of output files
     redirect: str or plumbum.LocalPath, optional
-        If defined, redirect the stdout of the script to the given file.
+    If defined, redirect the stdout of the script to the given file.
     empty_ok : bool
-        If True, output files are valid even if they are empty
+    If True, output files are valid even if they are empty
     outdir: str or plumbum.LocalPath, optional
-        If given, the output filenames are relative to this directory
+    If given, the output filenames are relative to this directory
     """
     execute = local[script]
     command = execute.__getitem__(args)
@@ -126,7 +128,7 @@ def dat(sandbox):
     Returns
     -------
     Dict[plumbum.LocalPath]
-        A two level nested dictionary
+    A two level nested dictionary
     """
     # List contents of top level directories
     subdirs = listdirs(sandbox)
@@ -177,12 +179,12 @@ def gen_tmp(sandbox):
     Parameters
     ----------
     empty
-        If True, the file is empty. Otherwise it has content.
+    If True, the file is empty. Otherwise it has content.
     suffix, optional
-        If defined, the generated files will have the given extension
+    If defined, the generated files will have the given extension
     directory, optional
-        If defined, the generated files will be produced in the given
-        directory. By default the directory produced by load_sandbox is used.
+    If defined, the generated files will be produced in the given
+    directory. By default the directory produced by load_sandbox is used.
     Returns
     -------
     plumbum.LocalPath
@@ -572,8 +574,21 @@ def trimmed_bam(sandbox, partial_fasta, paired_trimmed_fastq):
     return output_bam
 
 
+@fixture(scope='session')
+def bam_with_orphans(sandbox, trimmed_bam):
+    '''Generate a .bam file with orphaned reads'''
+    output_bam = sandbox / (uuid4().hex + '.bam')
+    # Reads which match this criterion are filtered, leaving orphaned reads in
+    # the bam
+    filter_expression = "not (first_of_pair and ref_id == 1 and position < 200)"
+    (sambamba['view', '-f', 'bam', '-F', filter_expression, trimmed_bam]
+     > output_bam)()
+    return output_bam
+
+
 @fixture(scope="session")
 def sam(sandbox, trimmed_bam):
+    bam_to_sam = local['bin/bam_to_sam']
     sam = sandbox / (uuid4().hex + '.sam')
     (bam_to_sam[trimmed_bam] > sam)()
     return sam
