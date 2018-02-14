@@ -1,0 +1,3 @@
+[submodule "test/lib/neat-genreads"]
+	path = test/lib/neat-genreads
+	url = https://github.com/zstephens/neat-genreads
