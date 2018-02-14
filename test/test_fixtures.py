@@ -1,4 +1,4 @@
-"""Test suite for fmbiopy.fmtest"""
+"""Check that the pytest fixtures are behaving correctly"""
 from uuid import uuid4
 
 from plumbum import local
@@ -19,3 +19,8 @@ def test_bam_with_orphans(sandbox, bam_with_orphans, trimmed_bam):
     samtools['fastq', '-1', fastqs[0], '-2', fastqs[1], '-0', fastqs[2],
              bam_with_orphans]()
     assert count_reads(fastqs[0]) != count_reads(fastqs[1])
+
+
+# def test_trimmed_bams(sandbox, trimmed_bams):
+#    list_csomes = local['list_csomes']
+#    for bam in trimmed_bams:

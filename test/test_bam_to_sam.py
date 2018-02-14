@@ -1,4 +1,4 @@
-from fmbiopy.fmtest import (
+from test.helpers import (
     assert_script_produces_files,
     validate_bam_file,
 )

@@ -4,7 +4,6 @@ import os
 import pytest
 
 import fmbiopy.fmcheck as fmcheck
-import fmbiopy.fmtest as fmtest
 
 
 class TestCheckAllSuffix():

@@ -2,19 +2,39 @@
 from __future__ import print_function
 from numpy.random import choice
 from uuid import uuid4
+from warnings import warn
 
 from plumbum import (
     FG,
     local,
 )
 from plumbum.cmd import (
+    bowtie2,
     samtools,
     wc,
     zcat,
 )
 
-from fmbiopy.fmpaths import delete
+from fmbiopy.fmpaths import (
+    delete,
+    is_empty,
+)
 from fmbiopy.fmsystem import capture_stdout
+
+
+def align_and_sort(idx, fastq1, fastq2, output_bam, unpaired_fastq=None,
+                   max_insert_size=1000, preset='sensitive',
+                   threads=1):
+    '''Align with bowtie2, convert to bam, sort and index'''
+    bowtie2_args = ['-x', idx, '-1', fastq1, '-2', fastq2, '--' + preset,
+                    '-p', str(threads), '-X', str(max_insert_size)]
+    if unpaired_fastq:
+        bowtie2_args += ['-U', unpaired_fastq]
+
+    (bowtie2.__getitem__(bowtie2_args) |
+     samtools['view', '-bh', '-'] |
+     samtools['sort'] > output_bam) & FG
+    samtools['index', output_bam]()
 
 
 def is_fastq(filename):
@@ -72,24 +92,23 @@ def index_fasta(filename, method='samtools'):
 
 def merge_bams(bams, output_file, sort_by="index"):
     '''Merge a list of .bam files into a single sorted, indexed .bam file'''
-    if len(bams) > 1:
-        merge_args = ['cat'] + bams
 
-        tmpfile = local.path(uuid4().hex + '.bam')
-        with delete(tmpfile):
-            (samtools.__getitem__(merge_args) | samtools['sort', '-n'] |
-             samtools['fixmate', '-', tmpfile]) & FG
+    if sort_by not in ['index', 'name']:
+        raise ValueError(
+            "sort_by must be one of ['name', 'index'], not %s" % sort_by)
 
-            if sort_by == 'index':
-                (samtools['sort', tmpfile] > output_file) & FG
-            elif sort_by == 'name':
-                tmpfile.move(output_file)
+    # Empty bams cause samtools error, exclude them
+    bams = [bam for bam in bams if not is_empty(bam)]
 
-    elif len(bams) == 1:
-        (samtools['sort', '-n', bams[0]] |
-         samtools['fixmate', '-', output_file]) & FG
+    merge_args = ['cat'] + bams
+    command = samtools.__getitem__(merge_args)
+
+    if sort_by == 'index':
+        command = command | samtools['sort']
     else:
-        raise ValueError("len(bams) must be > 0")
+        command = command | samtools['sort', '-n']
+
+    (command > output_file) & FG
 
 
 def to_fastq(bam, output_prefix, zipped=True):

@@ -1,7 +1,10 @@
 from uuid import uuid4
 
 from Bio import SeqIO
-from pytest import mark
+from pytest import (
+    mark,
+    warns,
+)
 
 from fmbiopy.fmbio import *
 from fmbiopy.fmlist import none
@@ -12,28 +15,61 @@ from fmbiopy.fmpaths import (
 )
 
 
-def test_count_reads_output_correct_for_sample_bam(dat):
-    input_bam = dat['tiny']['bam'][0]
-    assert count_reads(input_bam) == 20
+@mark.parametrize("with_unpaired", [True, False])
+def test_align_and_sort_no_unpaired(sandbox, partial_fasta,
+                                    paired_trimmed_fastq, with_unpaired):
+    output_bam = sandbox / (uuid4().hex + '.bam')
+    bam_index = local.path(output_bam + '.bai')
+    args = {
+        'idx': partial_fasta['bt2'],
+        'fastq1': paired_trimmed_fastq['fwd'],
+        'fastq2': paired_trimmed_fastq['rev'],
+        'preset': 'very-fast',
+        'output_bam': output_bam
+    }
+
+    if with_unpaired:
+        args['unpaired_fastq'] = paired_trimmed_fastq['unpaired']
+
+    align_and_sort(**args)
+    assert not is_empty(output_bam)
+    assert not is_empty(bam_index)
 
 
-def test_count_reads_output_correct_for_sample_sam(dat):
-    input_sam = dat['tiny']['sam'][0]
-    assert count_reads(input_sam) == 16
+def test_align_and_sort_with_unpaired(sandbox, paired_trimmed_fastq):
+    pass
 
 
-def test_count_reads_output_correct_for_empty_file(gen_tmp):
-    tmp = gen_tmp(empty=True, suffix='.fastq')
-    assert count_reads(tmp) == 0
+def test_count_reads_output_correct_for_bam(untrimmed_bam):
+    n = count_reads(untrimmed_bam)
+    assert n > 830 and n < 850
+
+
+def test_count_reads_output_correct_for_empty_bam(empty_bam):
+    assert count_reads(empty_bam) == 0
+
+
+def test_count_reads_output_correct_for_sam(untrimmed_sam):
+    n = count_reads(untrimmed_sam)
+    assert n > 830 and n < 850
+
+
+def test_count_reads_output_correct_for_fastq(simulated_reads):
+    n = count_reads(simulated_reads['fwd'])
+    assert n > 415 and n < 425
 
 
 @mark.parametrize('sort_by', ['index', 'name'])
-def test_merge_bams(dat, sandbox, sort_by):
-    bams = dat['tiny']['bam'][0:2]
+def test_merge_bams(mini_bams, sandbox, sort_by):
     output_file = sandbox / (uuid4().hex + '.bam')
-    merge_bams(bams, output_file, sort_by=sort_by)
-    assert count_reads(output_file) == count_reads(
-        bams[0]) + count_reads(bams[1])
+    merge_bams(mini_bams, output_file, sort_by=sort_by)
+    num_input_reads = sum([count_reads(bam) for bam in mini_bams])
+    assert count_reads(output_file) == num_input_reads
+
+
+def test_merge_bams_with_empty_bam(sandbox, mini_bams, empty_bam):
+    output_file = sandbox / (uuid4().hex + '.bam')
+    merge_bams(mini_bams + [empty_bam], output_file)
 
 
 def test_to_fastq(bam_with_orphans, sandbox):

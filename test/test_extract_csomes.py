@@ -12,7 +12,7 @@ from pytest import (
 )
 
 from fmbiopy.fmbio import count_reads
-from fmbiopy.fmtest import assert_script_produces_files
+from test.helpers import assert_script_produces_files
 
 
 @fixture

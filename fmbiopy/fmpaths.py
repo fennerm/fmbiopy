@@ -37,6 +37,11 @@ def any_exist(paths):
     return any(apply_exists(paths))
 
 
+def any_empty(paths):
+    '''Return True if any path in paths is empty'''
+    return any(apply_is_empty(paths))
+
+
 @not_empty
 def all_empty(paths):
     """Return True if all paths in list exist, and are non-empty"""
