@@ -2,6 +2,7 @@ from fmbiopy.fmpaths import get_bowtie2_indices
 
 from plumbum import local
 
+
 def test_index_fasta(dat):
     fasta = dat['tiny']['assemblies'][0]
     index_fasta = local["bin/index_fasta.py"]

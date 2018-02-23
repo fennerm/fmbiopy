@@ -5,6 +5,7 @@ try:
     from collections.abc import Sequence
 except ImportError:
     from collections import Sequence
+from boltons.funcutils import wraps
 
 from fmbiopy.fmerr import EmptyListError
 
@@ -99,6 +100,7 @@ def none(x):
 def not_empty(func):
     """Function decorator for functions which require nonempty list input"""
 
+    @wraps(func)
     def _wrapper(*args, **kwargs):
         if not args[0]:
             raise EmptyListError

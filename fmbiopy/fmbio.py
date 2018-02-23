@@ -1,9 +1,7 @@
 '''Functions for operating on bioinformatics files'''
 from __future__ import print_function
-from numpy.random import choice
-from uuid import uuid4
-from warnings import warn
 
+from numpy.random import choice
 from plumbum import (
     FG,
     local,
@@ -15,10 +13,7 @@ from plumbum.cmd import (
     zcat,
 )
 
-from fmbiopy.fmpaths import (
-    delete,
-    is_empty,
-)
+from fmbiopy.fmpaths import is_empty
 from fmbiopy.fmsystem import capture_stdout
 
 
