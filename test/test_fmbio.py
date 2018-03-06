@@ -45,7 +45,7 @@ def test_align_and_sort_with_unpaired(sandbox, paired_trimmed_fastq):
 
 def test_count_reads_output_correct_for_bam(untrimmed_bam):
     n = count_reads(untrimmed_bam)
-    assert n > 830 and n < 850
+    assert n > 830 and n < 860
 
 
 def test_count_reads_output_correct_for_empty_bam(empty_bam):
