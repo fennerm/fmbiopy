@@ -1,6 +1,5 @@
 """Utility functions for carrying out list manipulation"""
 
-# Different imports for python2/3)
 try:
     from collections.abc import Sequence
 except ImportError:
