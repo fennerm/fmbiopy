@@ -1,7 +1,10 @@
+from __future__ import division
+from collections import Counter
 from uuid import uuid4
 
 from Bio import SeqIO
 from pytest import (
+    approx,
     mark,
     warns,
 )
@@ -128,3 +131,24 @@ def test_index_fasta_with_all(nonindexed_fasta):
     assert [not index.exists() for index in [samtools_index, bowtie_index]]
     index_fasta(nonindexed_fasta, 'all')
     assert [index.exists() for index in [samtools_index, bowtie_index]]
+
+
+@mark.parametrize("length", [0, 1, 10])
+def test_rand_dna_seq_length(length):
+    assert len(rand_dna_seq(length)) == length
+
+
+def test_rand_dna_seq_contains_expected_nucleotides():
+    assert set('ACGTN') == set(rand_dna_seq(10000))
+
+
+def test_rand_dna_seq_base_probs():
+    length = 10000
+    base_prob = 0.2
+    base_probs = [base_prob] * 5
+    seq = rand_dna_seq(length, base_probs)
+    base_counts = Counter(seq)
+    base_freqs = [v / length for v in base_counts.values()]
+
+    for freq in base_freqs:
+        assert freq == approx(base_prob, 0.05)

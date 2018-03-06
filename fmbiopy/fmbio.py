@@ -13,6 +13,7 @@ from plumbum.cmd import (
     zcat,
 )
 
+
 from fmbiopy.fmpaths import is_empty
 from fmbiopy.fmsystem import capture_stdout
 
@@ -129,31 +130,48 @@ def to_fastq(bam, output_prefix, zipped=True):
      ) & FG
 
 
+def rand_dna_seq(length, base_probs=[0.24, 0.24, 0.24, 0.24, 0.04]):
+    '''Generate a random DNA sequence
+
+    Parameters
+    ----------
+    length: int
+        Length of the sequence
+    base_probs: List[float]
+        Base probabilities in following order [A, C, G, T, N]
+
+    Returns
+    -------
+    str
+    '''
+    bases = ['A', 'C', 'G', 'T', 'N']
+    sequence = ''.join(choice(bases, length, p=base_probs))
+    return sequence
+
+
 def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):
     '''Simulate a multifasta file
 
     Parameters
     ----------
     num_sequences: int
-    Number of sequences to simulate
+        Number of sequences to simulate
     contig_length: int
-    Length of each contig
+        Length of each contig
     output_file: pathlike
-    Path for the output fasta
+        Path for the output fasta
     include_n: bool
-    If True, 'N' nucleotides are included in the fasta. 'N' nucleotides are
-    included rarely (~1 every 100 bases)
+        If True, 'N' nucleotides are included in the fasta. 'N' nucleotides are
+        included rarely(~1 every 100 bases)
     '''
     output_file = local.path(output_file)
     name_base = '>simulated_fasta_' + str(contig_length) + '_'
     if include_n:
-        bases = ['A', 'C', 'G', 'T', 'N']
         base_probs = [0.2475] * 4 + [0.01]
     else:
-        bases = ['A', 'C', 'G', 'T']
-        base_probs = [0.25] * 4
+        base_probs = [0.25] * 4 + [0]
     with output_file.open('w') as f:
         for i in range(num_sequences):
-            sequence = ''.join(choice(bases, contig_length, p=base_probs))
+            sequence = rand_dna_seq(contig_length, base_probs)
             print(name_base + str(i), file=f)
             print(sequence, file=f)
