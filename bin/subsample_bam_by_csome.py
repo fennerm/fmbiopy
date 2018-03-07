@@ -15,7 +15,7 @@ from random import sample
 
 from plumbum.cmd import (
     extract_csome,
-    list_nonempty_csomes,
+    list_csomes,
     samtools,
 )
 
@@ -25,7 +25,7 @@ from fmbiopy.fmlist import exclude_blank
 
 def main(n, inbam, outbam):
     n = int(n)
-    csome_names = exclude_blank(list_nonempty_csomes(inbam).split("\n"))
+    csome_names = exclude_blank(list_csomes(inbam).split("\n"))
     random_csomes = sample(set(csome_names), n)
     args = [inbam] + random_csomes
     (extract_csome.__getitem__(args) | samtools['sort'] > outbam)()

@@ -53,13 +53,11 @@ def test_count_reads_output_correct_for_empty_bam(empty_bam):
 
 
 def test_count_reads_output_correct_for_sam(untrimmed_sam):
-    n = count_reads(untrimmed_sam)
-    assert n > 830 and n < 850
+    assert count_reads(untrimmed_sam) == approx(840, 25)
 
 
 def test_count_reads_output_correct_for_fastq(simulated_reads):
-    n = count_reads(simulated_reads['fwd'])
-    assert n > 415 and n < 425
+    assert count_reads(simulated_reads['fwd']) == approx(420, 10)
 
 
 @mark.parametrize('sort_by', ['index', 'name'])
@@ -151,4 +149,4 @@ def test_rand_dna_seq_base_probs():
     base_freqs = [v / length for v in base_counts.values()]
 
     for freq in base_freqs:
-        assert freq == approx(base_prob, 0.05)
+        assert freq == approx(base_prob, 0.1)

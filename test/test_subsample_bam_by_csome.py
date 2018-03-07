@@ -4,6 +4,7 @@ from pytest import fixture
 
 from fmbiopy.fmlist import exclude_blank
 
+
 @fixture(name="subsampled_bam")
 def gen_subsampled_bam(dat, tmpdir):
     inbam = dat["small"]["bam"][0]
@@ -14,11 +15,13 @@ def gen_subsampled_bam(dat, tmpdir):
     samtools("index", outbam)
     return (inbam, outbam)
 
+
 def get_nonempty_csomes(bam):
-    list_nonempty_csomes = local["bin/list_nonempty_csomes"]
-    nonempty_csomes = list_nonempty_csomes(bam)
+    list_csomes = local["bin/list_csomes"]
+    nonempty_csomes = list_csomes(bam)
     nonempty_csomes = exclude_blank(nonempty_csomes.split('\n'))
     return nonempty_csomes
+
 
 def test_subsample_bam_by_csome(subsampled_bam):
     input_csomes = get_nonempty_csomes(subsampled_bam[0])

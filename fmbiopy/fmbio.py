@@ -1,6 +1,10 @@
 '''Functions for operating on bioinformatics files'''
 from __future__ import print_function
 
+from Bio import SeqIO
+from Bio.Alphabet import IUPAC
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 from numpy.random import choice
 from plumbum import (
     FG,
@@ -165,7 +169,7 @@ def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):
         included rarely(~1 every 100 bases)
     '''
     output_file = local.path(output_file)
-    name_base = '>simulated_fasta_' + str(contig_length) + '_'
+    name_root = 'simulated_fasta_' + str(contig_length) + '_'
     if include_n:
         base_probs = [0.2475] * 4 + [0.01]
     else:
@@ -173,5 +177,6 @@ def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):
     with output_file.open('w') as f:
         for i in range(num_sequences):
             sequence = rand_dna_seq(contig_length, base_probs)
-            print(name_base + str(i), file=f)
-            print(sequence, file=f)
+            seqid = name_root + str(i)
+            record = SeqRecord(Seq(sequence, IUPAC.ambiguous_dna), id=seqid)
+            SeqIO.write(record, f, 'fasta')

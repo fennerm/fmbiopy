@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-## List non-empty chromosomes in a .bam or .fasta file
-if [[ "$1" =~ .*bam ]]; then
-    samtools view "$1" | awk '{print $3}' | uniq -d | grep -v '*'
-elif [[ "$1" =~ .*fa.* ]]; then
-    grep -e ">" "$1" | cut -c 2-
-fi
