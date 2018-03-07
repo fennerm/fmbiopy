@@ -4,5 +4,5 @@ if [[ "$1" =~ .*bam ]]; then
     samtools view "$1" | awk '{print $3}' | uniq -d | grep -v '*'
 elif [[ "$1" =~ .*fa.* ]]; then
     # Grep the sequence id only
-    grep -oe "^>.[^\s]*" "$1" | cut -c 2-
+    grep -oe "^>\\S*" "$1" | cut -c 2-
 fi

@@ -27,8 +27,8 @@ def main(n, inbam, outbam):
     n = int(n)
     csome_names = exclude_blank(list_csomes(inbam).split("\n"))
     random_csomes = sample(set(csome_names), n)
-    args = [inbam] + random_csomes
-    (extract_csome.__getitem__(args) | samtools['sort'] > outbam)()
+    extract_args = [inbam] + random_csomes
+    (extract_csome.__getitem__(extract_args) | samtools['sort'] > outbam)()
 
 
 if __name__ == "__main__":
