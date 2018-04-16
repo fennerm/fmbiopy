@@ -14,9 +14,9 @@ Options:
   -n --sample=<N>   Number of reads to sample
 """
 
+from docopt import docopt
 from plumbum import local
 
-from fmbiopy.fmparse import helpful_docopt
 
 def subsample_fastq(in1, in2, out1, out2, n):
     """Subsample reads from a pair of fastq files using seqtk
@@ -35,7 +35,7 @@ def subsample_fastq(in1, in2, out1, out2, n):
 
 
 if __name__ == "__main__":
-    opts = helpful_docopt(__doc__)
+    opts = docopt(__doc__)
 
     subsample_fastq(opts['IN1'], opts['IN2'], opts['OUT1'], opts['OUT2'],
                     n=opts['--sample'])

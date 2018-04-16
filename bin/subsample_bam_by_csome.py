@@ -13,13 +13,13 @@ Options:
 import sys
 from random import sample
 
+from docopt import docopt
 from plumbum.cmd import (
     extract_csome,
     list_csomes,
     samtools,
 )
 
-from fmbiopy.fmparse import helpful_docopt
 from fmbiopy.fmlist import exclude_blank
 
 
@@ -33,5 +33,5 @@ def main(n, inbam, outbam):
 
 
 if __name__ == "__main__":
-    opts = helpful_docopt(__doc__)
+    opts = docopt(__doc__)
     main(n=opts["--ncsomes"], inbam=opts["INBAM"], outbam=opts["--output"])

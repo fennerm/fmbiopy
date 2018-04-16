@@ -7,12 +7,12 @@ Usage:
 """
 from __future__ import print_function
 
+from docopt import docopt
 from plumbum import local
 
 from fmbiopy.fmbio import count_reads
-from fmbiopy.fmparse import helpful_docopt
 
 if __name__ == "__main__":
-    opts = helpful_docopt(__doc__)
+    opts = docopt(__doc__)
     filename = local.path(opts['FILE'])
     print(count_reads(filename))

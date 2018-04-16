@@ -5,7 +5,7 @@ Usage:
   index_fasta.py FASTA
   index_fasta.py (-h --help)
 """
-from fmbiopy.fmparse import helpful_docopt
+from docopt import docopt
 from plumbum import (
     FG,
     local,
@@ -32,5 +32,5 @@ def main(fasta):
         bowtie2_build[fasta, fasta.with_suffix('')] & FG
 
 if __name__ == "__main__":
-    opts = helpful_docopt(__doc__)
+    opts = docopt(__doc__)
     main(opts['FASTA'])
