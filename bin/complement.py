@@ -86,7 +86,7 @@ def cli(csv_file, output_prefix, tab_separated, include_cols):
     csv_files = [local.path(f) for f in csv_file]
 
     complement(csv_files=csv_files,
-               output_prefix=local.path(output_prefix),
+               output_prefix=output_prefix,
                delimiter=delimiter,
                include_cols=include_cols)
 
