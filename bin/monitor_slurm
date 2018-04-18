@@ -1,6 +1,2 @@
 #!/usr/bin/env bash
-
-while true; do
-    squeue -u schaack
-    sleep 5
-done
+watch -n 1 'squeue -u schaack | tail -n "$(tput lines)"'
