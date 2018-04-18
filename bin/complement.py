@@ -66,7 +66,7 @@ def complement(csv_files, output_prefix, delimiter=',', include_cols=None):
 
 @click.command()
 @click.option('-o', '--output_prefix', help='Output file prefix')
-@click.option('-t', '--tab_separated',
+@click.option('-t', '--tab_separated', is_flag=True,
               help='Table is tab separated (comma separated is default)')
 @click.option('-i', '--include_cols',
               help=('List of column indices to inspect when complementing. E.g '
