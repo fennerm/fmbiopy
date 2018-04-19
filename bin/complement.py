@@ -55,25 +55,34 @@ def remove_shared_rows(dfs, include_cols=None):
     return final_dfs
 
 
-def complement(csv_files, output_prefix, delimiter=',', include_cols=None):
+def complement(csv_files, output_prefix, delimiter=',', include_cols=None,
+               target=None):
     """Remove all shared rows from a list of csv/tsv files."""
     dfs = read_tables(csv_files, delimiter)
     dfs = remove_shared_rows(dfs, include_cols)
     output_filenames = [local.path(output_prefix + f.name) for f in csv_files]
-    for df, filename in zip(dfs, output_filenames):
-        write_table(df, filename, delimiter)
+
+    if target:
+        write_table(dfs[output_filenames.index(target)], target, delimiter)
+    else:
+        for df, filename in zip(dfs, output_filenames):
+            write_table(df, filename, delimiter)
 
 
 @click.command()
 @click.option('-o', '--output_prefix', help='Output file prefix')
 @click.option('-t', '--tab_separated', is_flag=True,
               help='Table is tab separated (comma separated is default)')
-@click.option('-i', '--include_cols',
+@click.option('-i', '--include_cols', default=None,
               help=('List of column indices to inspect when complementing. E.g '
                     '"-i 3,4" to inspect the 4rd and 5th columns (zero '
                     'indexed)'))
+@click.option('-f', '--target', default=None,
+              help='If specified, only the result for the specific file '
+                   'will be outputted. This target file must also be '
+                   'included in the argument list.')
 @click.argument('csv_file', nargs=-1)
-def cli(csv_file, output_prefix, tab_separated, include_cols):
+def cli(csv_file, output_prefix, tab_separated, include_cols, target):
     """Remove rows in input files which are shared between multiple files."""
     if tab_separated:
         delimiter = '\t'
@@ -83,12 +92,11 @@ def cli(csv_file, output_prefix, tab_separated, include_cols):
     if include_cols:
         include_cols = include_cols.split(',')
 
-    csv_files = [local.path(f) for f in csv_file]
-
-    complement(csv_files=csv_files,
+    complement(csv_files=[local.path(f) for f in csv_file],
                output_prefix=output_prefix,
                delimiter=delimiter,
-               include_cols=include_cols)
+               include_cols=include_cols,
+               target=local.path(target))
 
 
 

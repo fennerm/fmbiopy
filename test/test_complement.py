@@ -53,7 +53,7 @@ def tables(request, sandbox):
 
 @mark.parametrize('include_cols', [['0', '1'], None])
 def test_complement(sandbox, tables, include_cols):
-    output_prefix = sandbox + '/' + 'exclude_shared/'
+    output_prefix = sandbox + '/' + uuid4().hex + '/'
     complement(tables['files'],
                output_prefix=output_prefix,
                delimiter=tables['delimiter'],
@@ -70,7 +70,7 @@ def test_complement(sandbox, tables, include_cols):
     assert all([df.shape[0] == expected_nrows for df in output_dfs])
 
 
-@mark.parametrize('output_prefix', ['a', 'a/'])
+@mark.parametrize('output_prefix', [uuid4().hex, uuid4().hex + '/'])
 def test_output_prefix_behavior(sandbox, output_prefix, tables):
     output_prefix = sandbox + '/' + output_prefix
     expected_output = [local.path(output_prefix + f.name)
@@ -81,3 +81,20 @@ def test_output_prefix_behavior(sandbox, output_prefix, tables):
                include_cols=None)
     for f in expected_output:
         assert f.exists()
+    for f in expected_output:
+        f.delete()
+
+
+def test_target_param(sandbox, tables):
+    output_prefix = sandbox + '/' + uuid4().hex + '/'
+    target = local.path(output_prefix + tables['files'][0].name)
+    nontargets = [local.path(output_prefix + f.name)
+                  for f in tables['files'][1:]]
+    complement(tables['files'],
+               output_prefix=output_prefix,
+               delimiter=tables['delimiter'],
+               include_cols=None,
+               target=target)
+    assert target.exists()
+    for f in nontargets:
+        assert not f.exists()
