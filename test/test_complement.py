@@ -94,7 +94,7 @@ def test_target_param(sandbox, tables):
                output_prefix=output_prefix,
                delimiter=tables['delimiter'],
                include_cols=None,
-               target=target)
+               target=tables['files'][0])
     assert target.exists()
     for f in nontargets:
         assert not f.exists()

@@ -63,7 +63,9 @@ def complement(csv_files, output_prefix, delimiter=',', include_cols=None,
     output_filenames = [local.path(output_prefix + f.name) for f in csv_files]
 
     if target:
-        write_table(dfs[output_filenames.index(target)], target, delimiter)
+        target_filename = local.path(output_prefix + target.name)
+        write_table(dfs[output_filenames.index(target_filename)],
+                    target_filename, delimiter)
     else:
         for df, filename in zip(dfs, output_filenames):
             write_table(df, filename, delimiter)
