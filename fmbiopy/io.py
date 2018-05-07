@@ -25,3 +25,22 @@ def write_table(df, outfile, delimiter=','):
     if not outfile.dirname.exists():
         outfile.dirname.mkdir()
     df.to_csv(str(outfile), sep=delimiter, index=False)
+
+
+def read_header(filename, comment_char='#'):
+    """Read the header from a file
+
+    Returns
+    -------
+    List[str]
+
+    """
+    header = []
+    with open(filename, 'r') as f:
+        while True:
+            line = f.readline()
+            if line.startswith(comment_char) or line.isspace():
+                header.append(line)
+            else:
+                break
+    return header
