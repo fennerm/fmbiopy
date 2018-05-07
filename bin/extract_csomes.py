@@ -94,6 +94,7 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
         region_list = capture_stdout(cat[contig_file])
         if not region_list:
             sys.exit('Sequence list is empty')
+        region_list = ['"' + region + '"' for region in region_list]
         if len(region_list) < nchunks:
             nchunks = len(region_list)
 
@@ -102,7 +103,7 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
         chunk_bams = [tmpdir / (uuid4().hex + '.bam') for _ in range(nchunks)]
 
         queue = Queue(maxsize=nthreads)
-        start_workers(nchunks, queue, bam)
+        start_workers(nthreads, queue, bam)
 
         log.info('Queueing jobs')
         for chunk, chunk_bam in zip(chunks, chunk_bams):
