@@ -42,3 +42,12 @@ def file_with_header(sandbox, request):
 def test_read_header(file_with_header):
     expected = ['{} foo\n'.format(file_with_header['comment_char']), '\n']
     assert read_header(**file_with_header) == expected
+
+
+def test_write_table_with_header(sandbox, dataframe, dataframe_header):
+    tmpfile = sandbox / 'write_table_with_header'
+    expected = ['# foo\n', '\n', 'A,B\n', '0,0\n', '0,0\n']
+    write_table_with_header(dataframe, dataframe_header, tmpfile, sep=',')
+    with tmpfile.open('r') as f:
+        lines = f.readlines()
+    assert lines == expected

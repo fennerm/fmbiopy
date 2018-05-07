@@ -16,15 +16,26 @@ def list_to_csv(l, output_file, delimiter=','):
             writer.writerow(row)
 
 
-def write_table(df, outfile, delimiter=','):
+def write_table(df, outfile, **kwargs):
     """Write a data frame to a file with sensible defaults.
 
     If the output file directory doesn't exist it is created. The row index is
     not included in the output file.
     """
+    outfile = local.path(outfile)
     if not outfile.dirname.exists():
         outfile.dirname.mkdir()
-    df.to_csv(str(outfile), sep=delimiter, index=False)
+    df.to_csv(str(outfile), index=False, **kwargs)
+
+
+def write_table_with_header(df, header, filename, **kwargs):
+    """Write a table with a prepended header."""
+    filename = local.path(filename)
+    if not filename.dirname.exists():
+        filename.dirname.mkdir()
+    with filename.open('a') as f:
+        f.writelines(header)
+        df.to_csv(f, index=False)
 
 
 def read_header(filename, comment_char='#'):
