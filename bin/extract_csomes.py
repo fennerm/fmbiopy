@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''Extract the reads mapping to a list of contigs from a bam file
+"""Extract the reads mapping to a list of contigs from a bam file
 
 All contigs not included in a given contig list are removed.
 
@@ -21,21 +21,19 @@ newlines)
 -n, --nchunks=NCHUNKS         Number of chunks to split the region list. By
 default, NCHUNKS=THREADS
 -p, --threads=THREADS         Number of threads [default: 1]
-'''
+"""
 import logging as log
 import os
 try:
     from queue import Queue
 except ImportError:
     from Queue import Queue
+import sys
 from threading import Thread
 from uuid import uuid4
 
 from docopt import docopt
-from plumbum import (
-    FG,
-    local,
-)
+from plumbum import local
 from plumbum.cmd import cat
 
 from fmbiopy.fmbio import (
@@ -51,7 +49,7 @@ setup_log()
 
 
 def start_workers(nchunks, queue, bam):
-    '''Initialize the worker threads'''
+    """Initialize the worker threads"""
     for i in range(nchunks):
         worker = BamExtractor(queue, bam)
         log.info('Starting BamExtractor thread %s', i)
@@ -60,7 +58,7 @@ def start_workers(nchunks, queue, bam):
 
 
 class BamExtractor(Thread):
-    '''Worker thread for extracting contigs from bam'''
+    """Worker thread for extracting contigs from bam"""
 
     def __init__(self, queue, bam):
         Thread.__init__(self)
@@ -68,7 +66,7 @@ class BamExtractor(Thread):
         self.bam = bam
 
     def run(self):
-        '''Get the work from the queue and run samtools'''
+        """Get the work from the queue and run samtools"""
         while True:
             contig_list, output_file = self.queue.get()
             contig_list = ' '.join(contig_list)
@@ -94,6 +92,8 @@ def main(bam, contig_file, output_format, nthreads, output_prefix, nchunks):
 
         log.info('Reading input contig list')
         region_list = capture_stdout(cat[contig_file])
+        if not region_list:
+            sys.exit('Sequence list is empty')
         if len(region_list) < nchunks:
             nchunks = len(region_list)
 
