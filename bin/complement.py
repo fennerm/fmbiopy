@@ -8,7 +8,10 @@ from fmbiopy.df import (
     get_colnames,
     split,
 )
-from fmbiopy.io import write_table
+from fmbiopy.io import (
+    read_header,
+    write_table_with_header,
+)
 
 
 def read_tables(csv_files, delimiter):
@@ -21,10 +24,11 @@ def read_tables(csv_files, delimiter):
 
     """
     dfs = [pd.read_csv(f, dtype=str, sep=delimiter) for f in csv_files]
+    headers = [read_header(f) for f in csv_files]
 
     if not all([dfs[0].shape[1] == df.shape[1] for df in dfs]):
         raise ValueError('Input files don\'t have the same number of columns')
-    return dfs
+    return dfs, headers
 
 
 def remove_shared_rows(dfs, include_cols=None):
@@ -58,17 +62,21 @@ def remove_shared_rows(dfs, include_cols=None):
 def complement(csv_files, output_prefix, delimiter=',', include_cols=None,
                target=None):
     """Remove all shared rows from a list of csv/tsv files."""
-    dfs = read_tables(csv_files, delimiter)
+    dfs, headers = read_tables(csv_files, delimiter)
     dfs = remove_shared_rows(dfs, include_cols)
     output_filenames = [local.path(output_prefix + f.name) for f in csv_files]
 
     if target:
         target_filename = local.path(output_prefix + target.name)
-        write_table(dfs[output_filenames.index(target_filename)],
-                    target_filename, delimiter)
+        target_index = output_filenames.index(target_filename)
+        write_table_with_header(
+            df=dfs[target_index],
+            header=headers[target_index],
+            filename=target_filename,
+            sep=delimiter)
     else:
-        for df, filename in zip(dfs, output_filenames):
-            write_table(df, filename, delimiter)
+        for df, header, filename in zip(dfs, headers, output_filenames):
+            write_table_with_header(df, header, filename, sep=delimiter)
 
 
 @click.command()
