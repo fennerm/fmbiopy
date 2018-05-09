@@ -96,7 +96,7 @@ def test_simulate_fasta(sandbox, contig_length, num_contigs):
 
 
 @mark.parametrize("include_n", [True, False])
-def test_simulate_fasta_includes_Ns(sandbox, include_n):
+def test_simulate_fasta_includes_ns(sandbox, include_n):
     simulated_fasta = sandbox / (uuid4().hex + '.fasta')
     simulate_fasta(1, 10000, simulated_fasta, include_n=include_n)
     record = next(SeqIO.parse(simulated_fasta, "fasta"))

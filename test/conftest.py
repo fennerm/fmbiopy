@@ -1,4 +1,4 @@
-'''pytest fixtures shared among tests'''
+"""pytest fixtures shared among tests"""
 from __future__ import print_function
 from os import chdir
 from collections import namedtuple
@@ -11,11 +11,10 @@ from uuid import uuid4
 
 from Bio import SeqIO
 from numpy.random import binomial
+import pandas as pd
 from plumbum import local
 from plumbum.cmd import (
-    bowtie2,
     git,
-    picard,
     sambamba,
     samtools,
 )
@@ -463,10 +462,10 @@ def simulated_reads(sandbox, fasta):
 
 @fixture(scope='session')
 def paired_trimmed_fastq(sandbox, simulated_reads):
-    '''Produce a test dataset with trimmed paired fastq files
+    """Produce a test dataset with trimmed paired fastq files
 
     Returns a dict with 'fwd', 'rev' and 'unpaired' entries.
-    '''
+    """
     prefix = sandbox / uuid4().hex
     prob_removal = 0.05
     prob_trim = 0.5
@@ -561,13 +560,20 @@ def trimmed_bam(sandbox, partial_fasta, paired_trimmed_fastq):
 
 @fixture(scope='session')
 def bam_with_orphans(sandbox, trimmed_bam):
-    '''Generate a .bam file with orphaned reads'''
+    """Generate a .bam file with orphaned reads."""
     output_bam = sandbox / (uuid4().hex + '.bam')
     # Reads which match this criterion are filtered, leaving orphaned reads in
     # the bam
     filt = "not (first_of_pair and ref_id == 1 and position < 200)"
     (sambamba['view', '-f', 'bam', '-F', filt, trimmed_bam] > output_bam)()
     return output_bam
+
+
+@fixture
+def indexed_bam_with_orphans(bam_with_orphans):
+    """A bam file with orphan reads and a .bai index."""
+    samtools('index', bam_with_orphans)
+    return bam_with_orphans
 
 
 @fixture(scope="session")
@@ -614,3 +620,22 @@ def update_testdat(testdir, testdat, testdat_repo):
     else:
         with local.cwd(testdat):
             git['pull']()
+
+
+@fixture
+def dataframe():
+    """A dataframe with following structure:
+
+       A  B
+    1  0  0
+    2  0  0
+
+    """
+    x = pd.DataFrame(index=[1, 2], columns=['A', 'B'])
+    x = x.fillna(0)
+    return x
+
+
+@fixture
+def dataframe_header():
+    return ['# foo\n', '\n']

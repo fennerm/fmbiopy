@@ -1,4 +1,4 @@
-'''Functions for operating on bioinformatics files'''
+"""Functions for operating on bioinformatics files"""
 from __future__ import print_function
 
 from Bio import SeqIO
@@ -25,7 +25,7 @@ from fmbiopy.fmsystem import capture_stdout
 def align_and_sort(idx, fastq1, fastq2, output_bam, unpaired_fastq=None,
                    max_insert_size=1000, preset='sensitive',
                    threads=1):
-    '''Align with bowtie2, convert to bam, sort and index'''
+    """Align with bowtie2, convert to bam, sort and index"""
     bowtie2_args = ['-x', idx, '-1', fastq1, '-2', fastq2, '--' + preset,
                     '-p', str(threads), '-X', str(max_insert_size)]
     if unpaired_fastq:
@@ -38,7 +38,7 @@ def align_and_sort(idx, fastq1, fastq2, output_bam, unpaired_fastq=None,
 
 
 def is_fastq(filename):
-    '''Return True if the file is a fastq file'''
+    """Return True if the file is a fastq file"""
     filename = local.path(filename)
     fastq_extensions = ['.fq', '.fastq', '.fq.gz', '.fastq.gz']
     return any([filename.name.lower().endswith(ext) for ext in
@@ -74,7 +74,7 @@ def count_reads(filename):
 
 
 def index_fasta(filename, method='samtools'):
-    '''Index a .fasta file
+    """Index a .fasta file
 
     Parameters
     ----------
@@ -82,7 +82,7 @@ def index_fasta(filename, method='samtools'):
     Path to the fasta file
     method: string, optional
     Indexing method (Possible values: ['samtools', 'bowtie2', 'all'])
-    '''
+    """
     if method in ['samtools', 'all']:
         samtools['faidx', filename]()
     if method in ['bowtie2', 'all']:
@@ -91,7 +91,7 @@ def index_fasta(filename, method='samtools'):
 
 
 def merge_bams(bams, output_file, sort_by="index"):
-    '''Merge a list of .bam files into a single sorted, indexed .bam file'''
+    """Merge a list of .bam files into a single sorted, indexed .bam file"""
 
     if sort_by not in ['index', 'name']:
         raise ValueError(
@@ -112,7 +112,7 @@ def merge_bams(bams, output_file, sort_by="index"):
 
 
 def to_fastq(bam, output_prefix, zipped=True):
-    '''Convert a bam or sam to .fastq files'''
+    """Convert a bam or sam to .fastq files"""
     reads = {}
     reads['fwd'] = local.path(output_prefix + '.R1.fastq')
     reads['rev'] = local.path(output_prefix + '.R2.fastq')
@@ -135,7 +135,7 @@ def to_fastq(bam, output_prefix, zipped=True):
 
 
 def rand_dna_seq(length, base_probs=[0.24, 0.24, 0.24, 0.24, 0.04]):
-    '''Generate a random DNA sequence
+    """Generate a random DNA sequence
 
     Parameters
     ----------
@@ -147,14 +147,14 @@ def rand_dna_seq(length, base_probs=[0.24, 0.24, 0.24, 0.24, 0.04]):
     Returns
     -------
     str
-    '''
+    """
     bases = ['A', 'C', 'G', 'T', 'N']
     sequence = ''.join(choice(bases, length, p=base_probs))
     return sequence
 
 
 def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):
-    '''Simulate a multifasta file
+    """Simulate a multifasta file
 
     Parameters
     ----------
@@ -167,7 +167,8 @@ def simulate_fasta(num_sequences, contig_length, output_file, include_n=True):
     include_n: bool
         If True, 'N' nucleotides are included in the fasta. 'N' nucleotides are
         included rarely(~1 every 100 bases)
-    '''
+
+    """
     output_file = local.path(output_file)
     name_root = 'simulated_fasta_' + str(contig_length) + '_'
     if include_n:

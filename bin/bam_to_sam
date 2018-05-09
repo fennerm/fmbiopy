@@ -1,3 +1,2 @@
-#!/bin/sh
-
+#!/bin/env bash
 samtools view -h "$1"

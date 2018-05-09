@@ -3,6 +3,7 @@
 
 def get_colnames(df):
     """Get the column names of a data frame as a list."""
+    # Faster than using list(df)
     return df.columns.get_values().tolist()
 
 
