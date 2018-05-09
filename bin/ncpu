@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+## Return the number of cpu on the system
+grep -c ^processor /proc/cpuinfo
