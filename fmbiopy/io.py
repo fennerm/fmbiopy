@@ -55,3 +55,12 @@ def read_header(filename, comment_char='#'):
             else:
                 break
     return header
+
+
+def copy_header(sourcefile, sinkfile):
+    """Copy the first line from `sourcefile` to `sinkfile`.
+
+    Contents of sinkfile will be erased.
+    """
+    with open(sourcefile, 'r') as source, open(sinkfile, 'w') as sink:
+        sink.write(source.readline())
