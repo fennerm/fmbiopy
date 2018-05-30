@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+## Invert the included sequence in a bed file
+## Usage:
+##      invert_bed REFERENCE_FASTA BED
+
+bedtools subtract \
+    -a <(bioawk -c fastx '{print $name"\t0\t"length($seq)}' $1) \
+    -b "$2"
