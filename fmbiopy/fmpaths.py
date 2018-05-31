@@ -3,14 +3,12 @@
 from contextlib import contextmanager
 from errno import ENOENT
 from os import remove
+import re
 from warnings import warn
 
 from plumbum import local
 
-from fmbiopy.fmlist import (
-    is_non_string_sequence,
-    not_empty,
-)
+from fmbiopy.fmlist import is_non_string_sequence, not_empty
 
 # If using python2 FileNotFoundError won't work
 try:
@@ -38,7 +36,7 @@ def any_exist(paths):
 
 
 def any_empty(paths):
-    '''Return True if any path in paths is empty'''
+    """Return True if any path in paths is empty"""
     return any(apply_is_empty(paths))
 
 
@@ -81,7 +79,7 @@ def as_dict(directory):
     subdirs = listdirs(directory)
     output = {}
     for d in subdirs:
-        output[d.name] = d // '*'
+        output[d.name] = d // "*"
     return output
 
 
@@ -105,7 +103,8 @@ def check_all_exist(paths):
     """Raise error if any paths in list do not exist """
     if not all_exist(paths):
         raise FileNotFoundError(
-            "Not all paths exist: \n" + ' '.join(as_strs(paths)))
+            "Not all paths exist: \n" + " ".join(as_strs(paths))
+        )
 
 
 def create_all(paths):
@@ -139,7 +138,7 @@ def extension_without_gz(path):
     """Get the file extension ignoring .gz if present"""
     suffixes = path.suffixes
     last = len(suffixes)
-    if suffixes[last] == '.gz':
+    if suffixes[last] == ".gz":
         extension = suffixes[last - 1]
     else:
         extension = suffixes[last]
@@ -166,9 +165,9 @@ def find(directory, extensions=None, substring=None):
     hits = []
     if extensions is not None:
         for ext in extensions:
-            hits += directory // ('*' + ext)
+            hits += directory // ("*" + ext)
     else:
-        hits = directory // '*'
+        hits = directory // "*"
 
     # Filter by substring
     if substring is not None:
@@ -184,7 +183,12 @@ def find(directory, extensions=None, substring=None):
 def get_bowtie2_indices(prefix):
     """Given the bowtie2 index prefix, return the bowtie2 indices"""
     bowtie_suffixes = [
-        '.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2', '.rev.2.bt2'
+        ".1.bt2",
+        ".2.bt2",
+        ".3.bt2",
+        ".4.bt2",
+        ".rev.1.bt2",
+        ".rev.2.bt2",
     ]
     paths = [local.path(prefix + suffix) for suffix in bowtie_suffixes]
     return paths
@@ -197,7 +201,7 @@ def is_empty(path):
 
 def listdirs(directory):
     """List all the subdirectories of a directory"""
-    contents = directory // '*'
+    contents = directory // "*"
     out = []
     for path in contents:
         if path.is_dir():
@@ -238,7 +242,7 @@ def remove_all(names, silent=False):
                     remove_func(name)
                 except IsADirectoryError:
                     if silent:
-                        warn('Attempted to delete a directory. Skipping')
+                        warn("Attempted to delete a directory. Skipping")
                     else:
                         raise
     else:
@@ -254,16 +258,16 @@ def rm_gz_suffix(path):
     """Gzip aware suffix removal
 
     If .gz is the final path extension then two extensions are removed."""
-    if path.suffix == '.gz':
+    if path.suffix == ".gz":
         nremove = 2
     else:
         nremove = 1
-    return path.with_suffix('', nremove)
+    return path.with_suffix("", nremove)
 
 
 def root(path):
     """Return the root name of a path(with directory included)"""
-    return path.with_suffix('', None)
+    return path.with_suffix("", None)
 
 
 def silent_remove(filename):
@@ -279,3 +283,8 @@ def silent_remove(filename):
 def size(path):
     """Return the filesize of a path in bytes"""
     return path.stat().st_size
+
+
+def sanitize_path(path):
+    """Replace illegal path characters and spaces in path."""
+    return re.sub(r"[^a-zA-Z0-9_\-/\.]", "", path.replace(" ", "_"))

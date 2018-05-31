@@ -1,15 +1,8 @@
 """Test fmbiopy.fmpaths"""
 
-from pytest import (
-    fixture,
-    mark,
-    raises,
-)
+from pytest import fixture, mark, raises
 
-from plumbum import (
-    local,
-    LocalPath,
-)
+from plumbum import local, LocalPath
 
 from fmbiopy.fmerr import EmptyListError
 from fmbiopy.fmpaths import *
@@ -22,64 +15,64 @@ except NameError:
 
 def test_all_exist(poss_path_lists):
     (name, value) = poss_path_lists
-    if name == 'absolute_exist_paths':
+    if name == "absolute_exist_paths":
         assert all_exist(value)
-    elif name == 'relative_exist_paths':
+    elif name == "relative_exist_paths":
         assert all_exist(value)
-    elif name == 'absolute_some_exist_paths':
+    elif name == "absolute_some_exist_paths":
         assert not all_exist(value)
-    elif name == 'absolute_nonexist_paths':
+    elif name == "absolute_nonexist_paths":
         assert not all_exist(value)
-    elif name == 'empty_list':
+    elif name == "empty_list":
         with raises(EmptyListError):
             all_exist(value)
 
 
 def test_any_dont_exist(poss_path_lists):
     (name, value) = poss_path_lists
-    if name == 'absolute_exist_paths':
+    if name == "absolute_exist_paths":
         assert not any_dont_exist(value)
-    elif name == 'relative_exist_paths':
+    elif name == "relative_exist_paths":
         assert not any_dont_exist(value)
-    elif name == 'absolute_some_exist_paths':
+    elif name == "absolute_some_exist_paths":
         assert any_dont_exist(value)
-    elif name == 'absolute_nonexist_paths':
+    elif name == "absolute_nonexist_paths":
         assert any_dont_exist(value)
-    elif name == 'relative_nonexist_paths':
+    elif name == "relative_nonexist_paths":
         assert any_dont_exist(value)
-    elif name == 'empty_list':
+    elif name == "empty_list":
         with raises(EmptyListError):
             any_dont_exist(value)
 
 
 def test_any_exist(poss_path_lists):
     (name, value) = poss_path_lists
-    if name == 'absolute_exist_paths':
+    if name == "absolute_exist_paths":
         assert any_exist(value)
-    elif name == 'relative_exist_paths':
+    elif name == "relative_exist_paths":
         assert any_exist(value)
-    elif name == 'absolute_some_exist_paths':
+    elif name == "absolute_some_exist_paths":
         assert any_exist(value)
-    elif name == 'absolute_nonexist_paths':
+    elif name == "absolute_nonexist_paths":
         assert not any_exist(value)
-    elif name == 'relative_nonexist_paths':
+    elif name == "relative_nonexist_paths":
         assert not any_exist(value)
-    elif name == 'empty_list':
+    elif name == "empty_list":
         with raises(EmptyListError):
             any_exist(value)
 
 
 def test_all_empty(poss_path_lists):
     (name, value) = poss_path_lists
-    if name == 'absolute_exist_paths':
+    if name == "absolute_exist_paths":
         assert all_empty(value)
-    elif name == 'absolute_nonexist_paths':
+    elif name == "absolute_nonexist_paths":
         with raises(FileNotFoundError):
             all_empty(value)
-    elif name == 'empty_list':
+    elif name == "empty_list":
         with raises(EmptyListError):
             all_empty(value)
-    elif name == 'nonempty_paths':
+    elif name == "nonempty_paths":
         assert not all_empty(value)
 
 
@@ -116,14 +109,15 @@ def test_check_all_exist():
 
 def test_create_all(poss_path_lists):
     name, value = poss_path_lists
-    if name == 'absolute_nonexist_paths':
+    if name == "absolute_nonexist_paths":
         create_all(value)
         assert all_exist(value)
-    elif name == 'empty_list':
+    elif name == "empty_list":
         create_all(value)
 
 
-class TestDelete():
+class TestDelete:
+
     def test_normal_usage(self, gen_tmp):
         tmpfiles = [gen_tmp() for i in range(3)]
         assert all_exist(tmpfiles)
@@ -133,9 +127,16 @@ class TestDelete():
         assert not any_exist(tmpfiles)
 
 
-@mark.parametrize("ext,substr,expect",
-                  [(None, None, ['a.x', 'b.y', 'b.x']), ('y', None, ['b.y']),
-                   (None, 'a', ['a.x']), (None, 'k', []), ('x', 'b', ['b.x'])])
+@mark.parametrize(
+    "ext,substr,expect",
+    [
+        (None, None, ["a.x", "b.y", "b.x"]),
+        ("y", None, ["b.y"]),
+        (None, "a", ["a.x"]),
+        (None, "k", []),
+        ("x", "b", ["b.x"]),
+    ],
+)
 def test_find(ext, substr, expect, full_dir):
     if expect:
         expect = sorted([full_dir / exp for exp in expect])
@@ -143,7 +144,7 @@ def test_find(ext, substr, expect, full_dir):
 
 
 def test_get_bowtie2_indices(bowtie2_suffixes):
-    prefix = 'foo'
+    prefix = "foo"
     expected_paths = [prefix + suffix for suffix in bowtie2_suffixes]
     dot_paths = get_bowtie2_indices(prefix)
     actual_paths = [str(path) for path in dot_paths]
@@ -157,8 +158,8 @@ def test_get_bowtie2_indices():
 
 def test_is_empty(empty_path):
     assert is_empty(empty_path)
-    with empty_path.open('w') as f:
-        f.write('0')
+    with empty_path.open("w") as f:
+        f.write("0")
     assert not is_empty(empty_path)
 
 
@@ -180,14 +181,21 @@ def test_move(gen_tmp, tmpdir, randpath):
 
 def test_prefix(double_suffixed_path):
     pre = prefix(double_suffixed_path)
-    assert '/' not in pre
-    assert '.' not in pre
+    assert "/" not in pre
+    assert "." not in pre
 
 
 def test_recursive_list_contents(nested_dir):
     expected = [
-        "foo", "bar", "car", "foo/a.x", "foo/b.y", "bar/a.x", "bar/b.y",
-        "car/a.x", "car/b.y"
+        "foo",
+        "bar",
+        "car",
+        "foo/a.x",
+        "foo/b.y",
+        "bar/a.x",
+        "bar/b.y",
+        "car/a.x",
+        "car/b.y",
     ]
     expected = [nested_dir / x for x in expected]
     assert set(recursive_list_contents(nested_dir)) == set(expected)
@@ -198,13 +206,13 @@ def test_rm_gz_suffix(double_suffixed_path, gzipped_path):
         nsuffixes = len(path.suffixes)
         nsuffixes_after = len(rm_gz_suffix(path).suffixes)
         diff = nsuffixes - nsuffixes_after
-        if path.suffix == '.gz':
+        if path.suffix == ".gz":
             expected_diff = 2
         else:
             expected_diff = 1
         assert diff == expected_diff
 
 
-def test_root(double_suffixed_path):
-    actual = str(root(double_suffixed_path))
-    par = double_suffixed_path.up()
+def test_sanitize_path():
+    testcase = "/Home/A!  Bad?patH-.xYz"
+    assert sanitize_path(testcase) == "/Home/A__BadpatH-.xYz"
