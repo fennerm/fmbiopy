@@ -7,20 +7,9 @@ other data formats might be added later.
 from collections import OrderedDict
 
 from numpy import NaN
-from pandas import concat, DataFrame, isnull, Series
+from pandas import concat, isnull
 
 from fmbiopy.fmlist import pairwise_intersect
-
-from pandas import read_csv
-
-# pileups = [
-#     "/home/fen-arch/fmacrae/megadaph.private/megadaph/pipe/tmp/FA10.head.pileup",
-#     "/home/fen-arch/fmacrae/megadaph.private/megadaph/pipe/tmp/FA7.head.pileup",
-#     "/home/fen-arch/fmacrae/megadaph.private/megadaph/pipe/tmp/FAEC1.head.pileup",
-# ]
-#
-# per_sample_counts = [read_csv(pileup, sep="\t") for pileup in pileups]
-# per_sample_counts = [destrand_counts(counts) for counts in per_sample_counts]
 
 
 def combine_indel_counts(indel_cell):
