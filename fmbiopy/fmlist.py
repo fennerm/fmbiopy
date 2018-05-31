@@ -4,6 +4,8 @@ try:
     from collections.abc import Sequence
 except ImportError:
     from collections import Sequence
+from itertools import combinations
+
 from boltons.funcutils import wraps
 
 from fmbiopy.fmerr import EmptyListError
@@ -57,10 +59,10 @@ def flatten(items):
 
 
 def distribute_across(n, xs):
-    '''Evenly spread an int across a numeric list
+    """Evenly spread an int across a numeric list
 
     E.g distribute_int_across_list(3, [1, 1, 1]) == [2, 2, 2]
-    '''
+    """
     if not xs:
         raise IndexError("List cannot be empty")
     div, mod = divmod(n, len(xs))
@@ -82,7 +84,7 @@ def get_unique(items):
 def interleave(list1, list2):
     """Convert two lists to a single interleaved list"""
     if len(list1) != len(list2):
-        raise ValueError('Lists are not the same length')
+        raise ValueError("Lists are not the same length")
     return [val for pair in zip(list1, list2) for val in pair]
 
 
@@ -109,7 +111,7 @@ def not_empty(func):
 
 
 def split_into_chunks(xs, chunk_size):
-    '''Split the list, xs, into n evenly sized chunks (order not conserved)'''
+    """Split the list, xs, into n evenly sized chunks (order not conserved)"""
     return [xs[index::chunk_size] for index in range(chunk_size)]
 
 
@@ -147,3 +149,13 @@ def split_list(xs, at):
         return exclude_blank(output)
 
     return [xs]
+
+
+def pairwise_intersect(list_of_sets):
+    """Find elements which are present in multiple sets."""
+    shared = set()
+    for a, b in combinations(list_of_sets, 2):
+        intersect = a.intersection(b)
+        if intersect:
+            shared = shared.union(intersect)
+    return shared
