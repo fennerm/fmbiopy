@@ -9,7 +9,7 @@ from collections import OrderedDict
 from numpy import NaN
 from pandas import concat, isnull
 
-from fmbiopy.fmlist import pairwise_intersect
+from fmbiopy.iter import pairwise_intersect
 
 
 def combine_indel_counts(indel_cell):

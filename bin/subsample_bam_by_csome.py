@@ -14,13 +14,9 @@ import sys
 from random import sample
 
 from docopt import docopt
-from plumbum.cmd import (
-    extract_csome,
-    list_csomes,
-    samtools,
-)
+from plumbum.cmd import extract_csome, list_csomes
 
-from fmbiopy.fmlist import exclude_blank
+from fmbiopy.iter import exclude_blank
 
 
 def main(n, inbam, outbam):

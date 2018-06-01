@@ -4,7 +4,7 @@ Moving/creating files, running commands etc.
 """
 from plumbum.cmd import cat
 
-from fmbiopy.fmlist import exclude_blank
+from fmbiopy.iter import exclude_blank
 
 
 def concat(filenames, outpath):

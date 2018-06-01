@@ -13,20 +13,20 @@ from plumbum import local
 from plumbum.cmd import git, sambamba, samtools
 from pytest import fixture
 
-from fmbiopy.fmbio import (
+from fmbiopy.bio import (
     align_and_sort,
     count_reads,
     index_fasta,
     simulate_fasta,
 )
-from fmbiopy.fmpaths import (
+from fmbiopy.paths import (
     as_dict,
     is_empty,
     listdirs,
     remove_all,
     silent_remove,
 )
-from fmbiopy.fmsystem import capture_stdout
+from fmbiopy.system import capture_stdout
 from test.helpers import trim
 
 

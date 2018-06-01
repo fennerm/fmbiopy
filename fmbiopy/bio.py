@@ -18,8 +18,8 @@ from plumbum.cmd import (
 )
 
 
-from fmbiopy.fmpaths import is_empty
-from fmbiopy.fmsystem import capture_stdout
+from fmbiopy.paths import is_empty
+from fmbiopy.system import capture_stdout
 
 
 def align_and_sort(idx, fastq1, fastq2, output_bam, unpaired_fastq=None,

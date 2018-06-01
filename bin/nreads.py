@@ -10,7 +10,7 @@ from __future__ import print_function
 from docopt import docopt
 from plumbum import local
 
-from fmbiopy.fmbio import count_reads
+from fmbiopy.bio import count_reads
 
 if __name__ == "__main__":
     opts = docopt(__doc__)

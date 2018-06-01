@@ -7,7 +7,7 @@ from numpy.random import binomial
 from plumbum import local
 from plumbum.cmd import picard
 
-from fmbiopy.fmpaths import is_empty
+from fmbiopy.paths import is_empty
 
 
 def assert_script_produces_files(

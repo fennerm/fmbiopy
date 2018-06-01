@@ -8,7 +8,7 @@ from itertools import combinations
 
 from boltons.funcutils import wraps
 
-from fmbiopy.fmerr import EmptyListError
+from fmbiopy.err import EmptyListError
 
 
 def any_endswith(items, suffix):

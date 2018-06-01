@@ -2,8 +2,8 @@ from plumbum import local
 from plumbum.cmd import samtools
 from pytest import fixture
 
-from fmbiopy.fmlist import exclude_blank
-from fmbiopy.fmsystem import capture_stdout
+from fmbiopy.iter import exclude_blank
+from fmbiopy.system import capture_stdout
 
 
 @fixture(name="subsampled_bam")

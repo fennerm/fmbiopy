@@ -1,4 +1,4 @@
-#'''Logging utilities'''
+"""Logging utilities."""
 import logging
 import os
 

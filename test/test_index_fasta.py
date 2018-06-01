@@ -1,4 +1,4 @@
-from fmbiopy.fmpaths import get_bowtie2_indices
+from fmbiopy.paths import get_bowtie2_indices
 
 from plumbum import local
 

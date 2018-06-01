@@ -1,4 +1,4 @@
-from fmbiopy.fmpaths import size
+from fmbiopy.paths import size
 from plumbum import local
 
 def test_subsample_fastq(dat):

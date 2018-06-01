@@ -1,11 +1,10 @@
 """Test fmbiopy.fmpaths"""
+from plumbum import LocalPath
+from pytest import mark, raises
 
-from pytest import fixture, mark, raises
+from fmbiopy.err import EmptyListError
+from fmbiopy.paths import *
 
-from plumbum import local, LocalPath
-
-from fmbiopy.fmerr import EmptyListError
-from fmbiopy.fmpaths import *
 
 try:
     FileNotFoundError

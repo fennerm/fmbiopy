@@ -1,4 +1,4 @@
-""" Path manipulation utilities."""
+"""Path manipulation utilities."""
 
 from contextlib import contextmanager
 from errno import ENOENT
@@ -8,7 +8,7 @@ from warnings import warn
 
 from plumbum import local
 
-from fmbiopy.fmlist import is_non_string_sequence, not_empty
+from fmbiopy.iter import is_non_string_sequence, not_empty
 
 # If using python2 FileNotFoundError won't work
 try:
@@ -254,3 +254,28 @@ def size(path):
 def sanitize_path(path):
     """Replace illegal path characters and spaces in path."""
     return re.sub(r"[^a-zA-Z0-9_\-/\.]", "", path.replace(" ", "_"))
+
+
+def check_suffix(x, suffixes):
+    """Check that a string has one of a list of suffixes
+
+    Parameters
+    ----------
+    x: str
+        Possibly suffixed string
+    suffixes: Sequence[str]
+        List of suffixes to check
+
+    Raises
+    ------
+    ValueError
+        If x does not have one of `suffixes`
+    """
+    has_suffix = any([x.endswith(suffix) for suffix in suffixes])
+
+    if not has_suffix:
+        raise ValueError(
+            " ".join(
+                [x, "does not have the correct suffix", " ".join(suffixes)]
+            )
+        )

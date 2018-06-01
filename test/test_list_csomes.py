@@ -7,7 +7,7 @@ from pytest import (
     raises,
 )
 
-from fmbiopy.fmsystem import capture_stdout
+from fmbiopy.system import capture_stdout
 
 
 @fixture

@@ -4,7 +4,7 @@ import sys
 from plumbum import local
 from pytest import fixture
 
-from fmbiopy.fmclass import *
+from fmbiopy.obj import *
 
 
 @fixture(scope='class', name='class_text')
