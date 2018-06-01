@@ -6,10 +6,27 @@ other data formats might be added later.
 """
 from collections import OrderedDict
 
-from numpy import NaN
+from numpy import int64, NaN
 from pandas import concat, isnull
 
 from fmbiopy.iter import pairwise_intersect
+
+# The columns datatypes for a mpileup2readcounts table
+READCOUNT_DTYPE = {
+    "chr": str,
+    "loc": int64,
+    "ref": str,
+    "depth": int64,
+    "A": int64,
+    "T": int64,
+    "C": int64,
+    "G": int64,
+    "a": int64,
+    "t": int64,
+    "c": int64,
+    "Insertion": int64,
+    "Deletion": int64,
+}
 
 
 def combine_indel_counts(indel_cell):
