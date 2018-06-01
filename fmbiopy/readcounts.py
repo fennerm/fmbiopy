@@ -27,8 +27,8 @@ READCOUNT_DTYPE = {
     "a": int64,
     "t": int64,
     "c": int64,
-    "Insertion": int64,
-    "Deletion": int64,
+    "Insertion": str,
+    "Deletion": str,
 }
 
 
