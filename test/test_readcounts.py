@@ -13,7 +13,7 @@ def stranded_counts():
         OrderedDict(
             (
                 ("chr", ["scaf1", "scaf2"]),
-                ("loc", [1, 2]),
+                ("pos", [1, 2]),
                 ("ref", ["G", "A"]),
                 ("depth", [16, 14]),
                 ("A", [1, 0]),
@@ -37,7 +37,7 @@ def unstranded_counts():
         OrderedDict(
             (
                 ("chr", ["scaf1", "scaf2"]),
-                ("loc", [1, 2]),
+                ("pos", [1, 2]),
                 ("ref", ["G", "A"]),
                 ("depth", [16, 14]),
                 ("A", [2, 0]),
@@ -92,7 +92,7 @@ def test_find_shared_bases_with_one_below_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -108,7 +108,7 @@ def test_find_shared_bases_with_one_below_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [18]),
@@ -130,7 +130,7 @@ def test_find_shared_bases_with_all_above_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -146,7 +146,7 @@ def test_find_shared_bases_with_all_above_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -168,7 +168,7 @@ def test_find_shared_bases_with_unique_allele():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -184,7 +184,7 @@ def test_find_shared_bases_with_unique_allele():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [20]),
@@ -206,7 +206,7 @@ def test_find_shared_bases_with_all_zero():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [0]),
                     ("A", [0]),
@@ -222,7 +222,7 @@ def test_find_shared_bases_with_all_zero():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [0]),
                     ("A", [0]),
@@ -244,7 +244,7 @@ def test_find_shared_indels_with_one_below_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -260,7 +260,7 @@ def test_find_shared_indels_with_one_below_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [19]),
@@ -282,7 +282,7 @@ def test_find_shared_indels_with_all_above_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -298,7 +298,7 @@ def test_find_shared_indels_with_all_above_cutoff():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -320,7 +320,7 @@ def test_find_shared_indels_with_unique_allele():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [10]),
@@ -336,7 +336,7 @@ def test_find_shared_indels_with_unique_allele():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [20]),
@@ -358,7 +358,7 @@ def test_find_shared_indels_with_all_zero():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [0]),
                     ("A", [0]),
@@ -374,7 +374,7 @@ def test_find_shared_indels_with_all_zero():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [0]),
                     ("A", [0]),
@@ -396,7 +396,7 @@ def test_find_shared_indels_with_multiple_shared():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [0]),
@@ -412,7 +412,7 @@ def test_find_shared_indels_with_multiple_shared():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [0]),
@@ -436,7 +436,7 @@ def test_find_shared_indels_with_multiple_unique():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [0]),
@@ -452,7 +452,7 @@ def test_find_shared_indels_with_multiple_unique():
             OrderedDict(
                 (
                     ("chr", ["scaf1"]),
-                    ("loc", [1]),
+                    ("pos", [1]),
                     ("ref", ["A"]),
                     ("depth", [20]),
                     ("A", [20]),

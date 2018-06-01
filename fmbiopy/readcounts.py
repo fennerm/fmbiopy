@@ -3,6 +3,9 @@
 At present most functions are designed to work with output of IARCbioinfo's
 fork of mpileup2readcounts (github.com/IARCbioinfo/mpileup2readcounts), but
 other data formats might be added later.
+
+IMPORTANT: loc column in mpileup2readcounts output must be renamed to pos so as
+not to conflict with loc based indexing.
 """
 from collections import OrderedDict
 
@@ -39,7 +42,7 @@ def destrand_counts(counts):
     DataFrame
 
     """
-    combined_counts = counts[["chr", "loc", "ref", "depth"]].copy()
+    combined_counts = counts[["chr", "pos", "ref", "depth"]].copy()
     for i, nuc in enumerate(["A", "T", "C", "G"]):
         combined_counts[nuc] = counts[nuc] + counts[nuc.lower()]
     for indel_type in ["Insertion", "Deletion"]:
