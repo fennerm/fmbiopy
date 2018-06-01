@@ -1,4 +1,4 @@
-""" Path manipulation utilities """
+""" Path manipulation utilities."""
 
 from contextlib import contextmanager
 from errno import ENOENT
@@ -15,51 +15,40 @@ try:
     FileNotFoundError
 except NameError:
     FileNotFoundError = IOError
+try:
+    IsADirectoryError
+except NameError:
+    IsADirectoryError = IOError
 
 
 @not_empty
 def all_exist(paths):
-    """Return True if all paths in list exist """
-    return all(apply_exists(paths))
+    """Return True if all paths in list exist."""
+    return all([path.exists() for path in paths])
 
 
 @not_empty
 def any_dont_exist(paths):
-    """Return True if any path in list does not exist """
-    return not all(apply_exists(paths))
+    """Return True if any path in list does not exist."""
+    return not all([path.exists() for path in paths])
 
 
 @not_empty
 def any_exist(paths):
-    """Return True if any path in list exists """
-    return any(apply_exists(paths))
+    """Return True if any path in list exists."""
+    return any([path.exists() for path in paths])
 
 
 def any_empty(paths):
-    """Return True if any path in paths is empty"""
-    return any(apply_is_empty(paths))
+    """Return True if any path in paths is empty."""
+    return any([is_empty(path) for path in paths])
 
 
 @not_empty
 def all_empty(paths):
-    """Return True if all paths in list exist, and are non-empty"""
+    """Return True if all paths in list exist, and are non-empty."""
     check_all_exist(paths)
-    return all(apply_is_empty(paths))
-
-
-def apply_is_empty(paths):
-    """Check whether each file in list has a nonzero file size.
-
-    Returns
-    -------
-    List[bool]
-        True if empty for each path"""
-    return [is_empty(p) for p in paths]
-
-
-def apply_exists(paths):
-    """Apply os.path.exists to a list of paths"""
-    return [p.exists() for p in paths]
+    return all([is_empty(path) for path in paths])
 
 
 def as_dict(directory):
@@ -75,6 +64,7 @@ def as_dict(directory):
     Dict[str, List[LocalPath]]
         Output dictionary is of the form Dict[x, y] where x is a subdirectory
         of `direc` and and y is the contents of x as a list.
+
     """
     subdirs = listdirs(directory)
     output = {}
@@ -83,34 +73,12 @@ def as_dict(directory):
     return output
 
 
-def as_paths(strs):
-    """Convert a list of `str` to `plumbum.LocalPath`
-
-    Returns
-    -------
-    List[Path]
-        The list as paths
-    """
-    return [local.path(string) for string in strs]
-
-
-def as_strs(paths):
-    """Convert a list of `plumbum.LocalPath` to string"""
-    return [str(path) for path in paths]
-
-
 def check_all_exist(paths):
-    """Raise error if any paths in list do not exist """
+    """Raise error if any paths in list do not exist."""
     if not all_exist(paths):
         raise FileNotFoundError(
-            "Not all paths exist: \n" + " ".join(as_strs(paths))
+            "Not all paths exist: \n" + " ".join([str(path) for path in paths])
         )
-
-
-def create_all(paths):
-    """Given a list of nonexistant filenames, create them"""
-    for path in paths:
-        path.touch()
 
 
 @contextmanager
@@ -160,7 +128,9 @@ def find(directory, extensions=None, substring=None):
     Returns
     -------
     List[plumbum.LocalPath]
-        List of files with the given extensions and substrings"""
+        List of files with the given extensions and substrings
+
+    """
     # Filter by file extension
     hits = []
     if extensions is not None:
@@ -201,12 +171,7 @@ def is_empty(path):
 
 def listdirs(directory):
     """List all the subdirectories of a directory"""
-    contents = directory // "*"
-    out = []
-    for path in contents:
-        if path.is_dir():
-            out.append(path)
-    return out
+    return [path for path in directory // "*" if path.is_dir()]
 
 
 def move(src, dest):
@@ -214,9 +179,9 @@ def move(src, dest):
 
     Differs from `plumbum.local.path.move` in that when a symlink is
     encountered, the contents are copied to the new location and the link is
-    destroyed"""
+    destroyed.
+    """
     if src.is_symlink():
-        # copyfile(str(src), str(dest))
         src.copy(dest)
         src.unlink()
     else:
@@ -257,12 +222,13 @@ def recursive_list_contents(path=local.cwd):
 def rm_gz_suffix(path):
     """Gzip aware suffix removal
 
-    If .gz is the final path extension then two extensions are removed."""
+    If .gz is the final path extension then two extensions are removed.
+    """
     if path.suffix == ".gz":
-        nremove = 2
+        num_suffixes_to_remove = 2
     else:
-        nremove = 1
-    return path.with_suffix("", nremove)
+        num_suffixes_to_remove = 1
+    return path.with_suffix("", num_suffixes_to_remove)
 
 
 def root(path):
@@ -271,7 +237,7 @@ def root(path):
 
 
 def silent_remove(filename):
-    """Try to remove a file, ignore exception if doesn't exist """
+    """Try to remove a file, ignore exception if doesn't exist."""
     if filename is not None:
         try:
             filename.delete()

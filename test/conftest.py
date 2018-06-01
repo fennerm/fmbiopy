@@ -2,10 +2,7 @@
 from __future__ import print_function
 from os import chdir
 from collections import namedtuple
-from shutil import (
-    copytree,
-    rmtree,
-)
+from shutil import copytree, rmtree
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
@@ -13,11 +10,7 @@ from Bio import SeqIO
 from numpy.random import binomial
 import pandas as pd
 from plumbum import local
-from plumbum.cmd import (
-    git,
-    sambamba,
-    samtools,
-)
+from plumbum.cmd import git, sambamba, samtools
 from pytest import fixture
 
 from fmbiopy.fmbio import (
@@ -28,8 +21,6 @@ from fmbiopy.fmbio import (
 )
 from fmbiopy.fmpaths import (
     as_dict,
-    as_paths,
-    create_all,
     is_empty,
     listdirs,
     remove_all,
@@ -49,7 +40,8 @@ def absolute_nonexist_paths(tmpdir, relative_nonexist_paths):
 def absolute_exist_paths(tmpdir, randstrs):
     """Generate a list of absolute paths which exist"""
     paths = [tmpdir / x for x in randstrs(3)]
-    create_all(paths)
+    for path in paths:
+        path.touch()
     yield paths
     remove_all(paths, silent=True)
 
@@ -64,7 +56,8 @@ def absolute_some_exist_paths(absolute_exist_paths, absolute_nonexist_paths):
 def bowtie2_suffixes():
     """A list of the suffixes added by bowtie2-build"""
     return list(
-        ['.1.bt2', '.2.bt2', '.3.bt2', '.4.bt2', '.rev.1.bt2', '.rev.2.bt2'])
+        [".1.bt2", ".2.bt2", ".3.bt2", ".4.bt2", ".rev.1.bt2", ".rev.2.bt2"]
+    )
 
 
 @fixture
@@ -75,7 +68,7 @@ def cd(tmpdir, startdir):
     chdir(str(startdir))
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def dat(sandbox):
     """Create a dictionary of test data
 
@@ -101,7 +94,7 @@ def dat(sandbox):
 @fixture
 def double_suffixed_path(gen_tmp, tmpdir):
     """Generate a path with a two part suffix"""
-    path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo.bar')
+    path = gen_tmp(empty=False, directory=tmpdir, suffix=".foo.bar")
     yield path
     silent_remove(path)
 
@@ -123,13 +116,14 @@ def empty_path(gen_tmp, tmpdir):
 @fixture()
 def full_dir(tmpdir):
     """Create a temporary directory with some misc. temporary files"""
-    paths = [tmpdir / name for name in ['a.x', 'b.y', 'b.x']]
-    create_all(paths)
+    paths = [tmpdir / name for name in ["a.x", "b.y", "b.x"]]
+    for path in paths:
+        path.touch()
     yield tmpdir
     remove_all(paths, silent=True)
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def gen_tmp(sandbox):
     """Generate a named temporary file.
 
@@ -151,18 +145,20 @@ def gen_tmp(sandbox):
     The path to the created temporary file
     """
 
-    def _gen_tmp(empty=True, suffix='', directory=sandbox):
+    def _gen_tmp(empty=True, suffix="", directory=sandbox):
 
         tmpfile = local.path(
             NamedTemporaryFile(
-                delete=False, dir=str(directory), suffix=suffix).name)
+                delete=False, dir=str(directory), suffix=suffix
+            ).name
+        )
 
         if not empty:
-            with tmpfile.open('w') as f:
-                f.write('foo')
+            with tmpfile.open("w") as f:
+                f.write("foo")
         else:
-            with tmpfile.open('w') as f:
-                f.write('')
+            with tmpfile.open("w") as f:
+                f.write("")
         return tmpfile
 
     return _gen_tmp
@@ -171,7 +167,7 @@ def gen_tmp(sandbox):
 @fixture
 def gzipped_path(randpath, randstr):
     """Return a gzipped file name"""
-    return local.path('.'.join([str(randpath()), randstr()[0:3], 'gz']))
+    return local.path(".".join([str(randpath()), randstr()[0:3], "gz"]))
 
 
 @fixture
@@ -180,7 +176,7 @@ def home():
     return local.env.home()
 
 
-@fixture(scope='session', autouse=True)
+@fixture(scope="session", autouse=True)
 def load_sandbox(update_testdat, sandbox, testdat):
     """Copy all test data files to the sandbox for the testing session
 
@@ -194,21 +190,22 @@ def load_sandbox(update_testdat, sandbox, testdat):
         """Copying the git directory is unnecessary so we ignore it
 
         This closure is used by `shutil.copytree`"""
-        return '.git'
+        return ".git"
 
     if sandbox.exists():
         rmtree(str(sandbox), ignore_errors=True)
 
     copytree(str(testdat), str(sandbox), ignore=_ignore_git)
-    (sandbox / '__init__.py').touch()
+    (sandbox / "__init__.py").touch()
     yield sandbox
     if sandbox.exists():
         rmtree(str(sandbox), ignore_errors=True)
 
 
 @fixture
-def mixed_absolute_relative_paths(absolute_nonexist_paths,
-                                  relative_nonexist_paths):
+def mixed_absolute_relative_paths(
+    absolute_nonexist_paths, relative_nonexist_paths
+):
     """Generate a list of paths, half of which are absolute, half are not"""
     return absolute_nonexist_paths + relative_nonexist_paths
 
@@ -223,13 +220,13 @@ def nested_dir(tmpdir):
     Path of the temporary directory.
     """
 
-    subdir_names = ['foo', 'bar', 'car']
+    subdir_names = ["foo", "bar", "car"]
     subdirs = [tmpdir / d for d in subdir_names]
     for d in subdirs:
         d.mkdir()
-        subdir_contents = [d / f for f in ['a.x', 'b.y']]
+        subdir_contents = [d / f for f in ["a.x", "b.y"]]
         for f in subdir_contents:
-            f.open('a').close()
+            f.open("a").close()
     yield tmpdir
     for d in subdirs:
         rmtree(d, ignore_errors=True)
@@ -267,13 +264,28 @@ def nonexistant_path(randstr, tmpdir):
     silent_remove(path)
 
 
-@fixture(params=[
-    'empty_path', 'nonexistant_path', 'nonempty_path', 'nonexistant_parent',
-    'double_suffixed_path', 'symlink', 'tmpdir'
-])
-def poss_paths(request, empty_path, nonexistant_path, nonexistant_parent,
-               nonempty_path, suffixed_path, double_suffixed_path, symlink,
-               tmpdir):
+@fixture(
+    params=[
+        "empty_path",
+        "nonexistant_path",
+        "nonempty_path",
+        "nonexistant_parent",
+        "double_suffixed_path",
+        "symlink",
+        "tmpdir",
+    ]
+)
+def poss_paths(
+    request,
+    empty_path,
+    nonexistant_path,
+    nonexistant_parent,
+    nonempty_path,
+    suffixed_path,
+    double_suffixed_path,
+    symlink,
+    tmpdir,
+):
     """Generate various kinds of possible valid `plumbum.LocalPath`s
 
     Returns
@@ -283,15 +295,27 @@ def poss_paths(request, empty_path, nonexistant_path, nonexistant_parent,
     return (request.param, eval(request.param))
 
 
-@fixture(params=[
-    'absolute_exist_paths', 'absolute_nonexist_paths', 'empty_list',
-    'relative_nonexist_paths', 'absolute_some_exist_paths',
-    'mixed_absolute_relative_paths', 'nonempty_paths'
-])
-def poss_path_lists(request, absolute_exist_paths, absolute_nonexist_paths,
-                    absolute_some_exist_paths, empty_list,
-                    mixed_absolute_relative_paths, relative_nonexist_paths,
-                    nonempty_paths):
+@fixture(
+    params=[
+        "absolute_exist_paths",
+        "absolute_nonexist_paths",
+        "empty_list",
+        "relative_nonexist_paths",
+        "absolute_some_exist_paths",
+        "mixed_absolute_relative_paths",
+        "nonempty_paths",
+    ]
+)
+def poss_path_lists(
+    request,
+    absolute_exist_paths,
+    absolute_nonexist_paths,
+    absolute_some_exist_paths,
+    empty_list,
+    mixed_absolute_relative_paths,
+    relative_nonexist_paths,
+    nonempty_paths,
+):
     """Generate various kinds of possible valid lists of `LocalPath`s
 
     Returns
@@ -311,28 +335,28 @@ def randpath(randstr, tmpdir):
     return _gen_randpath
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def randstr():
     """Generate a unique random string"""
 
     def _get_rand_str():
-        return uuid4().hex.replace('.', '')
+        return uuid4().hex.replace(".", "")
 
     return _get_rand_str
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def randsuffix(randstr):
     """Generate a unique random suffix"""
 
     def get_rand_suffix():
         """test"""
-        return '.' + randstr()
+        return "." + randstr()
 
     return get_rand_suffix
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def randstrs(randstr):
     """Generate n unique random strings"""
 
@@ -349,19 +373,19 @@ def relative_nonexist_paths(randstrs, tmpdir):
     return paths
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def sandbox(testdir):
     """Path to the sandbox directory"""
-    return testdir / 'sandbox'
+    return testdir / "sandbox"
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def small(sandbox):
     """Path to the 'small' subdirectory of sandbox"""
-    return sandbox / 'small'
+    return sandbox / "small"
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def startdir():
     """The directory from which testing was started"""
     return local.cwd
@@ -370,7 +394,7 @@ def startdir():
 @fixture
 def suffixed_path(gen_tmp, tmpdir):
     """Generate a nonempty path with a suffix"""
-    path = gen_tmp(empty=False, directory=tmpdir, suffix='.foo')
+    path = gen_tmp(empty=False, directory=tmpdir, suffix=".foo")
     yield path
     silent_remove(path)
 
@@ -383,7 +407,7 @@ def suffixed_paths(gen_tmp, tmpdir, randsuffix):
         gen_tmp(empty=False, directory=tmpdir, suffix=suffixes[i])
         for i in range(3)
     ]
-    tup = namedtuple('suffixed_paths', ['paths', 'suffixes'])
+    tup = namedtuple("suffixed_paths", ["paths", "suffixes"])
     tup.paths = paths
     tup.suffixes = suffixes
     yield tup
@@ -400,67 +424,77 @@ def symlink(gen_tmp, randpath, tmpdir):
     remove_all([target, path], silent=True)
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def testdat(testdir):
     """Path to the testdat directory"""
-    return testdir / 'testdat'
+    return testdir / "testdat"
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def testdat_repo():
     """The SSH address of the testdat github repo"""
-    return 'git@github.com:fennerm/testdat'
+    return "git@github.com:fennerm/testdat"
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def testdir():
     """LocalPath to the test directory"""
-    possible = as_paths(['test', 'tests', '.'])
+    possible = [local.path(x) for x in ["test", "tests", "."]]
     for poss in possible:
         if poss.exists():
             return poss
-    raise OSError('Unsupported test directory structure')
+    raise OSError("Unsupported test directory structure")
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def tiny(sandbox):
     """Path to the 'small' subdirectory of sandbox"""
-    return sandbox / 'tiny'
+    return sandbox / "tiny"
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def fasta(sandbox):
     output = {}
-    output['fasta'] = sandbox / (uuid4().hex + '.fa')
-    output['bt2'] = output['fasta'].with_suffix('')
-    simulate_fasta(20, 500, output['fasta'])
-    index_fasta(output['fasta'], 'all')
+    output["fasta"] = sandbox / (uuid4().hex + ".fa")
+    output["bt2"] = output["fasta"].with_suffix("")
+    simulate_fasta(20, 500, output["fasta"])
+    index_fasta(output["fasta"], "all")
     return output
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def nonindexed_fasta(sandbox, fasta):
-    output_file = sandbox / (uuid4().hex + '.fa')
-    fasta['fasta'].copy(output_file)
+    output_file = sandbox / (uuid4().hex + ".fa")
+    fasta["fasta"].copy(output_file)
     return output_file
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def simulated_reads(sandbox, fasta):
-    python2 = local['python2']
-    gen_reads = python2['test/lib/neat-genreads/genReads.py']
+    python2 = local["python2"]
+    gen_reads = python2["test/lib/neat-genreads/genReads.py"]
     output_prefix = sandbox / uuid4().hex
     output = {}
-    output['fwd'] = local.path(output_prefix + '_read1.fq')
-    output['rev'] = local.path(output_prefix + '_read2.fq')
-    output['bam'] = local.path(output_prefix + '_golden.bam')
+    output["fwd"] = local.path(output_prefix + "_read1.fq")
+    output["rev"] = local.path(output_prefix + "_read2.fq")
+    output["bam"] = local.path(output_prefix + "_golden.bam")
 
-    gen_reads['-r', fasta['fasta'], '-R', '101', '-o', output_prefix, '--bam',
-              '--pe', '300', '30']()
+    gen_reads[
+        "-r",
+        fasta["fasta"],
+        "-R",
+        "101",
+        "-o",
+        output_prefix,
+        "--bam",
+        "--pe",
+        "300",
+        "30",
+    ]()
     return output
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def paired_trimmed_fastq(sandbox, simulated_reads):
     """Produce a test dataset with trimmed paired fastq files
 
@@ -472,122 +506,131 @@ def paired_trimmed_fastq(sandbox, simulated_reads):
     trim_interval = [1, 30]
 
     trimmed = {}
-    trimmed['fwd'] = local.path(prefix + '.R1.fastq')
-    trimmed['rev'] = local.path(prefix + '.R2.fastq')
-    trimmed['unpaired'] = local.path(prefix + '.unpaired.fastq')
+    trimmed["fwd"] = local.path(prefix + ".R1.fastq")
+    trimmed["rev"] = local.path(prefix + ".R2.fastq")
+    trimmed["unpaired"] = local.path(prefix + ".unpaired.fastq")
 
-    with trimmed['fwd'].open('w') as out_fwd, \
-            trimmed['rev'].open('w') as out_rev, \
-            trimmed['unpaired'].open('w') as out_unp:
-        for reads in zip(SeqIO.parse(simulated_reads['fwd'], 'fastq'),
-                         SeqIO.parse(simulated_reads['rev'], 'fastq')):
+    with trimmed["fwd"].open("w") as out_fwd, trimmed["rev"].open(
+        "w"
+    ) as out_rev, trimmed["unpaired"].open("w") as out_unp:
+        for reads in zip(
+            SeqIO.parse(simulated_reads["fwd"], "fastq"),
+            SeqIO.parse(simulated_reads["rev"], "fastq"),
+        ):
             # Trim the reads
             reads = [trim(read, prob_trim, trim_interval) for read in reads]
 
             # Remove some of the reads
             is_removed = binomial(1, prob_removal, 2)
             if is_removed[0] and not is_removed[1]:
-                out_unp.write(reads[1].format('fastq'))
+                out_unp.write(reads[1].format("fastq"))
             elif is_removed[1] and not is_removed[0]:
-                out_unp.write(reads[0].format('fastq'))
+                out_unp.write(reads[0].format("fastq"))
             else:
-                out_fwd.write(reads[0].format('fastq'))
-                out_rev.write(reads[1].format('fastq'))
+                out_fwd.write(reads[0].format("fastq"))
+                out_rev.write(reads[1].format("fastq"))
     for fastq in list(trimmed.values()):
         assert count_reads(fastq) > 0
 
     return trimmed
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def partial_fasta(sandbox, fasta):
     output = {}
-    output['fasta'] = sandbox / (uuid4().hex + '.fa')
-    output['bt2'] = output['fasta'].with_suffix('')
-    with output['fasta'].open('w') as f:
-        for i, record in enumerate(SeqIO.parse(fasta['fasta'], "fasta")):
+    output["fasta"] = sandbox / (uuid4().hex + ".fa")
+    output["bt2"] = output["fasta"].with_suffix("")
+    with output["fasta"].open("w") as f:
+        for i, record in enumerate(SeqIO.parse(fasta["fasta"], "fasta")):
             if i < 4:
                 # Full sequences
-                print('>' + record.id, file=f)
+                print(">" + record.id, file=f)
                 print(record.seq, file=f)
             elif i > 3 and i < 7:
                 # Trimmed sequences
-                print('>' + record.id, file=f)
+                print(">" + record.id, file=f)
                 print(record.seq[0:250], file=f)
-    index_fasta(output['fasta'], 'all')
+    index_fasta(output["fasta"], "all")
     return output
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def mini_bams(sandbox, trimmed_bam):
-    list_csomes = local['bin/list_csomes']
+    list_csomes = local["bin/list_csomes"]
     csomes = capture_stdout(list_csomes[trimmed_bam])
     output_bams = []
     for csome in csomes:
-        output_bam = sandbox / (uuid4().hex + '.bam')
+        output_bam = sandbox / (uuid4().hex + ".bam")
         output_bams.append(output_bam)
-        (samtools['view', '-bh', trimmed_bam, csome] > output_bam)()
+        (samtools["view", "-bh", trimmed_bam, csome] > output_bam)()
         assert count_reads(output_bam) > 0
     return output_bams
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def empty_bam(sandbox, untrimmed_bam):
-    output_bam = sandbox / (uuid4().hex + '.bam')
-    (sambamba['view', '-f', 'bam', '-F', "ref_name==foo"] > output_bam)()
+    output_bam = sandbox / (uuid4().hex + ".bam")
+    (sambamba["view", "-f", "bam", "-F", "ref_name==foo"] > output_bam)()
     assert count_reads(output_bam) == 0
     return output_bam
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def untrimmed_bam(sandbox, fasta, simulated_reads):
-    output_bam = sandbox / (uuid4().hex + '.bam')
-    align_and_sort(idx=fasta['bt2'], fastq1=simulated_reads['fwd'],
-                   fastq2=simulated_reads['rev'], preset='very-fast',
-                   output_bam=output_bam)
+    output_bam = sandbox / (uuid4().hex + ".bam")
+    align_and_sort(
+        idx=fasta["bt2"],
+        fastq1=simulated_reads["fwd"],
+        fastq2=simulated_reads["rev"],
+        preset="very-fast",
+        output_bam=output_bam,
+    )
     return output_bam
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def trimmed_bam(sandbox, partial_fasta, paired_trimmed_fastq):
-    output_bam = sandbox / (uuid4().hex + '.bam')
-    align_and_sort(idx=partial_fasta['bt2'],
-                   fastq1=paired_trimmed_fastq['fwd'],
-                   fastq2=paired_trimmed_fastq['rev'], preset='very-fast',
-                   output_bam=output_bam)
+    output_bam = sandbox / (uuid4().hex + ".bam")
+    align_and_sort(
+        idx=partial_fasta["bt2"],
+        fastq1=paired_trimmed_fastq["fwd"],
+        fastq2=paired_trimmed_fastq["rev"],
+        preset="very-fast",
+        output_bam=output_bam,
+    )
     return output_bam
 
 
-@fixture(scope='session')
+@fixture(scope="session")
 def bam_with_orphans(sandbox, trimmed_bam):
     """Generate a .bam file with orphaned reads."""
-    output_bam = sandbox / (uuid4().hex + '.bam')
+    output_bam = sandbox / (uuid4().hex + ".bam")
     # Reads which match this criterion are filtered, leaving orphaned reads in
     # the bam
     filt = "not (first_of_pair and ref_id == 1 and position < 200)"
-    (sambamba['view', '-f', 'bam', '-F', filt, trimmed_bam] > output_bam)()
+    (sambamba["view", "-f", "bam", "-F", filt, trimmed_bam] > output_bam)()
     return output_bam
 
 
 @fixture
 def indexed_bam_with_orphans(bam_with_orphans):
     """A bam file with orphan reads and a .bai index."""
-    samtools('index', bam_with_orphans)
+    samtools("index", bam_with_orphans)
     return bam_with_orphans
 
 
 @fixture(scope="session")
 def trimmed_sam(sandbox, trimmed_bam):
-    bam_to_sam = local['bin/bam_to_sam']
-    sam = sandbox / (uuid4().hex + '.sam')
+    bam_to_sam = local["bin/bam_to_sam"]
+    sam = sandbox / (uuid4().hex + ".sam")
     (bam_to_sam[trimmed_bam] > sam)()
     return sam
 
 
 @fixture(scope="session")
 def untrimmed_sam(sandbox, untrimmed_bam):
-    bam_to_sam = local['bin/bam_to_sam']
-    sam = sandbox / (uuid4().hex + '.sam')
+    bam_to_sam = local["bin/bam_to_sam"]
+    sam = sandbox / (uuid4().hex + ".sam")
     (bam_to_sam[untrimmed_bam] > sam)()
     return sam
 
@@ -610,16 +653,16 @@ def unique_dir(sandbox):
     rmtree(str(path))
 
 
-@fixture(scope='session', autouse=True)
+@fixture(scope="session", autouse=True)
 def update_testdat(testdir, testdat, testdat_repo):
     """Make sure that testdat is up to date"""
 
     if not testdat.exists():
         with local.cwd(testdir):
-            git['clone', testdat_repo]()
+            git["clone", testdat_repo]()
     else:
         with local.cwd(testdat):
-            git['pull']()
+            git["pull"]()
 
 
 @fixture
@@ -631,11 +674,11 @@ def dataframe():
     2  0  0
 
     """
-    x = pd.DataFrame(index=[1, 2], columns=['A', 'B'])
+    x = pd.DataFrame(index=[1, 2], columns=["A", "B"])
     x = x.fillna(0)
     return x
 
 
 @fixture
 def dataframe_header():
-    return ['# foo\n', '\n']
+    return ["# foo\n", "\n"]

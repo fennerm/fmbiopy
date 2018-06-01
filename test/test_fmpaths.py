@@ -91,29 +91,9 @@ def test_as_dict(nested_dir):
     assert isinstance(dic, dict)
 
 
-def test_as_paths(randstrs):
-    paths = as_paths(randstrs(3))
-    for path in paths:
-        assert isinstance(path, LocalPath)
-
-
-def test_as_strs(empty_list):
-    # Trival
-    pass
-
-
 def test_check_all_exist():
     # Already covered
     pass
-
-
-def test_create_all(poss_path_lists):
-    name, value = poss_path_lists
-    if name == "absolute_nonexist_paths":
-        create_all(value)
-        assert all_exist(value)
-    elif name == "empty_list":
-        create_all(value)
 
 
 class TestDelete:
@@ -165,7 +145,7 @@ def test_is_empty(empty_path):
 
 def test_listdirs(gen_tmp, nested_dir):
     reg_file = gen_tmp(empty=False, directory=nested_dir)
-    assert str(reg_file) not in as_strs(listdirs(nested_dir))
+    assert reg_file not in listdirs(nested_dir)
 
 
 def test_move(gen_tmp, tmpdir, randpath):
