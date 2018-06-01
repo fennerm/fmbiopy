@@ -1,16 +1,18 @@
+"""Test helper functions."""
+
 from random import randint
 
+from pandas import DataFrame
 from numpy.random import binomial
 from plumbum import local
-from plumbum.cmd import (
-    picard,
-)
+from plumbum.cmd import picard
 
 from fmbiopy.fmpaths import is_empty
 
 
-def assert_script_produces_files(script, args, output, redirect=None,
-                                 empty_ok=False, outdir=None):
+def assert_script_produces_files(
+    script, args, output, redirect=None, empty_ok=False, outdir=None
+):
     """Assert that a script with given command line args produces expected files
 
     Parameters
@@ -54,5 +56,17 @@ def trim(read, prob_trim, trim_interval):
 
 
 def validate_bam_file(bam_or_sam):
-    picard("ValidateSamFile", "I=" + bam_or_sam, "MODE=SUMMARY",
-           "IGNORE_WARNINGS=true", "iGNORE=MISSING_READ_GROUP")
+    picard(
+        "ValidateSamFile",
+        "I=" + bam_or_sam,
+        "MODE=SUMMARY",
+        "IGNORE_WARNINGS=true",
+        "iGNORE=MISSING_READ_GROUP",
+    )
+
+
+def assert_df_equals(df, query):
+    """Check if a DataFrame is equal to a DataFrame or dictionary."""
+    if isinstance(query, dict):
+        query = DataFrame.from_dict(query)
+    assert df.to_dict() == query.to_dict()
