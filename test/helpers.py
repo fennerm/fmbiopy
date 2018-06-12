@@ -1,6 +1,6 @@
 """Test helper functions."""
-
 from random import randint
+from uuid import uuid4
 
 from pandas import DataFrame
 from numpy.random import binomial
@@ -70,3 +70,37 @@ def assert_df_equals(df, query):
     if isinstance(query, dict):
         query = DataFrame.from_dict(query)
     assert df.to_dict() == query.to_dict()
+
+
+def gen_reads(
+    fasta, output_dir, bam_output=True, vcf_output=False, mutation_rate=0
+):
+    """Wrapper around NEAT gen-reads script."""
+    output_prefix = output_dir / uuid4().hex
+    output = {
+        "prefix": output_prefix,
+        "fwd": local.path(output_prefix + "_read1.fq"),
+        "rev": local.path(output_prefix + "_read2.fq"),
+        "bam": local.path(output_prefix + "_golden.bam"),
+        "vcf": local.path(output_prefix + "_golden.vcf"),
+    }
+    gen_reads_bin = local["python2"]["test/lib/neat-genreads/genReads.py"]
+    gen_reads_args = [
+        "-r",
+        fasta,
+        "-R",
+        "101",
+        "-o",
+        output_prefix,
+        "-M",
+        mutation_rate,
+        "--pe",
+        "300",
+        "30",
+    ]
+    if bam_output:
+        gen_reads_args.append("--bam")
+    if vcf_output:
+        gen_reads_args.append("--vcf")
+    gen_reads_bin.__getitem__(gen_reads_args)()
+    return output

@@ -10,24 +10,13 @@ from Bio import SeqIO
 from numpy.random import binomial
 import pandas as pd
 from plumbum import local
-from plumbum.cmd import git, sambamba, samtools
+from plumbum.cmd import git, sambamba, samtools, sed
 from pytest import fixture
 
-from fmbiopy.bio import (
-    align_and_sort,
-    count_reads,
-    index_fasta,
-    simulate_fasta,
-)
-from fmbiopy.paths import (
-    as_dict,
-    is_empty,
-    listdirs,
-    remove_all,
-    silent_remove,
-)
+from fmbiopy.bio import align_and_sort, count_reads, index_fasta, simulate_fasta
+from fmbiopy.paths import as_dict, is_empty, listdirs, remove_all, silent_remove
 from fmbiopy.system import capture_stdout
-from test.helpers import trim
+from test.helpers import gen_reads, trim
 
 
 @fixture
@@ -471,27 +460,63 @@ def nonindexed_fasta(sandbox, fasta):
 
 @fixture(scope="session")
 def simulated_reads(sandbox, fasta):
-    python2 = local["python2"]
-    gen_reads = python2["test/lib/neat-genreads/genReads.py"]
-    output_prefix = sandbox / uuid4().hex
-    output = {}
-    output["fwd"] = local.path(output_prefix + "_read1.fq")
-    output["rev"] = local.path(output_prefix + "_read2.fq")
-    output["bam"] = local.path(output_prefix + "_golden.bam")
+    return gen_reads(
+        fasta=fasta,
+        output_dir=sandbox,
+        bam_output=True,
+        vcf_output=False,
+        mutation_rate=0,
+    )
 
-    gen_reads[
-        "-r",
-        fasta["fasta"],
-        "-R",
-        "101",
-        "-o",
-        output_prefix,
-        "--bam",
-        "--pe",
-        "300",
-        "30",
-    ]()
-    return output
+
+@fixture(scope="session")
+def reads_with_mutations(sandbox, fasta):
+    return gen_reads(
+        fasta=fasta,
+        output_dir=sandbox,
+        bam_output=True,
+        vcf_output=True,
+        mutation_rate=0.1,
+    )
+
+
+@fixture(scope="session")
+def multisample_reads(sandbox, fasta):
+    """Reads + alignments from a group of samples aligned to same reference."""
+    return {
+        "sample": ["sample" + str(i) for i in range(3)],
+        "reads": [
+            gen_reads(
+                fasta=fasta,
+                output_dir=sandbox,
+                bam_output=True,
+                vcf_output=True,
+                mutation_rate=0.1,
+            )
+            for _ in range(3)
+        ],
+    }
+
+
+@fixture(scope="session")
+def readcounts_with_mutations(sandbox, fasta, multisample_reads):
+    """List of readcount files, each containing mutations."""
+    output_files = [
+        sandbox / (sample + ".tsv") for sample in multisample_reads["sample"]
+    ]
+    for reads, output in zip(multisample_reads["reads"], output_files):
+        (
+            samtools["mpileup", "-a", "-f", fasta["fasta"], reads["bam"]]
+            | sed["'s/          /       *       */g'"]
+            | local["mpileup2readcounts"]["1", "-5", "false", "0", "0"]
+            > output
+        )()
+    return output_files
+
+
+@fixture(scope="session")
+def shared_alt_alleles(readcounts_with_mutations):
+    pass
 
 
 @fixture(scope="session")
