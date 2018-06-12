@@ -100,7 +100,7 @@ def _get_shared_indels_from_row(row):
         return NaN
 
 
-def find_shared_indels(per_sample_counts, allele):
+def find_shared_indels(per_sample_counts, allele=None):
     """Find all indel variants which are not unique to a sample.
 
     Parameters
@@ -108,20 +108,38 @@ def find_shared_indels(per_sample_counts, allele):
     per_sample_counts: List[DataFrame]
         List of unstranded count tables. One for each sample.
     allele: str
-        One of ["Insertion", "Deletion"]
+        One of ["Insertion", "Deletion"]. If None, then positions with any
+        indel present in multiple samples will be flagged.
 
     Returns
     -------
     DataFrame
-        Return a DataFrame containing shared indels and their indices.
+        Return a DataFrame containing shared indels and their indices. If allele
+        is None then instead just returns chromosome and position.
 
     """
-    indel_counts = concat(
-        [counts[allele] for counts in per_sample_counts], axis=1
-    )
-    mult_samples_have_indels = indel_counts.notnull().sum(axis=1) > 1
-    mult_indel_counts = indel_counts[mult_samples_have_indels]
-    shared_indels = mult_indel_counts.apply(
-        _get_shared_indels_from_row, axis=1, result_type="reduce"
-    ).dropna()
+    if allele:
+        indel_counts = concat(
+            [counts[allele] for counts in per_sample_counts], axis=1
+        )
+        mult_samples_have_indels = indel_counts.notnull().sum(axis=1) > 1
+        mult_indel_counts = indel_counts[mult_samples_have_indels]
+        shared_indels = mult_indel_counts.apply(
+            _get_shared_indels_from_row, axis=1, result_type="reduce"
+        ).dropna()
+    else:
+        indel_counts_per_sample = [
+            counts[["Insertion", "Deletion"]] for counts in per_sample_counts
+        ]
+        sample_has_indel = concat(
+            [
+                counts.notnull().sum(axis=1) > 0
+                for counts in indel_counts_per_sample
+            ],
+            axis=1,
+        )
+        mult_samples_have_indels = sample_has_indel.sum(axis=1) > 1
+        shared_indels = per_sample_counts[0][mult_samples_have_indels][
+            ["chr", "pos"]
+        ]
     return shared_indels
