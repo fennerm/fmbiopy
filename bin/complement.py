@@ -53,7 +53,7 @@ def remove_shared_rows(dfs, include_cols=None):
             subset=get_colnames(merged_df)[0:-1], keep=False, inplace=True)
 
     split_dfs = split(merged_df, by='group')
-    df_groups = {int(df["group"][0]): df.drop("group", 1) for df in split_dfs}
+    df_groups = {int(df["group"].iloc[0]): df.drop("group", 1) for df in split_dfs}
 
     output_dfs = list()
     for i in range(num_dfs):
