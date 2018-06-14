@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Extract random N bp subsequences from a fasta file."""
+from __future__ import print_function
 import sys
 
 from Bio import SeqIO
