@@ -35,7 +35,7 @@ def write_table_with_header(df, header, filename, **kwargs):
         filename.dirname.mkdir()
     with filename.open('a') as f:
         f.writelines(header)
-        df.to_csv(f, index=False)
+        df.to_csv(f, index=False, **kwargs)
 
 
 def read_header(filename, comment_char='#'):
