@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Remove shared rows from a set of csvs or tsvs."""
 import click
 import pandas as pd
@@ -35,6 +35,7 @@ def remove_shared_rows(dfs, include_cols=None):
     """Remove shared rows from a list of data frames."""
     # These will need to be added back to the data frames later.
     colnames = [list(df.columns.values) for df in dfs]
+    num_dfs = len(dfs)
 
     for i, df in enumerate(dfs):
         # Replace all column names with integers so that they can be merged
@@ -51,12 +52,20 @@ def remove_shared_rows(dfs, include_cols=None):
         merged_df.drop_duplicates(
             subset=get_colnames(merged_df)[0:-1], keep=False, inplace=True)
 
-    final_dfs = split(merged_df, by='group', include_by=False)
+    split_dfs = split(merged_df, by='group')
+    df_groups = {int(df["group"][0]): df.drop("group", 1) for df in split_dfs}
 
-    for cols, df in zip(colnames, final_dfs):
+    output_dfs = list()
+    for i in range(num_dfs):
+        if i in df_groups:
+            output_dfs.append(df_groups[i])
+        else:
+            output_dfs.append(pd.DataFrame(columns = colnames[i]))
+
+    for cols, df in zip(colnames, output_dfs):
         df.columns = cols
 
-    return final_dfs
+    return output_dfs
 
 
 def complement(csv_files, output_prefix, delimiter=',', include_cols=None,
