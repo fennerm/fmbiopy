@@ -12,11 +12,11 @@ from plumbum.cmd import bedtools
 
 def endpoints_are_within_csome(bed_table, faidx):
     csome_length = faidx[faidx["CHROM"] == bed_table["CHROM"]]["LENGTH"]
-    return bed_table["r1"] >= 0 and bed_table["r2"] <= csome_length.values[0]
+    return bed_table["r1"] >= 0) and bed_table["r2"] <= csome_length.values[0]
 
 
 @click.command()
-@click.option("-r", "--reference", help="Reference sequence (fasta)")
+@click.option("-r", "--reference", type=str, help="Reference sequence (fasta)")
 @click.option(
     "-n", "--num-flanking", type=int, help="Number of flanking bases to extract"
 )
@@ -32,6 +32,9 @@ def extract_flanking_bases(reference, pre, post, num_flanking, tsv):
     if sum([bool(pre), bool(post), bool(num_flanking)]) > 1:
         sys.exit("Only one of -pre/-post/-n should be defined")
     variants = read_csv(tsv, sep="\t")
+    if not len(variants):
+        sys.stdout.write("\n")
+        sys.exit()
     if num_flanking:
         r1 = variants["POS"] - num_flanking
         r2 = variants["POS"] + num_flanking
