@@ -12,7 +12,7 @@ from plumbum.cmd import bedtools
 
 def endpoints_are_within_csome(bed_table, faidx):
     csome_length = faidx[faidx["CHROM"] == bed_table["CHROM"]]["LENGTH"]
-    return bed_table["r1"] >= 0) and bed_table["r2"] <= csome_length.values[0]
+    return bed_table["r1"] >= 0 and bed_table["r2"] <= csome_length.values[0]
 
 
 @click.command()
