@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
@@ -7,6 +7,10 @@ import click
 from pandas import DataFrame, read_csv
 from plumbum import FG
 from plumbum.cmd import bedtools
+
+def endpoints_are_within_csome(bed_table, faidx):
+    csome_length = faidx[faidx["CHROM"] == bed_table["CHROM"]]["LENGTH"]
+    return bed_table["r1"] >= 0 and bed_table["r2"] <= csome_length.values[0]
 
 
 @click.command()
@@ -25,6 +29,17 @@ def extract_flanking_bases(reference, num_flanking, tsv):
             "r2": variants["POS"] + num_flanking,
         }
     )
+    faidx = read_csv(
+        reference + ".fai",
+        names=["CHROM", "LENGTH"],
+        sep="\t",
+        usecols=[0, 1])
+    has_valid_endpoints = bedfile_contents.apply(
+        endpoints_are_within_csome,
+        axis=1,
+        faidx=faidx
+    )
+    bedfile_contents = bedfile_contents[has_valid_endpoints]
     bedfile_contents = bedfile_contents[["CHROM", "r1", "r2"]]
     tmpfile = os.path.join("/tmp", uuid4().hex, "flanking.bed")
     with NamedTemporaryFile() as tmpfile:
