@@ -42,8 +42,8 @@ def extract_flanking_bases(reference, pre, post, num_flanking, tsv):
         r1 = variants["POS"] - pre
         r2 = variants["POS"]
     elif post:
-        r1 = variants["POS"]
-        r2 = variants["POS"] + post
+        r1 = variants["POS"] + 1
+        r2 = variants["POS"] + post + 1
     bedfile_contents = DataFrame(
         OrderedDict([("CHROM", variants["CHROM"]), ("r1", r1), ("r2", r2)])
     )
