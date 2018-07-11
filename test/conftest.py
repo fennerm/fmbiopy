@@ -461,7 +461,7 @@ def nonindexed_fasta(sandbox, fasta):
 @fixture(scope="session")
 def simulated_reads(sandbox, fasta):
     return gen_reads(
-        fasta=fasta,
+        fasta=fasta["fasta"],
         output_dir=sandbox,
         bam_output=True,
         vcf_output=False,
@@ -472,7 +472,7 @@ def simulated_reads(sandbox, fasta):
 @fixture(scope="session")
 def reads_with_mutations(sandbox, fasta):
     return gen_reads(
-        fasta=fasta,
+        fasta=fasta["fasta"],
         output_dir=sandbox,
         bam_output=True,
         vcf_output=True,
@@ -487,7 +487,7 @@ def multisample_reads(sandbox, fasta):
         "sample": ["sample" + str(i) for i in range(3)],
         "reads": [
             gen_reads(
-                fasta=fasta,
+                fasta=fasta["fasta"],
                 output_dir=sandbox,
                 bam_output=True,
                 vcf_output=True,
