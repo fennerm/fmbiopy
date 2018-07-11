@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
-
 import click
 from plumbum import local
 
@@ -11,7 +9,10 @@ from fmbiopy.cli import PlumbumPath
 @click.command()
 @click.argument("file", type=PlumbumPath(exists=True, dir_okay=False), nargs=1)
 def cli(file):
-    """Calculate the number of reads in a fastq or fastq.gz file."""
+    """Calculate the number of sequences in a fastq, fasta, sam or bam file.
+
+    Gzipped inputs are accepted.
+    """
     print(count_reads(file))
 
 
