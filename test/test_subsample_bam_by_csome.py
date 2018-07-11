@@ -8,7 +8,7 @@ from fmbiopy.system import capture_stdout
 
 @fixture(name="subsampled_bam")
 def gen_subsampled_bam(dat, tmpdir):
-    inbam = dat["small"]["bam"][0]
+    inbam = dat["small"]["bam"][1]
     outbam = tmpdir / "a.bam"
     n = "100"
     subsample_bam = local["bin/subsample_bam_by_csome.py"]
@@ -19,7 +19,7 @@ def gen_subsampled_bam(dat, tmpdir):
 
 @fixture
 def list_csomes():
-    return local['bin/list_csomes']
+    return local["bin/list_csomes"]
 
 
 def test_subsample_bam_by_csome(list_csomes, subsampled_bam):

@@ -4,13 +4,13 @@ import csv
 from plumbum import local
 
 
-def list_to_csv(l, output_file, delimiter=','):
+def list_to_csv(l, output_file, delimiter=","):
     """Write a list of rows to a csv or tsv."""
     output_file = local.path(output_file)
     if not output_file.dirname.exists():
         output_file.dirname.mkdir()
 
-    with output_file.open('w') as f:
+    with output_file.open("w") as f:
         writer = csv.writer(f, delimiter=delimiter)
         for row in l:
             writer.writerow(row)
@@ -33,12 +33,12 @@ def write_table_with_header(df, header, filename, **kwargs):
     filename = local.path(filename)
     if not filename.dirname.exists():
         filename.dirname.mkdir()
-    with filename.open('a') as f:
+    with filename.open("w") as f:
         f.writelines(header)
         df.to_csv(f, index=False, **kwargs)
 
 
-def read_header(filename, comment_char='#'):
+def read_header(filename, comment_char="#"):
     """Read the header from a file
 
     Returns
@@ -47,7 +47,7 @@ def read_header(filename, comment_char='#'):
 
     """
     header = []
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         while True:
             line = f.readline()
             if line.startswith(comment_char) or line.isspace():
@@ -62,5 +62,5 @@ def copy_header(sourcefile, sinkfile):
 
     Contents of sinkfile will be erased.
     """
-    with open(sourcefile, 'r') as source, open(sinkfile, 'w') as sink:
+    with open(sourcefile, "r") as source, open(sinkfile, "w") as sink:
         sink.write(source.readline())
