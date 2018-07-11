@@ -1,4 +1,6 @@
 """Test helper functions."""
+from functools import partial
+import os
 from random import randint
 from uuid import uuid4
 
@@ -6,8 +8,12 @@ from pandas import DataFrame
 from numpy.random import binomial
 from plumbum import local
 from plumbum.cmd import picard
+import wrapt
 
+from fmbiopy.obj import get_param_names, replace_param_sig
 from fmbiopy.paths import is_empty
+
+SANDBOX = local.path("test/sandbox")
 
 
 def assert_script_produces_files(
@@ -104,3 +110,92 @@ def gen_reads(
         gen_reads_args.append("--vcf")
     gen_reads_bin.__getitem__(gen_reads_args)()
     return output
+
+
+def file_generator(
+    wrapped=None,
+    ids=["file"],
+    names=[uuid4().hex],
+    suffixes=[""],
+    dirs=[SANDBOX],
+    properties=None,
+):
+    """Decorator which automates setup and return for file generation functions.
+
+    The decorator fulfills 3 tasks:
+        1. Generating required temporary file names.
+        2. Creating an output dictionary (`D`) which lists file locations.
+        3. Modifies the return of the wrapped function to instead return `D`.
+
+    Wrapped functions must contain a parameter named `meta`, this parameter will
+    be replaced by `D` at runtime, allowing the function to access the generated
+    filenames.
+
+    Parameters
+    ----------
+    wrapped: Callable
+        Should not be defined manually, will be passed automatically by python.
+    ids: Iterable[str]
+        A list of ids for output files. These will be the keys for the output
+        dictionary.
+    names: Iterable[str]
+        A list of output file basenames.
+    suffixes: Iterable[str]
+        A list of file suffixes for output files.
+    dirs: Iterable[PathLike]
+        A list of output directories.
+    properties: Dict
+        Dictionary of extra metadata to be included in output dictionary.
+
+    """
+    # warning: this function gets pretty hairy
+
+    if wrapped is None:
+        # Happens when some optional params are defined
+        # See wrapt docs for reasoning
+        return partial(
+            file_generator,
+            ids=ids,
+            names=names,
+            suffixes=suffixes,
+            dirs=dirs,
+            properties=properties,
+        )
+
+    @wrapt.decorator
+    def wrapper(wrapped, instance, args, kwargs):
+        # Wrapper function with decorator arguments included implicitely as
+        # variables in outer scope.
+
+        # First generate the metadata which will be passed into the decorated
+        # function.
+        filenames = [
+            local.path(directory) / (name + suffix)
+            for directory, name, suffix in zip(dirs, names, suffixes)
+        ]
+        output_dict = dict(zip(ids, filenames))
+        if properties:
+            output_dict.update(properties)
+
+        # Generate a partial function with meta keyword arg predefined.
+        partial_wrapped_func = partial(wrapped, meta=output_dict)
+
+        def replacement_fixture_func(**kwargs):
+            # Function which will replace the decorated function. Run the
+            # wrapped function with injected `meta` variable. Then return the
+            # metadata.
+            partial_wrapped_func(**kwargs)
+            return output_dict
+
+        wrapped_argnames = get_param_names(wrapped)
+
+        # pytest checks that all fixture arguments are valid fixtures, so we
+        # need to purge all references to `meta` parameter
+        wrapped_argnames.remove("meta")
+        del kwargs["meta"]
+        replacement_fixture_func = replace_param_sig(
+            replacement_fixture_func, wrapped_argnames
+        )
+        return replacement_fixture_func(**kwargs)
+
+    return wrapper(wrapped)

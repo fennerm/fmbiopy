@@ -1,11 +1,37 @@
-"""Function and classes involved in manipulating and inspecting objects"""
-
+"""Metaprogramming functions for introspection and manipulation of objects."""
+from copy import copy
 from importlib import import_module
-from inspect import (
-    getmembers,
-    getmro,
-    isclass,
-)
+from inspect import getmembers, getmro, isclass, Parameter, signature
+
+
+def get_param_names(func):
+    """Get the argument names of a function."""
+    return list(func.__code__.co_varnames[: func.__code__.co_argcount])
+
+
+def replace_param_sig(func, params):
+    """Replace the parameter signature of a function.
+
+    Parameters
+    ----------
+    func: Callable
+    params: Iterable[str]
+        New list of argument names for the output function.
+
+    Returns
+    -------
+    Callable
+        A new function which is a copy of `func` with its parameter signature
+        replaced.
+
+    """
+    func_copy = copy(func)
+    new_parameters = [
+        Parameter(param, Parameter.POSITIONAL_OR_KEYWORD) for param in params
+    ]
+    new_signature = signature(func_copy).replace(parameters=new_parameters)
+    func_copy.__signature__ = new_signature
+    return func_copy
 
 
 def classname(cls):
@@ -36,7 +62,7 @@ def list_classes(module, package=None, exclude=None, of_type=None):
         imported = import_module(module)
     else:
         import_module(package)
-        imported = import_module(''.join(['.', module]), package)
+        imported = import_module("".join([".", module]), package)
 
     classes = []
 
@@ -52,7 +78,8 @@ def list_classes(module, package=None, exclude=None, of_type=None):
 
                     # Get class inheritance names
                     inheritance_names = [
-                        classname(cls) for cls in class_inheritance]
+                        classname(cls) for cls in class_inheritance
+                    ]
 
                     # Check if any of the objects inheritance is of the target
                     # type.

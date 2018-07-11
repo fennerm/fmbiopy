@@ -2,6 +2,7 @@
 from __future__ import print_function
 from os import chdir
 from collections import namedtuple
+from contextlib import redirect_stdout
 from shutil import copytree, rmtree
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
@@ -10,13 +11,13 @@ from Bio import SeqIO
 from numpy.random import binomial
 import pandas as pd
 from plumbum import local
-from plumbum.cmd import git, sambamba, samtools, sed
+from plumbum.cmd import bedtools, git, sambamba, samtools, sed
 from pytest import fixture
 
 from fmbiopy.bio import align_and_sort, count_reads, index_fasta, simulate_fasta
 from fmbiopy.paths import as_dict, is_empty, listdirs, remove_all, silent_remove
 from fmbiopy.system import capture_stdout
-from test.helpers import gen_reads, trim
+from test.helpers import file_generator, gen_reads, trim
 
 
 @fixture
@@ -39,6 +40,15 @@ def absolute_exist_paths(tmpdir, randstrs):
 def absolute_some_exist_paths(absolute_exist_paths, absolute_nonexist_paths):
     """Generate a list of paths, half of which exist"""
     return absolute_exist_paths + absolute_nonexist_paths
+
+
+@fixture(scope="session")
+@file_generator(
+    suffixes=[".bed"], properties={"interval_length": 100, "num_intervals": 10}
+)
+def bed(meta, fasta):
+    # interval length = 100, num intervals = 10
+    (bedtools("random", "-n", "10", fasta["fasta"]) > output_file)()
 
 
 @fixture
