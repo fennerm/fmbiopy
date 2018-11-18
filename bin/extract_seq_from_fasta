@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+usage="extract_seq_from_fasta <sequence_id> <fasta>"
+
+if [ "$#" -ne 2 ]; then
+    echo "Error:"
+    echo "Usage=$usage"
+    exit
+fi
+
+sequence_id="$1"
+fasta="$2"
+
+sed -n '/>'"$sequence_id"'/,/>/p' "$fasta" | head -n -1

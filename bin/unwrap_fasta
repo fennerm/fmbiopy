@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Converts a multiline fasta to a single line fasta
+awk '/^>/{print s? s"\n"$0:$0;s="";next}{s=s sprintf("%s",$0)}END{if(s)print s}' "$1"
