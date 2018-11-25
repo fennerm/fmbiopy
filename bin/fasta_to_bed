@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+bioawk -c fastx '{print $name"\t0\t"length($seq)}' "$1"
