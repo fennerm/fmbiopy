@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-bioawk -c fastx '{print $name"\t0\t"length($seq)}' "$1"
+# Convert a fasta file to a set of bed intervals
+tmpfile="$(mktemp -p "$PWD")"
+bioawk -c fastx '{print $name"\t0\t"length($seq)}' "$1" >"$tmpfile"
+bedtools sort -i "$tmpfile"
+rm "$tmpfile"
